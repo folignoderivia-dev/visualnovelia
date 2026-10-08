@@ -176,6 +176,3 @@ export async function restartStory(storyId: string): Promise<void> {
   check(await supabase.from('story_memories').delete().eq('story_id', storyId).select())
   check(await supabase.from('story_state').delete().eq('story_id', storyId).select())
 }
-  
-export async function saveTag(t: any): Promise<any> {  
-  const { id, story_id, ...rest } = t  
