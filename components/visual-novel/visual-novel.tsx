@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/toast'
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map'
 const HIDDEN: StoryMessage['message_type'][] = ['action', 'scene_change', 'system']
 
-export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () => void }) {
+export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBack: () => void; onEdit?: () => void }) {
   const { notify } = useToast()
   const [story, setStory] = useState<Story | null>(null)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
@@ -242,7 +242,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       <header className="novel-topbar">
         <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
         <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button></div>
+        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
       </header>
 
       <section className="novel-stage" onClick={advance}>

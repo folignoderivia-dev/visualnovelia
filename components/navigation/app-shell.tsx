@@ -43,7 +43,7 @@ export function AppShell() {
   }
 
   if (mode.name === 'play') {
-    return <VisualNovel storyId={mode.storyId} onBack={() => setMode(mode.from === 'editor' ? { name: 'editor', storyId: mode.storyId } : { name: 'library' })} />
+    return <VisualNovel storyId={mode.storyId} onEdit={() => setMode({ name: 'editor', storyId: mode.storyId })} onBack={() => setMode(mode.from === 'editor' ? { name: 'editor', storyId: mode.storyId } : { name: 'library' })} />
   }
 
   const name = (user?.user_metadata?.display_name as string | undefined) || user?.email?.split('@')[0] || 'Usuário'
