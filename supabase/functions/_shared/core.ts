@@ -12,7 +12,7 @@ export class HttpError extends Error {
   }
 }
 
-export const EXPRESSIONS = ['neutral', 'happy', 'sad', 'angry', 'scared', 'surprised', 'in_love', 'worried'] as const
+export const EXPRESSIONS = ['neutral', 'happy', 'sad', 'angry', 'scared', 'surprised', 'in_love', 'worried', 'ashamed', 'intimate'] as const
 export const MEMORY_TYPES = ['world', 'character', 'relationship', 'event', 'fact', 'player', 'plot', 'scene', 'preference'] as const
 export const MAX_BEATS = 5
 export const MAX_MEMORIES_PER_TURN = 3

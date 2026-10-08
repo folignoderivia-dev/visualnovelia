@@ -31,7 +31,7 @@ const RESPONSE_SCHEMA = {
       properties: {
         current_location: { type: 'STRING', nullable: true },
         story_time: { type: 'STRING', nullable: true },
-        new_chapter: { type: 'BOOLEAN', nullable: true },
+        new_chapter: { type: 'BOOLEAN', nullable: true }, pending_choices: { type: 'ARRAY', items: { type: 'STRING' } },
         flags: {
           type: 'ARRAY',
           items: { type: 'OBJECT', properties: { key: { type: 'STRING' }, value: { type: 'STRING' } }, required: ['key', 'value'] },

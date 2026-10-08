@@ -56,23 +56,38 @@ async function ensureScenario(storyId: string, list: Scenario[]): Promise<Scenar
 
 // ------------------------------------------------------------------ editor
 export async function loadBundle(storyId: string): Promise<StoryBundle> {
-  const [story, world, master, scenarios, characters, player] = await Promise.all([
+  const [story, world, master, scenarios, characters, player, expressions] = await Promise.all([
     supabase.from('stories').select('*').eq('id', storyId).maybeSingle(),
     supabase.from('story_worlds').select('*').eq('story_id', storyId).maybeSingle(),
     supabase.from('story_master_settings').select('*').eq('story_id', storyId).maybeSingle(),
     supabase.from('scenarios').select('*').eq('story_id', storyId).order('created_at'),
     supabase.from('characters').select('*').eq('story_id', storyId).order('created_at'),
     supabase.from('player_characters').select('*').eq('story_id', storyId).maybeSingle(),
+    supabase.from('character_expressions').select('*').in('character_id', 
+      (await supabase.from('characters').select('id').eq('story_id', storyId)).data?.map(c => c.id) || []
+    )
   ])
   const s = check(story) as Story | null
   if (!s) throw new Error('story not found')
+  
+  const chars = check(characters) as Character[]
+  const exprs = (check(expressions) as any[]) || []
+  for (const c of chars) {
+    c.expressions = {}
+    for (const e of exprs) {
+      if (e.character_id === c.id && e.image_url) {
+        c.expressions[e.expression_type] = e.image_url
+      }
+    }
+  }
+
   const userId = s.user_id
   return {
     story: s,
     world: (check(world) as World | null) ?? ({ story_id: storyId, world_name: '', description: '', era: '', starting_location: '', world_rules: '', atmosphere: '', important_information: '' } as World),
     master: (check(master) as MasterSettings | null) ?? ({ story_id: storyId, master_prompt: '', narrative_style: '', narrator_personality: '', continuity_rules: '', character_rules: '', player_character_rules: '', pacing_rules: '', romance_rules: '', humor_rules: '', violence_rules: '', mystery_rules: '', additional_rules: '' } as MasterSettings),
     scenarios: await ensureScenario(storyId, check(scenarios) as Scenario[]),
-    characters: check(characters) as Character[],
+    characters: chars,
     player: (check(player) as PlayerCharacter | null) ?? ({ story_id: storyId, user_id: userId, name: '', nickname: '', age: '', appearance: '', personality: '', history: '', goals: '', fears: '', extra_information: '', image_url: null, image_path: null } as PlayerCharacter),
   }
 }
@@ -105,11 +120,20 @@ export async function createCharacter(storyId: string): Promise<Character> {
   return check(await supabase.from('characters').insert({ story_id: storyId }).select().single()) as Character
 }
 export async function saveCharacter(c: Character): Promise<void> {
-  const { id, story_id: _s, ...rest } = c
+  const { id, story_id: _s, expressions, ...rest } = c as any
   check(await supabase.from('characters').update(rest).eq('id', id).select())
 }
 export async function deleteCharacter(id: string): Promise<void> {
   check(await supabase.from('characters').delete().eq('id', id).select())
+}
+
+export async function saveExpression(characterId: string, expressionType: string, imageUrl: string, imagePath: string): Promise<void> {
+  check(await supabase.from('character_expressions').upsert({
+    character_id: characterId,
+    expression_type: expressionType,
+    image_url: imageUrl,
+    image_path: imagePath
+  }, { onConflict: 'character_id,expression_type' }).select())
 }
 
 export async function markReady(storyId: string): Promise<void> {

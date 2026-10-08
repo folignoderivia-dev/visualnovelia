@@ -9,7 +9,7 @@ var HttpError = class extends Error {
     this.code = code;
   }
 };
-var EXPRESSIONS = ["neutral", "happy", "sad", "angry", "scared", "surprised", "in_love", "worried"];
+var EXPRESSIONS = ["neutral", "happy", "sad", "angry", "scared", "surprised", "in_love", "worried", "ashamed", "intimate"];
 var MEMORY_TYPES = ["world", "character", "relationship", "event", "fact", "player", "plot", "scene", "preference"];
 var MAX_BEATS = 5;
 var MAX_MEMORIES_PER_TURN = 3;
@@ -377,6 +377,7 @@ var RESPONSE_SCHEMA = {
         current_location: { type: "STRING", nullable: true },
         story_time: { type: "STRING", nullable: true },
         new_chapter: { type: "BOOLEAN", nullable: true },
+        pending_choices: { type: "ARRAY", items: { type: "STRING" } },
         flags: {
           type: "ARRAY",
           items: { type: "OBJECT", properties: { key: { type: "STRING" }, value: { type: "STRING" } }, required: ["key", "value"] }

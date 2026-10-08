@@ -30,7 +30,8 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [uploadTarget, setUploadTarget] = useState<'scenario' | 'character' | null>(null)
+  const [uploadTarget, setUploadTarget] = useState<'scenario' | 'character' | string>(null as any)
+  const [editingChar, setEditingChar] = useState<Character | null>(null)
   const retry = useRef<null | (() => void)>(null)
   const startedRef = useRef(false)
 
@@ -40,6 +41,8 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
   const npcById = useMemo(() => new Map(characters.map((c) => [c.id, c])), [characters])
   const scenario = scenarios.find((s) => s.id === state?.current_scenario_id) ?? scenarios.find((s) => s.is_starting_scenario) ?? scenarios[0]
   const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : undefined
+  const currentExpr = current?.expression || 'neutral'
+  const speakerImg = speaker ? ((speaker as any).expressions?.[currentExpr] || speaker.image_url) : null
 
   const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState) => {
     setMessages((prev) => {
@@ -140,7 +143,16 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !uploadTarget) return
-    const id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
+    const isExpr = uploadTarget.startsWith('expr_')
+    let id: string | undefined
+    let exprType = ''
+    if (isExpr) {
+      const parts = uploadTarget.split('_')
+      id = parts[1]
+      exprType = parts[2]
+    } else {
+      id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
+    }
     if (!id) return
     try {
       const ext = file.name.split('.').pop()
@@ -155,6 +167,16 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
         const up = { ...scenario, image_url: pub.publicUrl, image_path: path }
         await svc.saveScenario(up)
         setScenarios((s) => s.map((x) => x.id === id ? up : x))
+      } else if (isExpr) {
+        await svc.saveExpression(id, exprType, pub.publicUrl, path)
+        const c = characters.find(x => x.id === id)
+        if (c) {
+          const up = { ...c, expressions: { ...(c as any).expressions, [exprType]: pub.publicUrl } }
+          if (exprType === 'neutral') up.image_url = pub.publicUrl
+          await svc.saveCharacter(up as any)
+          setCharacters((ch) => ch.map((x) => x.id === id ? up : x))
+          if (editingChar?.id === id) setEditingChar(up)
+        }
       } else if (speaker) {
         const up = { ...speaker, image_url: pub.publicUrl, image_path: path }
         await svc.saveCharacter(up)
@@ -165,7 +187,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       notify(friendlyError(err, 'Erro ao enviar imagem.'), 'error')
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
-      setUploadTarget(null)
+      setUploadTarget(null as any)
     }
   }
 
@@ -225,9 +247,9 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       <section className="novel-stage" onClick={advance}>
         <div className="chapter-label">CAPÍTULO {String(state?.current_chapter ?? 1).padStart(2, '0')} <span>—</span> {(state?.current_location || scenario?.name || 'PRIMEIRA CENA').toString().toUpperCase()}</div>
         {scenario && <button className="icon-button light edit-scenario-bg" aria-label="Alterar Fundo" title="Alterar fundo" onClick={(e) => { e.stopPropagation(); setUploadTarget('scenario'); fileInputRef.current?.click() }}><ImagePlus size={18} /></button>}
-        {speaker?.image_url && <div key={speaker.id} className="novel-portrait">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={speaker.image_url} alt={speaker.name} /><button className="icon-button edit-char-img" aria-label="Alterar Imagem do Personagem" title="Alterar imagem" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /></button></div>}
-        {!speaker?.image_url && !current && !thinking && !error && <div className="novel-hint"><Sparkles /> Preparando o palco…</div>}
-        {!speaker?.image_url && speaker && <div className="novel-portrait missing-img"><button className="outline-button light" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /> Adicionar imagem</button></div>}
+        {speakerImg && <div key={speaker.id} className="novel-portrait">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={speaker.image_url} alt={speaker.name} /><button className="icon-button edit-char-img" aria-label="Alterar Imagem do Personagem" title="Alterar imagem" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /></button></div>}
+        {!speakerImg && !current && !thinking && !error && <div className="novel-hint"><Sparkles /> Preparando o palco…</div>}
+        {!speakerImg && speaker && <div className="novel-portrait missing-img"><button className="outline-button light" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /> Adicionar imagem</button></div>}
       </section>
 
       <section className="dialogue-panel">
@@ -295,11 +317,49 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
                 {messages.length === 0 && <p className="drawer-empty">Nada aqui ainda.</p>}
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
               </>}
-              {panel === 'cast' && <>
+              {panel === 'cast' && !editingChar && <>
                 {player && <div className="cast-item"><div className="cast-avatar">{player.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={player.image_url} alt="" /> : <UserRound />}</div><div><strong>{player.name}</strong><span>VOCÊ CONTROLA</span></div></div>}
-                {characters.map((c) => <div key={c.id} className="cast-item"><div className="cast-avatar">{c.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={c.image_url} alt="" /> : <UserRound />}</div><div><strong>{c.name || 'Sem nome'}</strong><span>{c.nickname || c.relationship_to_protagonist || 'NPC'}</span></div></div>)}
+                {characters.map((c) => (
+                  <div key={c.id} className="cast-item">
+                    <div className="cast-avatar">{c.image_url ? <img src={c.image_url} alt="" /> : <UserRound />}</div>
+                    <div style={{ flex: 1 }}><strong>{c.name || 'Sem nome'}</strong><span>{c.nickname || c.relationship_to_protagonist || 'NPC'}</span></div>
+                    <button className="icon-button light" onClick={() => setEditingChar(c)} aria-label="Editar Personagem"><Pencil size={15} /></button>
+                  </div>
+                ))}
                 {characters.length === 0 && <p className="drawer-empty">Nenhum personagem criado.</p>}
               </>}
+              {panel === 'cast' && editingChar && (
+                <div className="char-editor-panel">
+                  <div className="drawer-head" style={{ padding: 0, marginBottom: '20px', background: 'none' }}>
+                    <button className="outline-button light" onClick={() => setEditingChar(null)}><ArrowLeft size={16} /> Voltar</button>
+                    <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name}</strong>
+                  </div>
+                  <div className="field"><span>Nome</span><input value={editingChar.name} onChange={(e) => setEditingChar({ ...editingChar, name: e.target.value })} /></div>
+                  <div className="field"><span>Personalidade / Prompt</span><textarea value={editingChar.personality} onChange={(e) => setEditingChar({ ...editingChar, personality: e.target.value })} rows={5} /></div>
+                  
+                  <div className="expressions-grid">
+                    <span>Expressões Visuais</span>
+                    <div className="expr-slots">
+                      {['neutral', 'happy', 'angry', 'ashamed', 'intimate'].map((expr) => {
+                        const img = (editingChar as any).expressions?.[expr] || (expr === 'neutral' ? editingChar.image_url : null)
+                        return (
+                          <div key={expr} className="expr-slot" onClick={() => { setUploadTarget(`expr_${editingChar.id}_${expr}`); fileInputRef.current?.click() }}>
+                            {img ? <img src={img} alt={expr} /> : <div className="expr-empty"><ImagePlus size={16}/></div>}
+                            <small>{expr}</small>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <button className="primary-button" style={{ marginTop: '20px', width: '100%' }} onClick={async () => {
+                    try {
+                      await svc.saveCharacter(editingChar)
+                      setCharacters(ch => ch.map(c => c.id === editingChar.id ? editingChar : c))
+                      setEditingChar(null)
+                    } catch (e) { notify(friendlyError(e), 'error') }
+                  }}>Salvar Alterações</button>
+                </div>
+              )}
               {panel === 'memory' && <>
                 <p className="drawer-note">Fatos importantes que o narrador guardou. Você pode apagar o que não quiser que seja lembrado.</p>
                 {memories.map((m) => <div key={m.id} className="mem-item"><div><span>{m.memory_type.toUpperCase()}</span><p>{m.content}</p></div><button className="icon-button light" aria-label="Apagar memória" onClick={() => svc.deleteMemory(m.id).then(() => setMemories((x) => x.filter((y) => y.id !== m.id))).catch((e) => notify(friendlyError(e), 'error'))}><Trash2 /></button></div>)}
