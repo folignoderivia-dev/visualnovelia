@@ -194,6 +194,6 @@ Deno.serve(async (req) => {
   } catch (err) {
     return errorResponse(err)
   } finally {
-    if (release) await release().catch((e) => console.error('[release]', e))
+    if (release) { try { const res = await release(); if (res.error) console.error('[release]', res.error); } catch (e) { console.error('[release]', e); } }
   }
 })

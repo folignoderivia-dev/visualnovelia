@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
@@ -27,6 +27,10 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
   const [panel, setPanel] = useState<Panel>(null)
   const [memories, setMemories] = useState<StoryMemory[]>([])
   const [hasMore, setHasMore] = useState(false)
+  const [editingMsg, setEditingMsg] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploadTarget, setUploadTarget] = useState<'scenario' | 'character' | null>(null)
   const retry = useRef<null | (() => void)>(null)
   const startedRef = useRef(false)
 
@@ -133,6 +137,47 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
     } catch (e) { notify(friendlyError(e), 'error') }
   }
 
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !uploadTarget) return
+    const id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
+    if (!id) return
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${story?.user_id}/${storyId}/${id}-${Date.now()}.${ext}`
+      const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : 'character-assets'
+      const { supabase } = await import('@/lib/supabase/client')
+      const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
+      if (error) throw error
+      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
+      
+      if (uploadTarget === 'scenario' && scenario) {
+        const up = { ...scenario, image_url: pub.publicUrl, image_path: path }
+        await svc.saveScenario(up)
+        setScenarios((s) => s.map((x) => x.id === id ? up : x))
+      } else if (speaker) {
+        const up = { ...speaker, image_url: pub.publicUrl, image_path: path }
+        await svc.saveCharacter(up)
+        setCharacters((c) => c.map((x) => x.id === id ? up : x))
+      }
+      notify('Imagem atualizada com sucesso.')
+    } catch (err) {
+      notify(friendlyError(err, 'Erro ao enviar imagem.'), 'error')
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setUploadTarget(null)
+    }
+  }
+
+  async function saveEdit() {
+    if (!editingMsg || !current) return
+    try {
+      await svc.updateMessageContent(editingMsg, editText)
+      setMessages((m) => m.map((x) => x.id === editingMsg ? { ...x, content: editText } : x))
+      setEditingMsg(null)
+    } catch (e) { notify(friendlyError(e), 'error') }
+  }
+
   // ---------- teclas ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -161,11 +206,14 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
 
       <section className="novel-stage" onClick={advance}>
         <div className="chapter-label">CAPÍTULO {String(state?.current_chapter ?? 1).padStart(2, '0')} <span>—</span> {(state?.current_location || scenario?.name || 'PRIMEIRA CENA').toString().toUpperCase()}</div>
-        {speaker?.image_url && <div key={speaker.id} className="novel-portrait">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={speaker.image_url} alt={speaker.name} /></div>}
+        {scenario && <button className="icon-button light edit-scenario-bg" aria-label="Alterar Fundo" title="Alterar fundo" onClick={(e) => { e.stopPropagation(); setUploadTarget('scenario'); fileInputRef.current?.click() }}><ImagePlus size={18} /></button>}
+        {speaker?.image_url && <div key={speaker.id} className="novel-portrait">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={speaker.image_url} alt={speaker.name} /><button className="icon-button edit-char-img" aria-label="Alterar Imagem do Personagem" title="Alterar imagem" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /></button></div>}
         {!speaker?.image_url && !current && !thinking && !error && <div className="novel-hint"><Sparkles /> Preparando o palco…</div>}
+        {!speaker?.image_url && speaker && <div className="novel-portrait missing-img"><button className="outline-button light" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}><ImagePlus size={18} /> Adicionar imagem</button></div>}
       </section>
 
       <section className="dialogue-panel">
+        <input type="file" ref={fileInputRef} className="sr-only" accept="image/*" onChange={handleFileChange} />
         {loadingInit ? (
           <p className="dialogue-text dim">Abrindo sua história…</p>
         ) : thinking ? (
@@ -181,8 +229,12 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
           </>
         ) : current ? (
           <>
-            <div className="dialogue-meta"><div className="speaker-mark" /><span>{label.toUpperCase()}</span>{current.expression && current.expression !== 'neutral' && <span className="muted">{current.expression}</span>}<span className="meta-line" /><span className="muted">{cursor + 1}/{visible.length}</span></div>
-            <p className={`dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`} onClick={advance}>{current.message_type === 'dialogue' ? `“${current.content}”` : current.content}</p>
+            <div className="dialogue-meta"><div className="speaker-mark" /><span>{label.toUpperCase()}</span>{current.expression && current.expression !== 'neutral' && <span className="muted">{current.expression}</span>}<span className="meta-line" /><span className="muted">{cursor + 1}/{visible.length}</span><button className="icon-button light edit-msg-btn" aria-label="Editar mensagem" onClick={() => { setEditingMsg(current.id); setEditText(current.content) }}><Pencil size={14}/></button></div>
+            {editingMsg === current.id ? (
+              <div className="edit-message-box"><textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input" /><button className="icon-button light" onClick={saveEdit}><Check size={18} /></button><button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button></div>
+            ) : (
+              <p className={`dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`} onClick={advance}>{current.message_type === 'dialogue' ? `“${current.content}”` : current.content}</p>
+            )}
           </>
         ) : null}
 
