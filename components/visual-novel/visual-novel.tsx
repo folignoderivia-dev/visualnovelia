@@ -188,7 +188,8 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       setState(null)
       setCursor(0)
       startedRef.current = false
-      run('start')
+      await run('start')
+      setLoadingInit(false)
     } catch (e) {
       notify(friendlyError(e), 'error')
       setLoadingInit(false)

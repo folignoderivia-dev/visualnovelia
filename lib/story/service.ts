@@ -143,7 +143,7 @@ export async function updateMessageContent(id: string, newContent: string): Prom
 }
 
 export async function restartStory(storyId: string): Promise<void> {
-  await supabase.from('story_messages').delete().eq('story_id', storyId)
-  await supabase.from('story_memories').delete().eq('story_id', storyId)
-  await supabase.from('story_state').delete().eq('story_id', storyId)
+  check(await supabase.from('story_messages').delete().eq('story_id', storyId).select())
+  check(await supabase.from('story_memories').delete().eq('story_id', storyId).select())
+  check(await supabase.from('story_state').delete().eq('story_id', storyId).select())
 }
