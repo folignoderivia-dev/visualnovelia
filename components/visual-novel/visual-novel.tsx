@@ -258,7 +258,18 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
 
         {!loadingInit && !thinking && !error && current && (
           atEnd ? (
-            <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`O que ${player?.name || 'você'} faz, diz ou pergunta?`} aria-label="O que seu protagonista faz, diz ou pergunta" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+            <div className="player-input-area">
+              {Array.isArray((state?.state_data as any)?.pending_choices) && ((state?.state_data as any)?.pending_choices.length > 0) && (
+                <div className="choices-grid">
+                  {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
+                    <button key={idx} className="choice-button outline-button light" onClick={() => run('turn', choice)}>
+                      {choice}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+            </div>
           ) : (
             <div className="novel-nav-buttons">
               {cursor > 0 && <button className="novel-prev" onClick={(e) => { e.stopPropagation(); setCursor((c) => Math.max(0, c - 1)) }}><ChevronRight style={{ transform: 'rotate(180deg)' }} /> Voltar</button>}

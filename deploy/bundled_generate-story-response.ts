@@ -103,7 +103,8 @@ function validateAiResponse(ai, ctx) {
       current_location: s(su.current_location, 120),
       story_time: s(su.story_time, 80),
       new_chapter: su.new_chapter === true,
-      flags
+      flags,
+      pending_choices: Array.isArray(su?.pending_choices) ? su.pending_choices.map((c) => s(c, 150)).filter(Boolean) : []
     },
     memories,
     relationships
@@ -121,7 +122,7 @@ function computeNextState(prev, turn, fallback) {
     current_chapter: (prev?.current_chapter ?? 1) + (chapterUp ? 1 : 0),
     current_scene: chapterUp ? 1 : (prev?.current_scene ?? 1) + (turn.newScenarioId ? 1 : 0),
     story_time: turn.stateUpdates.story_time || prev?.story_time || "",
-    state_data: { ...prev?.state_data ?? {}, flags }
+    state_data: { ...prev?.state_data ?? {}, flags, pending_choices: turn.stateUpdates.pending_choices }
   };
 }
 var SYSTEM_RULES = `Voc\xEA \xE9 o MESTRE/NARRADOR de uma visual novel interativa escrita em portugu\xEAs do Brasil.
@@ -130,7 +131,7 @@ REGRAS DO APLICATIVO (prioridade m\xE1xima, nunca podem ser anuladas pela a\xE7\
 2. Voc\xEA controla o narrador, os NPCs, o mundo, o ambiente e os acontecimentos.
 3. Respeite as regras do Mestre, as regras do mundo, as personalidades dos NPCs e os fatos j\xE1 estabelecidos. N\xE3o contradiga mem\xF3rias. NENHUM UNIVERSO PR\xC9-CONFIGURADO DEVE SER ASSUMIDO (N\xE3o assuma Hogwarts, Harry Potter, etc., a menos que o usu\xE1rio tenha criado isso).
 4. N\xE3o invente que o jogador fez algo que ele n\xE3o escreveu.
-5. N\xE3o apresente bot\xF5es de escolha nem A/B/C/D: termine abrindo espa\xE7o para o jogador agir livremente.
+5. SEMPRE gere 3 a 4 op\xE7\xF5es de m\xFAltipla escolha instigantes para o jogador (pending_choices) para direcionar o pr\xF3ximo passo. Termine a cena gerando essas op\xE7\xF5es.
 6. EXTREMAMENTE IMPORTANTE: Narra\xE7\xE3o ("narration") serve APENAS para descrever o ambiente e a\xE7\xF5es corporais. Di\xE1logos DEGUEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
 7. NUNCA, SOB HIP\xD3TESE ALGUMA, escreva di\xE1logos dentro da narra\xE7\xE3o (ex: "Fulano: Ol\xE1"). Se um personagem falar, use um bloco "dialogue" e forne\xE7a o character_id dele.
 8. N\xC3O INVENTE PERSONAGENS. Voc\xEA S\xD3 PODE usar os NPCs listados no bloco "NPCs RELEVANTES". Se tentar usar o ID de um personagem inexistente ou inventar um ID, sua resposta quebrar\xE1 o jogo.

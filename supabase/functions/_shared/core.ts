@@ -77,7 +77,7 @@ export interface ValidationContext {
 export interface ValidatedTurn {
   beats: { type: 'narration' | 'dialogue'; character_id: string | null; text: string; expression: string | null }[]
   newScenarioId: string | null
-  stateUpdates: { current_location: string; story_time: string; new_chapter: boolean; flags: { key: string; value: string }[] }
+  stateUpdates: { current_location: string; story_time: string; new_chapter: boolean; flags: { key: string; value: string }[], pending_choices: string[] }
   memories: { memory_type: string; content: string; importance: number; character_ids: string[] }[]
   relationships: { character_id: string; relationship_type: string; description: string; value: number | null }[]
 }
@@ -143,7 +143,7 @@ export function validateAiResponse(ai: any, ctx: ValidationContext): ValidatedTu
     beats, newScenarioId,
     stateUpdates: {
       current_location: s(su.current_location, 120), story_time: s(su.story_time, 80),
-      new_chapter: su.new_chapter === true, flags,
+      new_chapter: su.new_chapter === true, flags, pending_choices: Array.isArray(su?.pending_choices) ? su.pending_choices.map((c: any) => s(c, 150)).filter(Boolean) : []
     },
     memories, relationships,
   }
@@ -177,7 +177,7 @@ export function computeNextState(
     current_chapter: (prev?.current_chapter ?? 1) + (chapterUp ? 1 : 0),
     current_scene: chapterUp ? 1 : (prev?.current_scene ?? 1) + (turn.newScenarioId ? 1 : 0),
     story_time: turn.stateUpdates.story_time || prev?.story_time || '',
-    state_data: { ...(prev?.state_data ?? {}), flags },
+    state_data: { ...(prev?.state_data ?? {}), flags, pending_choices: turn.stateUpdates.pending_choices },
   }
 }
 
@@ -188,7 +188,7 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 2. Você controla o narrador, os NPCs, o mundo, o ambiente e os acontecimentos.
 3. Respeite as regras do Mestre, as regras do mundo, as personalidades dos NPCs e os fatos já estabelecidos. Não contradiga memórias. NENHUM UNIVERSO PRÉ-CONFIGURADO DEVE SER ASSUMIDO (Não assuma Hogwarts, Harry Potter, etc., a menos que o usuário tenha criado isso).
 4. Não invente que o jogador fez algo que ele não escreveu.
-5. Não apresente botões de escolha nem A/B/C/D: termine abrindo espaço para o jogador agir livremente.
+5. SEMPRE gere 3 a 4 opções de múltipla escolha instigantes para o jogador (pending_choices) para direcionar o próximo passo. Termine a cena gerando essas opções.
 6. EXTREMAMENTE IMPORTANTE: Narração ("narration") serve APENAS para descrever o ambiente e ações corporais. Diálogos DEGUEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
 7. NUNCA, SOB HIPÓTESE ALGUMA, escreva diálogos dentro da narração (ex: "Fulano: Olá"). Se um personagem falar, use um bloco "dialogue" e forneça o character_id dele.
 8. NÃO INVENTE PERSONAGENS. Você SÓ PODE usar os NPCs listados no bloco "NPCs RELEVANTES". Se tentar usar o ID de um personagem inexistente ou inventar um ID, sua resposta quebrará o jogo.
