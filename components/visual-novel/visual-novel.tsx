@@ -260,7 +260,10 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
           atEnd ? (
             <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`O que ${player?.name || 'você'} faz, diz ou pergunta?`} aria-label="O que seu protagonista faz, diz ou pergunta" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
           ) : (
-            <button className="novel-next" onClick={advance}>Continuar <ChevronRight /></button>
+            <div className="novel-nav-buttons">
+              {cursor > 0 && <button className="novel-prev" onClick={(e) => { e.stopPropagation(); setCursor((c) => Math.max(0, c - 1)) }}><ChevronRight style={{ transform: 'rotate(180deg)' }} /> Voltar</button>}
+              <button className="novel-next" onClick={advance}>Continuar <ChevronRight /></button>
+            </div>
           )
         )}
         <div className="novel-controls"><button onClick={() => openPanel('history')}><BookOpen /> Histórico</button><button onClick={() => openPanel('cast')}><UsersRound /> Elenco</button><button onClick={() => openPanel('memory')}><Sparkles /> Memória</button><button onClick={onBack}><X /> Sair</button></div>
