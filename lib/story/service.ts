@@ -66,7 +66,8 @@ export async function loadBundle(storyId: string): Promise<StoryBundle> {
     supabase.from('character_relationships').select('*').eq('story_id', storyId),
     supabase.from('character_expressions').select('*').in('character_id', 
       (await supabase.from('characters').select('id').eq('story_id', storyId)).data?.map(c => c.id) || []
-    )
+    ),
+    supabase.from('story_tags').select('*').eq('story_id', storyId).order('created_at')
   ])
   const s = check(story) as Story | null
   if (!s) throw new Error('story not found')
