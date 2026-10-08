@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
@@ -178,6 +178,23 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
     } catch (e) { notify(friendlyError(e), 'error') }
   }
 
+  async function handleRestart() {
+    if (!confirm('Tem certeza que deseja apagar todo o progresso (mensagens e memórias) e recomeçar esta história do zero? Seus personagens e cenários NÃO serão apagados.')) return
+    try {
+      setLoadingInit(true)
+      await svc.restartStory(storyId)
+      setMessages([])
+      setMemories([])
+      setState(null)
+      setCursor(0)
+      startedRef.current = false
+      run('start')
+    } catch (e) {
+      notify(friendlyError(e), 'error')
+      setLoadingInit(false)
+    }
+  }
+
   // ---------- teclas ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -201,7 +218,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       <header className="novel-topbar">
         <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
         <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button></div>
+        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button></div>
       </header>
 
       <section className="novel-stage" onClick={advance}>

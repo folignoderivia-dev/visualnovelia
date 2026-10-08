@@ -141,3 +141,9 @@ export async function deleteMemory(id: string): Promise<void> {
 export async function updateMessageContent(id: string, newContent: string): Promise<void> {
   check(await supabase.from('story_messages').update({ content: newContent }).eq('id', id).select())
 }
+
+export async function restartStory(storyId: string): Promise<void> {
+  await supabase.from('story_messages').delete().eq('story_id', storyId)
+  await supabase.from('story_memories').delete().eq('story_id', storyId)
+  await supabase.from('story_state').delete().eq('story_id', storyId)
+}
