@@ -56,13 +56,14 @@ async function ensureScenario(storyId: string, list: Scenario[]): Promise<Scenar
 
 // ------------------------------------------------------------------ editor
 export async function loadBundle(storyId: string): Promise<StoryBundle> {
-  const [story, world, master, scenarios, characters, player, expressions] = await Promise.all([
+  const [story, world, master, scenarios, characters, player, relationships, expressions] = await Promise.all([
     supabase.from('stories').select('*').eq('id', storyId).maybeSingle(),
     supabase.from('story_worlds').select('*').eq('story_id', storyId).maybeSingle(),
     supabase.from('story_master_settings').select('*').eq('story_id', storyId).maybeSingle(),
     supabase.from('scenarios').select('*').eq('story_id', storyId).order('created_at'),
     supabase.from('characters').select('*').eq('story_id', storyId).order('created_at'),
     supabase.from('player_characters').select('*').eq('story_id', storyId).maybeSingle(),
+    supabase.from('character_relationships').select('*').eq('story_id', storyId),
     supabase.from('character_expressions').select('*').in('character_id', 
       (await supabase.from('characters').select('id').eq('story_id', storyId)).data?.map(c => c.id) || []
     )
@@ -74,6 +75,7 @@ export async function loadBundle(storyId: string): Promise<StoryBundle> {
   const exprs = (check(expressions) as any[]) || []
   for (const c of chars) {
     c.expressions = {}
+    c.relationship = (check(relationships) as any[])?.find(r => r.character_a_id === c.id && !r.character_b_id)
     for (const e of exprs) {
       if (e.character_id === c.id && e.image_url) {
         c.expressions[e.expression_type] = e.image_url

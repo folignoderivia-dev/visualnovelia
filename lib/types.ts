@@ -60,6 +60,7 @@ export interface MasterSettings {
 
 export interface Character {
   expressions?: Record<string, string>
+  relationship?: any
   id: string
   story_id: string
   name: string

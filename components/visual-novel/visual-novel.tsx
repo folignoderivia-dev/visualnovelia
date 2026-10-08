@@ -290,7 +290,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
                   ))}
                 </div>
               )}
-              <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+              <div className="player-toolbar"><button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button><button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button><button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button><button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button></div><div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
             </div>
           ) : (
             <div className="novel-nav-buttons">
@@ -322,7 +322,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
                 {characters.map((c) => (
                   <div key={c.id} className="cast-item">
                     <div className="cast-avatar">{c.image_url ? <img src={c.image_url} alt="" /> : <UserRound />}</div>
-                    <div style={{ flex: 1 }}><strong>{c.name || 'Sem nome'}</strong><span>{c.nickname || c.relationship_to_protagonist || 'NPC'}</span></div>
+                    <div style={{ flex: 1 }}><strong>{c.name || "Sem nome"}</strong><span>{c.nickname || c.relationship_to_protagonist || "NPC"}</span>{c.relationship && typeof c.relationship.relationship_value === "number" && (<div className="rel-bar-wrap" title={c.relationship.description}><div className="rel-bar"><div className="rel-fill" style={{ width: `${Math.max(0, Math.min(100, c.relationship.relationship_value))}%` }} /></div><span className="rel-val">{c.relationship.relationship_value}/100</span></div>)}</div>
                     <button className="icon-button light" onClick={() => setEditingChar(c)} aria-label="Editar Personagem"><Pencil size={15} /></button>
                   </div>
                 ))}
