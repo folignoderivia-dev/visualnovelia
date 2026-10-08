@@ -56,7 +56,7 @@ async function ensureScenario(storyId: string, list: Scenario[]): Promise<Scenar
 
 // ------------------------------------------------------------------ editor
 export async function loadBundle(storyId: string): Promise<StoryBundle> {
-  const [story, world, master, scenarios, characters, player, relationships, expressions] = await Promise.all([
+  const [story, world, master, scenarios, characters, player, relationships, expressions, tags] = await Promise.all([
     supabase.from('stories').select('*').eq('id', storyId).maybeSingle(),
     supabase.from('story_worlds').select('*').eq('story_id', storyId).maybeSingle(),
     supabase.from('story_master_settings').select('*').eq('story_id', storyId).maybeSingle(),
@@ -90,6 +90,7 @@ export async function loadBundle(storyId: string): Promise<StoryBundle> {
     master: (check(master) as MasterSettings | null) ?? ({ story_id: storyId, master_prompt: '', narrative_style: '', narrator_personality: '', continuity_rules: '', character_rules: '', player_character_rules: '', pacing_rules: '', romance_rules: '', humor_rules: '', violence_rules: '', mystery_rules: '', additional_rules: '' } as MasterSettings),
     scenarios: await ensureScenario(storyId, check(scenarios) as Scenario[]),
     characters: chars,
+    tags: (check(tags) as any[]) || [],
     player: (check(player) as PlayerCharacter | null) ?? ({ story_id: storyId, user_id: userId, name: '', nickname: '', age: '', appearance: '', personality: '', history: '', goals: '', fears: '', extra_information: '', image_url: null, image_path: null } as PlayerCharacter),
   }
 }
@@ -129,6 +130,8 @@ export async function deleteCharacter(id: string): Promise<void> {
   check(await supabase.from('characters').delete().eq('id', id).select())
 }
 
+export async function saveTag(t: any): Promise<any> { const { id, story_id, ...rest } = t; if (!id || id.startsWith('new-')) return check(await supabase.from('story_tags').insert({ story_id, ...rest }).select().single()); return check(await supabase.from('story_tags').update(rest).eq('id', id).select().single()); }
+export async function deleteTag(id: string): Promise<void> { check(await supabase.from('story_tags').delete().eq('id', id).select()); }
 export async function saveExpression(characterId: string, expressionType: string, imageUrl: string, imagePath: string): Promise<void> {
   check(await supabase.from('character_expressions').upsert({
     character_id: characterId,
@@ -173,3 +176,6 @@ export async function restartStory(storyId: string): Promise<void> {
   check(await supabase.from('story_memories').delete().eq('story_id', storyId).select())
   check(await supabase.from('story_state').delete().eq('story_id', storyId).select())
 }
+  
+export async function saveTag(t: any): Promise<any> {  
+  const { id, story_id, ...rest } = t  

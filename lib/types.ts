@@ -2,6 +2,13 @@
 
 export type StoryStatus = 'draft' | 'ready' | 'playing' | 'completed' | 'archived'
 
+export interface StoryTag {
+  id: string
+  story_id: string
+  name: string
+  prompt: string
+}
+
 export interface Story {
   id: string
   user_id: string
@@ -150,6 +157,7 @@ export interface GeminiResponse {
 }
 
 export interface StoryBundle {
+  tags?: StoryTag[]
   story: Story
   world: World
   master: MasterSettings

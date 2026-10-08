@@ -226,6 +226,7 @@ export function buildPrompt(i: PromptInput): string {
       line('Ritmo', m?.pacing_rules), line('Romance', m?.romance_rules), line('Humor', m?.humor_rules),
       line('Violência', m?.violence_rules), line('Mistério', m?.mystery_rules), line('Adicionais', m?.additional_rules),
     ]),
+    block('TAGS / REGRAS CUSTOMIZADAS (Aplique se o jogador solicitar a tag na ação)', (i.tags || []).map(t => line(t.name, t.prompt))),
     block('HISTÓRIA', [line('Título', story?.title), line('Sinopse', story?.description), line('Gênero', story?.genre), line('Tom', story?.tone)]),
     block('MUNDO', [
       line('Nome', w?.world_name), line('Descrição', w?.description), line('Época', w?.era),

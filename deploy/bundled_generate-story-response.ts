@@ -163,6 +163,7 @@ function buildPrompt(i) {
       line("Mist\xE9rio", m?.mystery_rules),
       line("Adicionais", m?.additional_rules)
     ]),
+    block("TAGS / REGRAS CUSTOMIZADAS (Aplique se o jogador solicitar a tag na a\xE7\xE3o)", (i.tags || []).map((t) => line(t.name, t.prompt))),
     block("HIST\xD3RIA", [line("T\xEDtulo", story?.title), line("Sinopse", story?.description), line("G\xEAnero", story?.genre), line("Tom", story?.tone)]),
     block("MUNDO", [
       line("Nome", w?.world_name),
@@ -450,6 +451,7 @@ Deno.serve(async (req) => {
     const relevant = selectRelevantNpcs(npcs, recent, action, mode === "start");
     const currentScenarioId = state?.current_scenario_id ?? scs.find((x) => x.is_starting_scenario)?.id ?? scs[0]?.id ?? null;
     const currentScenario = scs.find((x) => x.id === currentScenarioId);
+    const { data: tags } = await admin.from("story_tags").select("*").eq("story_id", story.id);
     const { data: memories, error: memErr } = await admin.rpc("search_story_memories", {
       p_story_id: story.id,
       p_query: action,
@@ -465,6 +467,7 @@ Deno.serve(async (req) => {
       npcs: relevant,
       allNpcs: npcs,
       scenarios: scs,
+      tags: tags || [],
       currentScenarioId,
       state,
       memories: memories ?? [],

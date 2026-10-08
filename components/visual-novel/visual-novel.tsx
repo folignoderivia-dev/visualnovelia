@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
@@ -26,6 +26,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
   const [input, setInput] = useState('')
   const [panel, setPanel] = useState<Panel>(null)
   const [memories, setMemories] = useState<StoryMemory[]>([])
+  const [tags, setTags] = useState<any[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -104,7 +105,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       try {
         const [b, st, msgs] = await Promise.all([svc.loadBundle(storyId), svc.loadState(storyId), svc.loadRecentMessages(storyId, 40)])
         if (!alive) return
-        setStory(b.story); setScenarios(b.scenarios); setCharacters(b.characters); setPlayer(b.player); setState(st)
+        setStory(b.story); setScenarios(b.scenarios); setCharacters(b.characters); setPlayer(b.player); setState(st); setTags(b.tags || [])
         setMessages(msgs); setHasMore(msgs.length >= 40)
         const vis = msgs.filter((m) => !HIDDEN.includes(m.message_type))
         setCursor(Math.max(0, vis.length - 1))
@@ -241,7 +242,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
       <header className="novel-topbar">
         <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
         <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button></div>
+        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><Map /></button></div>
       </header>
 
       <section className="novel-stage" onClick={advance}>
@@ -290,7 +291,7 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
                   ))}
                 </div>
               )}
-              <div className="player-toolbar"><button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button><button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button><button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button><button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button></div><div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+              <div className="player-toolbar"><button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button><button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button><button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button>{tags.map(t => <button key={t.id} onClick={() => setInput(input + `[${t.name}] `)} title={t.prompt}>🏷️ {t.name}</button>)}<button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button></div><div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
             </div>
           ) : (
             <div className="novel-nav-buttons">
@@ -364,6 +365,49 @@ export function VisualNovel({ storyId, onBack }: { storyId: string; onBack: () =
                 <p className="drawer-note">Fatos importantes que o narrador guardou. Você pode apagar o que não quiser que seja lembrado.</p>
                 {memories.map((m) => <div key={m.id} className="mem-item"><div><span>{m.memory_type.toUpperCase()}</span><p>{m.content}</p></div><button className="icon-button light" aria-label="Apagar memória" onClick={() => svc.deleteMemory(m.id).then(() => setMemories((x) => x.filter((y) => y.id !== m.id))).catch((e) => notify(friendlyError(e), 'error'))}><Trash2 /></button></div>)}
                 {memories.length === 0 && <p className="drawer-empty">Ainda não há memórias importantes.</p>}
+              </>}
+              {panel === 'tags' && <>
+                <p className="drawer-note">Crie atalhos rápidos de contexto (ex: "Minigame") para injetar regras e forçar a IA a alterar o rumo da cena.</p>
+                {tags.map((t) => (
+                  <div key={t.id} className="mem-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                      <strong>{t.name}</strong>
+                      <button className="icon-button light" aria-label="Apagar" onClick={() => svc.deleteTag(t.id).then(() => setTags((x) => x.filter((y) => y.id !== t.id))).catch((e) => notify(friendlyError(e), 'error'))}><Trash2 /></button>
+                    </div>
+                    <p style={{ fontSize: '11px', marginTop: '4px' }}>{t.prompt}</p>
+                  </div>
+                ))}
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input id="newTagName" placeholder="Nome da Tag (ex: Sala de Aula)" style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid #444', color: '#fff' }} />
+                  <textarea id="newTagPrompt" placeholder="Prompt a ser forçado (ex: A aula do professor começou, ele fará perguntas aos alunos.)" rows={3} style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid #444', color: '#fff' }} />
+                  <button className="primary-button" onClick={async () => {
+                    const name = (document.getElementById('newTagName') as HTMLInputElement).value
+                    const prompt = (document.getElementById('newTagPrompt') as HTMLTextAreaElement).value
+                    if (!name || !prompt) return
+                    try {
+                      const saved = await svc.saveTag({ story_id: storyId, name, prompt, id: 'new-' + Date.now() })
+                      setTags(x => [...x, saved])
+                      ;(document.getElementById('newTagName') as HTMLInputElement).value = '';
+                      ;(document.getElementById('newTagPrompt') as HTMLTextAreaElement).value = '';
+                    } catch(e) { notify(friendlyError(e), 'error') }
+                  }}>Adicionar Tag</button>
+                </div>
+              </>}
+              {panel === 'map' && <>
+                <p className="drawer-note">Viagem Rápida. Clique em um cenário para forçar a história a mudar para lá agora.</p>
+                <div className="map-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {scenarios.map(sc => (
+                    <div key={sc.id} className="map-node" onClick={() => {
+                      setInput(input + `[MUDAR PARA O CENÁRIO: ${sc.name}] `)
+                      setPanel(null)
+                    }} style={{ cursor: 'pointer', position: 'relative', height: '80px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)' }}>
+                      {sc.image_url ? <img src={sc.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }} /> : <div style={{ width: '100%', height: '100%', background: '#222' }} />}
+                      <div style={{ position: 'absolute', inset: 0, padding: '10px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
+                        <strong style={{ fontSize: '14px', color: '#fff' }}>{sc.name}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </>}
             </div>
           </aside>

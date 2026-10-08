@@ -117,6 +117,7 @@ Deno.serve(async (req) => {
     const currentScenario = scs.find((x) => x.id === currentScenarioId)
 
     // ---------- 2. Memórias relevantes (palavras-chave + personagens + importância) ----------
+    const { data: tags } = await admin.from('story_tags').select('*').eq('story_id', story.id);
     const { data: memories, error: memErr } = await admin.rpc('search_story_memories', {
       p_story_id: story.id, p_query: action, p_character_ids: relevant.map((c) => c.id), p_limit: 8,
     })
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
     // ---------- 3. Prompt compacto + Gemini ----------
     const prompt = buildPrompt({
       story, world: world.data, master: master.data, player: player.data,
-      npcs: relevant, allNpcs: npcs, scenarios: scs, currentScenarioId, state,
+      npcs: relevant, allNpcs: npcs, scenarios: scs, tags: tags || [], currentScenarioId, state,
       memories: memories ?? [], summary: summaryRes.data?.summary ?? null, recent, mode, action,
     })
     const ai = parseJson(await callGemini({ system: SYSTEM_RULES, prompt, schema: RESPONSE_SCHEMA }))
