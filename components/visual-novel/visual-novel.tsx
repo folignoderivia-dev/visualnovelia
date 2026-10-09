@@ -1,15 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
 
-type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map'
-const HIDDEN: StoryMessage['message_type'][] = ['action', 'scene_change', 'system']
+type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder'
+const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
 
 export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBack: () => void; onEdit?: () => void }) {
   const { notify } = useToast()
@@ -29,6 +29,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [panel, setPanel] = useState<Panel>(null)
   const [memories, setMemories] = useState<StoryMemory[]>([])
   const [tags, setTags] = useState<any[]>([])
+  const [tinderIndex, setTinderIndex] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -265,7 +266,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       <header className="novel-topbar">
         <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
         <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
+        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button><button className="icon-button light" aria-label="App de Namoro" title="Dating App / Tinder" onClick={() => openPanel('tinder')}><Smartphone /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
       </header>
 
       <section className="novel-stage" onClick={advance}>
@@ -368,7 +369,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       {panel && (
         <div className="drawer-backdrop" onClick={() => setPanel(null)}>
           <aside className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : panel === 'tags' ? 'Tags Customizadas' : panel === 'map' ? 'Viagem Rápida' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
+            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : panel === 'tags' ? 'Tags Customizadas' : panel === 'map' ? 'Viagem Rápida' : panel === 'tinder' ? 'App de Namoro' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
             <div className="drawer-body">
               {panel === 'history' && <>
                 {hasMore && <button className="outline-button light drawer-more" onClick={olderMessages}>Carregar mensagens anteriores</button>}
@@ -392,13 +393,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 {characters.length === 0 && <p className="drawer-empty">Nenhum personagem criado.</p>}
               </>}
               {panel === 'cast' && editingChar && (
-                <div className="char-editor-panel">
+                <div className="char-editor-panel" style={{ overflowY: "auto", maxHeight: "75vh", paddingRight: "8px" }}>
                   <div className="drawer-head" style={{ padding: 0, marginBottom: '20px', background: 'none' }}>
                     <button className="outline-button light" onClick={() => setEditingChar(null)}><ArrowLeft size={16} /> Voltar</button>
                     <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name}</strong>
                   </div>
                   <div className="field"><span>Nome</span><input value={editingChar.name} onChange={(e) => setEditingChar({ ...editingChar, name: e.target.value })} /></div>
-                  <div className="field"><span>Personalidade / Prompt</span><textarea value={editingChar.personality} onChange={(e) => setEditingChar({ ...editingChar, personality: e.target.value })} rows={5} /></div>
+                  <div className="field"><span>Apelido / Função</span><input value={editingChar.nickname} onChange={(e) => setEditingChar({ ...editingChar, nickname: e.target.value })} /></div><div className="field"><span>Personalidade (Prompt)</span><textarea value={editingChar.personality} onChange={(e) => setEditingChar({ ...editingChar, personality: e.target.value })} rows={3} /></div><div className="field"><span>Passado / História</span><textarea value={editingChar.history} onChange={(e) => setEditingChar({ ...editingChar, history: e.target.value })} rows={3} /></div><div className="field"><span>Pensamentos e Objetivos com você</span><textarea value={editingChar.relationship_to_protagonist} onChange={(e) => setEditingChar({ ...editingChar, relationship_to_protagonist: e.target.value })} rows={3} placeholder="Diário ou pensamentos secretos do NPC em relação ao seu personagem..." /></div><div className="field"><span>Aparência Física</span><textarea value={editingChar.appearance} onChange={(e) => setEditingChar({ ...editingChar, appearance: e.target.value })} rows={2} /></div><div className="field"><span>Estilo de Fala</span><textarea value={editingChar.speech_style} onChange={(e) => setEditingChar({ ...editingChar, speech_style: e.target.value })} rows={2} /></div><div className="field"><span>Objetivos e Medos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>{editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
                   
                   <div className="expressions-grid">
                     <span>Expressões Visuais</span>
@@ -483,6 +484,28 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     } catch(e) { notify(String(e), 'error') }
                   }}>Criar Novo Cenário</button>
                 </div>
+              </>}
+              {panel === 'tinder' && <>
+                <p className="drawer-note">Modo Aplicativo de Namoro. Deslize e veja se dá match!</p>
+                {characters.length > 0 && characters[tinderIndex % characters.length] && (
+                  <div className="tinder-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(30,30,30,0.9)', padding: '20px', borderRadius: '16px', textAlign: 'center', border: '1px solid #444', marginTop: '20px' }}>
+                     {characters[tinderIndex % characters.length].image_url ? (
+                       <img src={characters[tinderIndex % characters.length].image_url!} style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '12px' }} alt="" />
+                     ) : (
+                       <div style={{ width: '200px', height: '200px', background: '#333', borderRadius: '12px', display: 'grid', placeItems: 'center' }}><UserRound size={40} /></div>
+                     )}
+                     <h3 style={{ marginTop: '15px', fontSize: '24px', color: '#fff' }}>{characters[tinderIndex % characters.length].name}</h3>
+                     <p style={{ fontSize: '14px', color: '#ccc', margin: '10px 0', minHeight: '40px' }}>{characters[tinderIndex % characters.length].nickname || 'Buscando conexão...'}</p>
+                     <div style={{ display: 'flex', gap: '30px', marginTop: '20px' }}>
+                        <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#ff4444', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => setTinderIndex(tinderIndex + 1)} title="Passar"><X size={30}/></button>
+                        <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#44ff44', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => {
+                           const c = characters[tinderIndex % characters.length];
+                           setInput(input + `[O JOGADOR DEU MATCH NO APLICATIVO COM ${c.name} E ELES COMEÇARAM A CONVERSAR. FAÇA UM ROLEPLAY IMERSIVO DE CHAT DE CELULAR AGORA. ELA/ELE RESPONDEU NO APP.] `);
+                           setPanel(null);
+                        }} title="Dar Match"><Heart size={30}/></button>
+                     </div>
+                  </div>
+                )}
               </>}
             </div>
           </aside>

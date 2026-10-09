@@ -124,8 +124,11 @@ export async function createCharacter(storyId: string): Promise<Character> {
   return check(await supabase.from('characters').insert({ story_id: storyId }).select().single()) as Character
 }
 export async function saveCharacter(c: Character): Promise<void> {
-  const { id, story_id: _s, expressions, ...rest } = c as any
+  const { id, story_id: _s, expressions, relationship, ...rest } = c as any
   check(await supabase.from('characters').update(rest).eq('id', id).select())
+  if (relationship && typeof relationship.relationship_value === 'number') {
+    check(await supabase.from('character_relationships').update({ relationship_value: relationship.relationship_value }).eq('character_id', id).select())
+  }
 }
 export async function deleteCharacter(id: string): Promise<void> {
   check(await supabase.from('characters').delete().eq('id', id).select())

@@ -77,9 +77,16 @@ async function callGemini(opts) {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) throw new HttpError(503, "ai_not_configured", "A IA ainda n\xE3o foi configurada neste projeto.");
   const model = MODEL();
+  const parts = [{ text: opts.prompt }];
+  if (opts.image) {
+    const match = opts.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    if (match) {
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+  }
   const body = {
     systemInstruction: { parts: [{ text: opts.system }] },
-    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+    contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: opts.temperature ?? 0.9,
       maxOutputTokens: opts.maxOutputTokens ?? 3072,
