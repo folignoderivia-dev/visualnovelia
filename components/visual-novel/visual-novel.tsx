@@ -172,7 +172,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try {
       const ext = file.name.split('.').pop()
       const path = `${story?.user_id}/${storyId}/${id}-${Date.now()}.${ext}`
-      const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : 'character-assets'
+      const isPlayer = !isExpr && uploadTarget !== 'scenario' && current?.sender_type === 'player'; const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : isPlayer ? 'player-assets' : 'character-assets'
       const { supabase } = await import('@/lib/supabase/client')
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
       if (error) throw error
@@ -194,8 +194,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         }
       } else if (speaker) {
         const up = { ...speaker, image_url: pub.publicUrl, image_path: path }
-        await svc.saveCharacter(up)
-        setCharacters((c) => c.map((x) => x.id === id ? up : x))
+        if (isPlayer) {
+          await svc.savePlayer(up as any)
+          setPlayer(up as any)
+        } else {
+          await svc.saveCharacter(up as any)
+          setCharacters((c) => c.map((x) => x.id === id ? up : x))
+        }
       }
       notify('Imagem atualizada com sucesso.')
     } catch (err) {
