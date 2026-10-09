@@ -299,7 +299,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button>
                 <button onClick={() => setInput(input + "[ENCERRAR CENA: Finalize a conversa atual. Force uma despedida e na próxima cena dê prioridade a OUTROS personagens do elenco.] ")} title="Encerrar cena e trocar elenco">🔚 Encerrar Cena</button>
                 <button onClick={() => {
-                  const npcs = characters.filter(c => !c.is_player);
+                  const npcs = characters;
                   if (npcs.length > 0) {
                     const randomNpc = npcs[Math.floor(Math.random() * npcs.length)];
                     setInput(input + `[INCLUIR PERSONAGEM: Traga ${randomNpc.name} para a cena agora.] `);
@@ -312,7 +312,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   }
                 }} style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', outline: 'none', cursor: 'pointer' }}>
                   <option value="">👤 Chamar...</option>
-                  {characters.filter(c => !c.is_player).map(c => <option key={c.id} value={c.name} style={{ color: '#000' }}>{c.name}</option>)}
+                  {characters.map(c => <option key={c.id} value={c.name} style={{ color: '#000' }}>{c.name}</option>)}
                 </select>
               </div>
               <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
