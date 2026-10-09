@@ -408,6 +408,19 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     </div>
                   ))}
                 </div>
+                <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input id="newScenName" placeholder="Nome do novo local (ex: Floresta Negra)" style={{ padding: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid #444', color: '#fff' }} />
+                  <button className="primary-button" onClick={async () => {
+                    const name = (document.getElementById('newScenName') as HTMLInputElement).value;
+                    if (!name) return;
+                    try {
+                      const { supabase } = await import('@/lib/supabase/client');
+                      const { data: newSc } = await supabase.from('scenarios').insert({ story_id: storyId, name }).select().single();
+                      if (newSc) setScenarios(s => [...s, newSc]);
+                      (document.getElementById('newScenName') as HTMLInputElement).value = '';
+                    } catch(e) { notify(String(e), 'error') }
+                  }}>Criar Novo Cenário</button>
+                </div>
               </>}
             </div>
           </aside>
