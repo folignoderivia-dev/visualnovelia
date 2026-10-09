@@ -164,6 +164,7 @@ export async function loadTopMemories(storyId: string, limit = 20): Promise<Stor
   return check(await supabase.from('story_memories').select('*').eq('story_id', storyId)
     .order('importance', { ascending: false }).order('created_at', { ascending: false }).limit(limit)) as StoryMemory[]
 }
+export async function deleteMessage(id: string): Promise<void> { check(await supabase.from('story_messages').delete().eq('id', id).select()) }
 export async function deleteMemory(id: string): Promise<void> {
   check(await supabase.from('story_memories').delete().eq('id', id).select())
 }

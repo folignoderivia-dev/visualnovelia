@@ -98,6 +98,20 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     } finally { busy.current = false; setThinking(false) }
   }, [storyId, applyResponse, recover])
 
+  async function regenerateTurn() {
+    if (busy.current || thinking) return;
+    const lastPlayerIdx = messages.findLastIndex(m => m.sender_type === 'player');
+    if (lastPlayerIdx === -1) { notify('Nenhuma ação encontrada.', 'error'); return; }
+    const toDelete = messages.slice(lastPlayerIdx);
+    const oldAction = messages[lastPlayerIdx].content;
+    setMessages(prev => prev.slice(0, lastPlayerIdx));
+    setCursor(Math.max(0, messages.slice(0, lastPlayerIdx).filter(m => !HIDDEN.includes(m.message_type)).length - 1));
+    try {
+      await Promise.all(toDelete.map(m => svc.deleteMessage(m.id)));
+    } catch(e) { console.error(e); }
+    run('turn', oldAction + '\n\n[SISTEMA: REFAÇA A CENA. DESTA VEZ OBRIGATORIAMENTE DESTAQUE E TRAGA UM PERSONAGEM DIFERENTE PARA A CENA. TENTE USAR O MÁXIMO DE PERSONAGENS DO ELENCO.]');
+  }
+
   // ---------- carga inicial / continuar ----------
   useEffect(() => {
     let alive = true
@@ -270,7 +284,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </>
         ) : current ? (
           <>
-            <div className="dialogue-meta"><div className="speaker-mark" /><span>{label.toUpperCase()}</span>{current.expression && current.expression !== 'neutral' && <span className="muted">{current.expression}</span>}<span className="meta-line" /><span className="muted">{cursor + 1}/{visible.length}</span><button className="icon-button light edit-msg-btn" aria-label="Editar mensagem" onClick={() => { setEditingMsg(current.id); setEditText(current.content) }}><Pencil size={14}/></button></div>
+            <div className="dialogue-meta"><div className="speaker-mark" /><span>{label.toUpperCase()}</span>{current.expression && current.expression !== 'neutral' && <span className="muted">{current.expression}</span>}<span className="meta-line" /><span className="muted">{cursor + 1}/{visible.length}</span><button className="icon-button light edit-msg-btn" aria-label="Regerar com outro personagem" title="Regerar Cena (Trocar Personagem)" onClick={regenerateTurn}><RotateCcw size={14}/></button><button className="icon-button light edit-msg-btn" aria-label="Editar mensagem" onClick={() => { setEditingMsg(current.id); setEditText(current.content) }}><Pencil size={14}/></button></div>
             {editingMsg === current.id ? (
               <div className="edit-message-box"><textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input" /><button className="icon-button light" onClick={saveEdit}><Check size={18} /></button><button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button></div>
             ) : (
