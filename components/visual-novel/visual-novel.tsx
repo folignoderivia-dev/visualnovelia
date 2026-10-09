@@ -41,7 +41,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const atEnd = visible.length === 0 || cursor >= visible.length - 1
   const npcById = useMemo(() => new Map(characters.map((c) => [c.id, c])), [characters])
   const scenario = scenarios.find((s) => s.id === state?.current_scenario_id) ?? scenarios.find((s) => s.is_starting_scenario) ?? scenarios[0]
-  const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : undefined
+  const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : current?.sender_type === 'player' ? player : undefined
   const currentExpr = current?.expression || 'neutral'
   const speakerImg = speaker ? ((speaker as any).expressions?.[currentExpr] || speaker.image_url) : null
 

@@ -196,7 +196,10 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 10. Só crie "memories" para fatos realmente importantes.
 11. Se a ação do jogador for vazia ou for o início da história, escreva uma abertura cinematográfica que apresente cenário e atmosfera e deixe o protagonista pronto para agir.
 12. O campo "current_location" no stateUpdates DEVE ser o NOME legível do local, NÃO use IDs ou códigos UUID.
-13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a ação incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], você DEVE obedecer imediatamente: encerre o diálogo atual, despeça os personagens presentes e traga os novos solicitados no mesmo beat.`
+13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a ação incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], você DEVE obedecer imediatamente: encerre o diálogo atual, despeça os personagens presentes e traga os novos solicitados no mesmo beat.
+14. ROLAGEM DE DADO E RPG: Se o jogador mandar "[O jogador rolou um D20 e tirou: X]", interprete OBRIGATORIAMENTE como um teste: 1-5 falha trágica, 6-10 falha, 11-15 sucesso com custo, 16-20 sucesso épico.
+15. EXPRESSÕES VISUAIS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate.
+16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).`
 
 const line = (label: string, v: unknown) => (s(v, 1500) ? `- ${label}: ${s(v, 1500)}` : '')
 const block = (title: string, lines: string[]) => {

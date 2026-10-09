@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     const recent = (recentRes.data ?? []).slice().reverse()
     const state = stateRes.data
 
-    const relevant = selectRelevantNpcs(npcs, recent, action, mode === 'start')
+    const relevant = npcs
     const currentScenarioId: string | null = state?.current_scenario_id ?? scs.find((x) => x.is_starting_scenario)?.id ?? scs[0]?.id ?? null
     const currentScenario = scs.find((x) => x.id === currentScenarioId)
 
