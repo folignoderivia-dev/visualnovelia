@@ -34,8 +34,8 @@ async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T
 export const startStory = (storyId: string) =>
   invoke<GeminiResponse>('generate-story-response', { story_id: storyId, mode: 'start' })
 
-export const sendPlayerAction = (storyId: string, action: string) =>
-  invoke<GeminiResponse>('generate-story-response', { story_id: storyId, mode: 'turn', action })
+export const sendPlayerAction = (storyId: string, action: string, image?: string) =>
+  invoke<GeminiResponse>('generate-story-response', { story_id: storyId, mode: 'turn', action, image })
 
 export const requestSummary = (storyId: string) =>
   invoke<{ summary: unknown }>('create-story-summary', { story_id: storyId, force: true })

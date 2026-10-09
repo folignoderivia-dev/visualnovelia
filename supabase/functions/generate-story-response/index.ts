@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
 
     const mode: 'start' | 'turn' = body.mode === 'start' ? 'start' : 'turn'
     const action = s(body.action, MAX_ACTION)
+    const image = body.image
     if (mode === 'turn' && !action) throw new HttpError(400, 'empty_action', 'Escreva o que seu protagonista faz ou diz.')
 
     // ---------- trava de concorrência: uma geração por vez por história ----------
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
       npcs: relevant, allNpcs: npcs, scenarios: scs, tags: tags || [], currentScenarioId, state,
       memories: memories ?? [], summary: summaryRes.data?.summary ?? null, recent, mode, action,
     })
-    const ai = parseJson(await callGemini({ system: SYSTEM_RULES, prompt, schema: RESPONSE_SCHEMA }))
+    const ai = parseJson(await callGemini({ system: SYSTEM_RULES, prompt, schema: RESPONSE_SCHEMA, image }))
 
     // ---------- 4. VALIDAÇÃO — o modelo não tem poder sobre o banco ----------
     const turn = validateAiResponse(ai, {
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
 
     // ---------- 5. Grava mensagens + estado numa única transação ----------
     const msgs: Record<string, unknown>[] = []
-    if (mode === 'turn') msgs.push({ sender_type: 'player', content: action, message_type: 'action' })
+    if (mode === 'turn') msgs.push({ sender_type: 'player', content: action + (image ? '\n[Uma imagem foi anexada nesta ação]' : ''), message_type: 'action' })
     if (turn.newScenarioId) {
       msgs.push({ sender_type: 'system', content: scs.find((x) => x.id === turn.newScenarioId)?.name || 'Nova cena',
         message_type: 'scene_change', metadata: { scenario_id: turn.newScenarioId } })

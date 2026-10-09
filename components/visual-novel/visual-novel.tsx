@@ -24,6 +24,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [thinking, setThinking] = useState(false)
   const [error, setError] = useState('')
   const [input, setInput] = useState('')
+  const [actionImage, setActionImage] = useState<string | null>(null)
+  const actionImageRef = useRef<HTMLInputElement>(null)
   const [panel, setPanel] = useState<Panel>(null)
   const [memories, setMemories] = useState<StoryMemory[]>([])
   const [tags, setTags] = useState<any[]>([])
@@ -75,16 +77,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     } catch { return null }
   }, [storyId])
 
-  const run = useCallback(async (kind: 'start' | 'turn', action = '') => {
+  const run = useCallback(async (kind: 'start' | 'turn', action = '', img?: string) => {
     if (busy.current) return
     busy.current = true
     const prevVisible = visibleCountRef.current
-    retry.current = () => { run(kind, action) }
+    retry.current = () => { run(kind, action, img) }
     setThinking(true); setError('')
     try {
       let res: { messages: StoryMessage[]; state: StoryState }
       try {
-        res = kind === 'start' ? await startStory(storyId) : await sendPlayerAction(storyId, action)
+        res = kind === 'start' ? await startStory(storyId) : await sendPlayerAction(storyId, action, img)
       } catch (e) {
         const recovered = await recover(kind, action)
         if (!recovered) throw e
@@ -92,7 +94,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       }
       applyResponse(res.messages, res.state)
       setCursor(prevVisible) // primeiro bloco novo
-      if (kind === 'turn') setInput('')
+      if (kind === 'turn') {
+        setInput('');
+      }
     } catch (e) {
       setError(friendlyError(e, 'O narrador não conseguiu responder. Tente novamente.'))
     } finally { busy.current = false; setThinking(false) }
@@ -334,7 +338,22 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   {characters.map(c => <option key={c.id} value={c.name} style={{ color: '#000' }}>{c.name}</option>)}
                 </select>
               </div>
-              <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+              <div className="player-input">
+                {actionImage && <div style={{ position: 'absolute', bottom: 'calc(100% + 10px)', left: 0, padding: '4px', background: 'rgba(0,0,0,0.5)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <img src={actionImage} style={{ height: '60px', borderRadius: '4px' }} alt="" />
+                  <button onClick={() => setActionImage(null)} style={{ position: 'absolute', top: '-8px', right: '-8px', background: 'red', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none' }}>X</button>
+                </div>}
+                <input type="file" ref={actionImageRef} className="sr-only" accept="image/*" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const reader = new FileReader();
+                  reader.onload = (re) => setActionImage(re.target?.result as string);
+                  reader.readAsDataURL(f);
+                }} />
+                <button className="icon-button light" style={{ opacity: 0.5 }} onClick={() => actionImageRef.current?.click()} title="Anexar Imagem para Visão IA"><ImagePlus size={18} /></button>
+                <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} />
+                <button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button>
+              </div>
             </div>
           ) : (
             <div className="novel-nav-buttons">
