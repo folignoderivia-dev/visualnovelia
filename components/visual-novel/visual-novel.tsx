@@ -203,7 +203,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           setPlayer(up as any)
         } else {
           await svc.saveCharacter(up as any)
-          setCharacters((c) => c.map((x) => x.id === id ? up : x))
+          setCharacters((c) => c.map((x) => x.id === id ? (up as any) : x))
         }
       }
       notify('Imagem atualizada com sucesso.')
