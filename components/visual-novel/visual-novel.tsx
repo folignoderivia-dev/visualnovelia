@@ -291,7 +291,31 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   ))}
                 </div>
               )}
-              <div className="player-toolbar"><button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button><button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button><button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button>{tags.map(t => <button key={t.id} onClick={() => setInput(input + `[${t.name}] `)} title={t.prompt}>🏷️ {t.name}</button>)}<button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button></div><div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
+              <div className="player-toolbar">
+                <button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button>
+                <button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button>
+                <button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button>
+                {tags.map(t => <button key={t.id} onClick={() => setInput(input + `[${t.name}] `)} title={t.prompt}>🏷️ {t.name}</button>)}
+                <button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button>
+                <button onClick={() => setInput(input + "[ENCERRAR CENA: Finalize a conversa atual. Force uma despedida e na próxima cena dê prioridade a OUTROS personagens do elenco.] ")} title="Encerrar cena e trocar elenco">🔚 Encerrar Cena</button>
+                <button onClick={() => {
+                  const npcs = characters.filter(c => !c.is_player);
+                  if (npcs.length > 0) {
+                    const randomNpc = npcs[Math.floor(Math.random() * npcs.length)];
+                    setInput(input + `[INCLUIR PERSONAGEM: Traga ${randomNpc.name} para a cena agora.] `);
+                  }
+                }} title="Forçar um personagem aleatório a aparecer">🎲 Aleatório</button>
+                <select onChange={(e) => {
+                  if (e.target.value) {
+                    setInput(input + `[INCLUIR PERSONAGEM: Traga ${e.target.value} para a cena agora.] `);
+                    e.target.value = "";
+                  }
+                }} style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', outline: 'none', cursor: 'pointer' }}>
+                  <option value="">👤 Chamar...</option>
+                  {characters.filter(c => !c.is_player).map(c => <option key={c.id} value={c.name} style={{ color: '#000' }}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="player-input"><input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder={`Ou digite o que ${player?.name || 'você'} faz, diz ou pergunta livremente...`} aria-label="Ação livre" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }} /><button className="send-button" onClick={send} disabled={!input.trim()} aria-label="Enviar"><ArrowRight /></button></div>
             </div>
           ) : (
             <div className="novel-nav-buttons">
@@ -306,7 +330,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       {panel && (
         <div className="drawer-backdrop" onClick={() => setPanel(null)}>
           <aside className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
+            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : panel === 'tags' ? 'Tags Customizadas' : panel === 'map' ? 'Viagem Rápida' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
             <div className="drawer-body">
               {panel === 'history' && <>
                 {hasMore && <button className="outline-button light drawer-more" onClick={olderMessages}>Carregar mensagens anteriores</button>}

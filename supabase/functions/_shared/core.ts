@@ -195,7 +195,8 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 9. Em "beats" produza blocos curtos e envolventes.
 10. Só crie "memories" para fatos realmente importantes.
 11. Se a ação do jogador for vazia ou for o início da história, escreva uma abertura cinematográfica que apresente cenário e atmosfera e deixe o protagonista pronto para agir.
-12. O campo "current_location" no stateUpdates DEVE ser o NOME legível do local, NÃO use IDs ou códigos UUID.`
+12. O campo "current_location" no stateUpdates DEVE ser o NOME legível do local, NÃO use IDs ou códigos UUID.
+13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a ação incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], você DEVE obedecer imediatamente: encerre o diálogo atual, despeça os personagens presentes e traga os novos solicitados no mesmo beat.`
 
 const line = (label: string, v: unknown) => (s(v, 1500) ? `- ${label}: ${s(v, 1500)}` : '')
 const block = (title: string, lines: string[]) => {
