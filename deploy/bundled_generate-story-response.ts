@@ -245,9 +245,16 @@ async function callGemini(opts) {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) throw new HttpError(503, "ai_not_configured", "A IA ainda n\xE3o foi configurada neste projeto.");
   const model = MODEL();
+  const parts = [{ text: opts.prompt }];
+  if (opts.image) {
+    const match = opts.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    if (match) {
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+  }
   const body = {
     systemInstruction: { parts: [{ text: opts.system }] },
-    contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+    contents: [{ role: "user", parts }],
     generationConfig: {
       temperature: opts.temperature ?? 0.9,
       maxOutputTokens: opts.maxOutputTokens ?? 3072,
@@ -422,6 +429,7 @@ Deno.serve(async (req) => {
     const { admin } = ctx;
     const mode = body.mode === "start" ? "start" : "turn";
     const action = s(body.action, MAX_ACTION);
+    const image = body.image;
     if (mode === "turn" && !action) throw new HttpError(400, "empty_action", "Escreva o que seu protagonista faz ou diz.");
     const { data: claimed, error: claimErr } = await admin.rpc("claim_story_generation", { p_story_id: story.id, p_seconds: 90 });
     if (claimErr) throw claimErr;
@@ -473,7 +481,7 @@ Deno.serve(async (req) => {
       mode,
       action
     });
-    const ai = parseJson(await callGemini({ system: SYSTEM_RULES, prompt, schema: RESPONSE_SCHEMA }));
+    const ai = parseJson(await callGemini({ system: SYSTEM_RULES, prompt, schema: RESPONSE_SCHEMA, image }));
     const turn = validateAiResponse(ai, {
       npcIds: new Set(npcs.map((c) => c.id)),
       scenarioIds: new Set(scs.map((x) => x.id)),
@@ -484,7 +492,7 @@ Deno.serve(async (req) => {
       location: currentScenario?.name || world.data?.starting_location || ""
     });
     const msgs = [];
-    if (mode === "turn") msgs.push({ sender_type: "player", content: action, message_type: "action" });
+    if (mode === "turn") msgs.push({ sender_type: "player", content: action + (image ? "\n[Uma imagem foi anexada nesta a\xE7\xE3o]" : ""), message_type: "action" });
     if (turn.newScenarioId) {
       msgs.push({
         sender_type: "system",
