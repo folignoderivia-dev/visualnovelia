@@ -199,7 +199,9 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a ação incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], você DEVE obedecer imediatamente: encerre o diálogo atual, despeça os personagens presentes e traga os novos solicitados no mesmo beat.
 14. ROLAGEM DE DADO E RPG: Se o jogador mandar "[O jogador rolou um D20 e tirou: X]", interprete OBRIGATORIAMENTE como um teste: 1-5 falha trágica, 6-10 falha, 11-15 sucesso com custo, 16-20 sucesso épico.
 15. EXPRESSÕES VISUAIS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate.
-16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).`
+16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).
+17. REAÇÕES ECCHI/INTIMIDADE E EXPRESSÃO INTIMATE: A expressão 'intimate' SÓ DEVE SER USADA em momentos explícitos de romance intenso, nudez, banheiro ou quarto, NUNCA para conversas normais. Quando o contexto for picante ou 'intimate/ashamed', DEVE obrigatoriamente descrever vergonha aguda, vermelhidão profunda, gaguejo e constrangimento natural realista.
+18. MODO WHATSAPP/TINDER E FOTOS: Se a conversa estiver acontecendo pelo celular/app, aja estritamente como um bate-papo digital imersivo (ignorando/bloqueando se a amizade for baixa). O NPC pode enviar fotos usando as expressões: 'foto_casual', 'foto_sensual', 'foto_pe' ou 'foto_18' (na chave expression do JSON). Envie fotos íntimas SOMENTE se o jogador pedir ou se o relacionamento for alto.`
 
 const line = (label: string, v: unknown) => (s(v, 1500) ? `- ${label}: ${s(v, 1500)}` : '')
 const block = (title: string, lines: string[]) => {

@@ -1,14 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
 
-type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder'
+type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
 
 export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBack: () => void; onEdit?: () => void }) {
@@ -266,7 +266,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       <header className="novel-topbar">
         <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
         <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button><button className="icon-button light" aria-label="App de Namoro" title="Dating App / Tinder" onClick={() => openPanel('tinder')}><Smartphone /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
+        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button><button className="icon-button light" aria-label="App de Namoro" title="Dating App / Tinder" onClick={() => openPanel('tinder')}><Smartphone /></button><button className="icon-button light" aria-label="WhatsApp" title="WhatsApp Chat" onClick={() => openPanel('whatsapp')}><MessageCircle /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
       </header>
 
       <section className="novel-stage" onClick={advance}>
@@ -382,6 +382,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
               </>}
               {panel === 'cast' && !editingChar && <>
+<div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}><button className="outline-button light" onClick={() => { const i = document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=async(e)=>{ const f = e.target.files?.[0]; if(f){ try{ const t = await f.text(); const d = JSON.parse(t); const { supabase } = await import('@/lib/supabase/client'); const { data: nc } = await supabase.from('characters').insert({ story_id: storyId, name: d.name, nickname: d.nickname, age: d.age, appearance: d.appearance, personality: d.personality, history: d.history, goals: d.goals, fears: d.fears, secrets: d.secrets, speech_style: d.speech_style, relationship_to_protagonist: d.relationship_to_protagonist, extra_information: d.extra_information, image_url: d.image_url }).select().single(); if(nc) { setCharacters(x => [...x, nc]); notify('Personagem importado com sucesso!'); } }catch(err){ notify('Erro ao importar JSON', 'error'); } } }; i.click(); }}><Upload size={14}/> Importar Personagem</button></div>
                 {player && <div className="cast-item"><div className="cast-avatar">{player.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={player.image_url} alt="" /> : <UserRound />}</div><div><strong>{player.name}</strong><span>VOCÊ CONTROLA</span></div></div>}
                 {characters.map((c) => (
                   <div key={c.id} className="cast-item">
@@ -395,7 +396,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               {panel === 'cast' && editingChar && (
                 <div className="char-editor-panel" style={{ overflowY: "auto", maxHeight: "75vh", paddingRight: "8px" }}>
                   <div className="drawer-head" style={{ padding: 0, marginBottom: '20px', background: 'none' }}>
-                    <button className="outline-button light" onClick={() => setEditingChar(null)}><ArrowLeft size={16} /> Voltar</button>
+                    <button className="outline-button light" onClick={() => setEditingChar(null)}><ArrowLeft size={16} /> Voltar</button><button className="icon-button light" title="Exportar JSON" onClick={() => { const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(editingChar, null, 2)); const el = document.createElement('a'); el.setAttribute('href', dataStr); el.setAttribute('download', editingChar.name + '.json'); document.body.appendChild(el); el.click(); el.remove(); notify('Exportado!'); }}><Download size={16} /></button>
                     <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name}</strong>
                   </div>
                   <div className="field"><span>Nome</span><input value={editingChar.name} onChange={(e) => setEditingChar({ ...editingChar, name: e.target.value })} /></div>
@@ -404,12 +405,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div className="expressions-grid">
                     <span>Expressões Visuais</span>
                     <div className="expr-slots">
-                      {['neutral', 'happy', 'angry', 'ashamed', 'intimate'].map((expr) => {
+                      {['neutral', 'happy', 'angry', 'ashamed', 'intimate', 'foto_casual', 'foto_sensual', 'foto_pe', 'foto_18'].map((expr) => {
                         const img = (editingChar as any).expressions?.[expr] || (expr === 'neutral' ? editingChar.image_url : null)
                         return (
                           <div key={expr} className="expr-slot" onClick={() => { setUploadTarget(`expr_${editingChar.id}_${expr}`); fileInputRef.current?.click() }}>
                             {img ? <img src={img} alt={expr} /> : <div className="expr-empty"><ImagePlus size={16}/></div>}
-                            <small>{expr}</small>
+                            <small>{expr.replace('foto_', 'foto ')}</small>
                           </div>
                         )
                       })}
@@ -485,28 +486,52 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   }}>Criar Novo Cenário</button>
                 </div>
               </>}
-              {panel === 'tinder' && <>
-                <p className="drawer-note">Modo Aplicativo de Namoro. Deslize e veja se dá match!</p>
-                {characters.length > 0 && characters[tinderIndex % characters.length] && (
+              {panel === 'tinder' && (() => {
+                const tinderCharacters = characters.filter(c => !c.relationship || c.relationship.relationship_value < 10);
+                if (tinderCharacters.length === 0) return <p className="drawer-note">Ninguém novo por perto... Tente criar novos personagens ou abaixar os pontos de amizade de alguém!</p>;
+                const currentTinder = tinderCharacters[tinderIndex % tinderCharacters.length];
+                return <>
+                  <p className="drawer-note">Modo Aplicativo de Namoro. Apenas desconhecidos (Relacionamento &lt; 10).</p>
                   <div className="tinder-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(30,30,30,0.9)', padding: '20px', borderRadius: '16px', textAlign: 'center', border: '1px solid #444', marginTop: '20px' }}>
-                     {characters[tinderIndex % characters.length].image_url ? (
-                       <img src={characters[tinderIndex % characters.length].image_url!} style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '12px' }} alt="" />
+                     {currentTinder.image_url ? (
+                       <img src={currentTinder.image_url!} style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '12px' }} alt="" />
                      ) : (
                        <div style={{ width: '200px', height: '200px', background: '#333', borderRadius: '12px', display: 'grid', placeItems: 'center' }}><UserRound size={40} /></div>
                      )}
-                     <h3 style={{ marginTop: '15px', fontSize: '24px', color: '#fff' }}>{characters[tinderIndex % characters.length].name}</h3>
-                     <p style={{ fontSize: '14px', color: '#ccc', margin: '10px 0', minHeight: '40px' }}>{characters[tinderIndex % characters.length].nickname || 'Buscando conexão...'}</p>
+                     <h3 style={{ marginTop: '15px', fontSize: '24px', color: '#fff' }}>{currentTinder.name}</h3>
+                     <p style={{ fontSize: '14px', color: '#ccc', margin: '10px 0', minHeight: '40px' }}>{currentTinder.nickname || 'Buscando conexão...'}</p>
                      <div style={{ display: 'flex', gap: '30px', marginTop: '20px' }}>
                         <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#ff4444', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => setTinderIndex(tinderIndex + 1)} title="Passar"><X size={30}/></button>
                         <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#44ff44', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => {
-                           const c = characters[tinderIndex % characters.length];
-                           setInput(input + `[O JOGADOR DEU MATCH NO APLICATIVO COM ${c.name} E ELES COMEÇARAM A CONVERSAR. FAÇA UM ROLEPLAY IMERSIVO DE CHAT DE CELULAR AGORA. ELA/ELE RESPONDEU NO APP.] `);
+                           setInput(input + `[O JOGADOR DEU MATCH NO APLICATIVO COM ${currentTinder.name} E ELES COMEÇARAM A CONVERSAR. FAÇA UM ROLEPLAY IMERSIVO DE CHAT DE CELULAR AGORA. AJA COMO UM APLICATIVO DE CELULAR.] `);
                            setPanel(null);
                         }} title="Dar Match"><Heart size={30}/></button>
                      </div>
                   </div>
-                )}
-              </>}
+                </>;
+              })()}
+              {panel === 'whatsapp' && (() => {
+                const wppCharacters = characters.filter(c => c.relationship && c.relationship.relationship_value >= 10);
+                return <>
+                  <p className="drawer-note">WhatsApp. Selecione um contato conhecido (Amizade &gt;= 10) para abrir o chat.</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                    {wppCharacters.length === 0 && <p style={{color: '#999'}}>Nenhum contato com intimidade suficiente ainda.</p>}
+                    {wppCharacters.map(c => (
+                       <button key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(37, 211, 102, 0.1)', border: '1px solid #25D366', padding: '15px', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', color: '#fff' }} onClick={() => {
+                          setInput(input + `[O JOGADOR ABRIU O WHATSAPP E MANDOU MENSAGEM PARA ${c.name}. INICIE O MODO MENSAGEM DE TEXTO: a partir de agora, responda apenas como as mensagens de celular dela, curtas, ignorando se a amizade for baixa, ou enviando fotos sensuais/casuais se a amizade for alta e o jogador pedir.] `);
+                          setPanel(null);
+                       }}>
+                          <img src={c.image_url || ''} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} alt=""/>
+                          <div style={{ flex: 1 }}>
+                             <strong style={{ display: 'block', fontSize: '16px' }}>{c.name}</strong>
+                             <span style={{ fontSize: '12px', color: '#25D366' }}>Online</span>
+                          </div>
+                          <MessageCircle color="#25D366" />
+                       </button>
+                    ))}
+                  </div>
+                </>;
+              })()}
             </div>
           </aside>
         </div>
