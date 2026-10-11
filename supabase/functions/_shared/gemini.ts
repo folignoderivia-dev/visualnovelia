@@ -20,9 +20,12 @@ export async function callGemini(opts: {
   const model = MODEL()
   const parts: any[] = [{ text: opts.prompt }]
   if (opts.image) {
-    const match = opts.image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/)
-    if (match) {
-      parts.push({ inlineData: { mimeType: match[1], data: match[2] } })
+    const commaIdx = opts.image.indexOf(',')
+    if (commaIdx !== -1) {
+      const mimeMatch = opts.image.substring(0, commaIdx).match(/data:([^;]+);base64/)
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+      const base64Data = opts.image.substring(commaIdx + 1).replace(/\s/g, '')
+      parts.push({ inlineData: { mimeType, data: base64Data } })
     }
   }
 

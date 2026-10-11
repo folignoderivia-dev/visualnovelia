@@ -645,27 +645,38 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   image-rendering: auto !important;
 }
 /* ==========================================================================
-   RPG MAKER & BEING A DIK / VISUAL NOVEL POLISH (Comic Dialogue & Sprite Fixes)
+   RPG MAKER & VISUAL NOVEL GAME LAYOUT (Being a DIK / Classic VN Layout)
    ========================================================================== */
 
 /* Moldura e borda da tela de jogo de Visual Novel */
 .novel-mode {
-  border: 8px solid #141118 !important;
+  border: 6px solid #141118 !important;
   box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 0, 0, 0.8) !important;
   background: #08060a !important;
+  position: relative !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
 }
 
-/* SPRITES: Ajuste do tamanho exagerado - Agora Proporcional, Elegante e Responsivo */
+.novel-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* SPRITES: Personagem em pé no cenário (visível da cintura/peito pra cima, nunca cortado) */
 .novel-portrait {
   position: absolute !important;
-  bottom: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  height: 62vh !important;
-  max-height: 650px !important;
-  max-width: 520px !important;
+  bottom: 215px !important;
+  right: 16% !important;
+  height: min(68vh, 650px) !important;
+  max-width: 480px !important;
   width: auto !important;
-  z-index: 5 !important;
+  z-index: 10 !important;
   pointer-events: none !important;
   display: flex !important;
   align-items: flex-end !important;
@@ -678,8 +689,21 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   max-width: 100% !important;
   object-fit: contain !important;
   object-position: bottom center !important;
-  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.85)) !important;
+  filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.85)) !important;
+  mask-image: linear-gradient(to bottom, black 85%, transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%) !important;
   animation: spriteEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@media (max-width: 768px) {
+  .novel-portrait {
+    right: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    bottom: 245px !important;
+    height: 48vh !important;
+    max-width: 85vw !important;
+  }
 }
 
 @keyframes spriteEntrance {
@@ -687,228 +711,410 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* TOPBAR: Botões de RPG de visual novel */
-.vn-game-topbar {
-  padding: 14px 28px !important;
-  background: linear-gradient(180deg, rgba(12, 10, 16, 0.92) 0%, rgba(12, 10, 16, 0.4) 80%, transparent 100%) !important;
-  border-bottom: 1px solid rgba(229, 184, 105, 0.15) !important;
-}
-
-.vn-top-brand strong {
-  font-size: 19px !important;
-  color: #fff !important;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
-}
-
-.vn-top-actions {
-  display: flex !important;
-  gap: 8px !important;
-  flex-wrap: wrap !important;
-}
-
-.vn-top-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  background: rgba(26, 22, 32, 0.8) !important;
-  border: 1px solid rgba(229, 184, 105, 0.25) !important;
-  color: #dcd4c7 !important;
-  padding: 6px 12px !important;
-  border-radius: 6px !important;
-  font-family: var(--font-fantasy) !important;
-  font-size: 10px !important;
-  letter-spacing: 0.08em !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
-}
-
-.vn-top-btn:hover {
-  background: rgba(229, 184, 105, 0.2) !important;
-  border-color: #e5b869 !important;
-  color: #fff !important;
-  transform: translateY(-1px) !important;
-}
-
-.vn-accent-btn {
-  border-color: rgba(255, 75, 110, 0.4) !important;
-  color: #ff94b0 !important;
-}
-.vn-accent-btn:hover {
-  background: rgba(255, 75, 110, 0.2) !important;
-  border-color: #ff4b6e !important;
-  color: #fff !important;
-}
-
-.vn-whatsapp-btn {
-  border-color: rgba(37, 211, 102, 0.4) !important;
-  color: #6ce498 !important;
-}
-.vn-whatsapp-btn:hover {
-  background: rgba(37, 211, 102, 0.2) !important;
-  border-color: #25d366 !important;
-  color: #fff !important;
-}
-
-/* CAIXA DE DIÁLOGO: ESTILO BALÃO DE QUADRINHOS & VISUAL NOVEL CLÁSSICO */
-.vn-dialogue-content {
-  position: relative !important;
-  background: #110e16 !important;
-  border: 2px solid #e5b869 !important;
-  border-radius: 16px !important;
-  padding: 20px 26px 18px !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(229, 184, 105, 0.15) !important;
-  margin-bottom: 8px !important;
-}
-
-/* Pontinhos / rabo de fala indicando a fala do personagem (formato de balão de quadrinhos) */
-.vn-dialogue-content::before {
-  content: '' !important;
+/* ESCOLHAS FLUTUANTES NO CENÁRIO (Idêntico às referências de Visual Novel - Imagens 2 e 3) */
+.vn-choices-overlay {
   position: absolute !important;
-  top: -12px !important;
-  left: 60px !important;
-  width: 20px !important;
-  height: 20px !important;
-  background: #110e16 !important;
-  border-left: 2px solid #e5b869 !important;
-  border-top: 2px solid #e5b869 !important;
-  transform: rotate(45deg) !important;
+  top: 38% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: min(580px, 92vw) !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+  animation: dropUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.vn-choices-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.vn-choice-card {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 14px 24px !important;
+  background: linear-gradient(90deg, rgba(22, 18, 28, 0.94) 0%, rgba(35, 27, 46, 0.94) 100%) !important;
+  border: 1.5px solid rgba(229, 184, 105, 0.6) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(229, 184, 105, 0.1) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.vn-choice-card:hover {
+  background: linear-gradient(90deg, rgba(229, 184, 105, 0.3) 0%, rgba(201, 147, 62, 0.4) 100%) !important;
+  border-color: #ffd98a !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 12px 35px rgba(229, 184, 105, 0.35) !important;
+}
+
+.vn-choice-crest {
+  color: #e5b869 !important;
+  font-size: 15px !important;
+}
+
+.vn-choice-text {
+  font-family: var(--font-sans), system-ui !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #fbf8f2 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* CAIXA DE DIÁLOGO VISUAL NOVEL (Fixa na parte inferior, elegante e imersiva) */
+.dialogue-panel.vn-dialogue-window {
+  position: absolute !important;
+  bottom: 16px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(1140px, 95vw) !important;
+  min-height: 180px !important;
+  max-height: 38vh !important;
+  background: linear-gradient(180deg, rgba(16, 13, 22, 0.95) 0%, rgba(9, 7, 13, 0.98) 100%) !important;
+  border: 2px solid #e5b869 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(229, 184, 105, 0.08), 0 0 20px rgba(229, 184, 105, 0.18) !important;
+  padding: 16px 24px 14px !important;
+  z-index: 30 !important;
+  backdrop-filter: blur(14px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+.vn-dialogue-content {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
 }
 
 .vn-nameplate-bar {
-  margin-bottom: 8px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 4px !important;
 }
 
+/* Nameplate do Personagem com Avatar e Moldura */
 .vn-nameplate {
-  position: relative !important;
-  z-index: 2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
   background: linear-gradient(135deg, #e5b869 0%, #aa7a28 100%) !important;
   border: 1px solid #ffd98a !important;
   border-radius: 6px !important;
-  padding: 5px 16px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+  padding: 4px 14px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6) !important;
+}
+
+.vn-nameplate-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  border: 1.5px solid #fff !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+}
+
+.vn-nameplate-crest {
+  color: #171108 !important;
+  font-size: 11px !important;
 }
 
 .vn-nameplate-title {
-  color: #16110a !important;
-  font-weight: 900 !important;
+  color: #171108 !important;
+  font-family: var(--font-fantasy) !important;
   font-size: 15px !important;
-  letter-spacing: 0.12em !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.1em !important;
   text-shadow: none !important;
 }
 
 .vn-nameplate-mood {
-  color: #422d0b !important;
+  color: #4b3410 !important;
+  font-size: 11px !important;
+  font-style: italic !important;
   font-weight: bold !important;
+  margin-left: 6px !important;
 }
 
-.vn-nameplate-crest {
-  color: #16110a !important;
+/* Controles Rápidos da Visual Novel no Topo da Caixa de Diálogo (estilo Imagem 2) */
+.vn-dialogue-quickmenu {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+
+.vn-turn-counter {
+  font-family: var(--font-fantasy) !important;
+  font-size: 10px !important;
+  color: #a59b8a !important;
+  letter-spacing: 0.12em !important;
+  margin-right: 6px !important;
+}
+
+.vn-quick-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(229, 184, 105, 0.25) !important;
+  color: #ded6c9 !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 9px !important;
+  letter-spacing: 0.08em !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.vn-quick-btn:hover {
+  background: rgba(229, 184, 105, 0.2) !important;
+  border-color: #e5b869 !important;
+  color: #fff !important;
+}
+
+.vn-dialogue-body {
+  flex: 1 !important;
+  min-height: 60px !important;
+  max-height: 18vh !important;
+  overflow-y: auto !important;
+  padding: 4px 6px !important;
+  position: relative !important;
 }
 
 .vn-dialogue-text {
   font-size: 21px !important;
   line-height: 1.6 !important;
-  color: #f7f3ec !important;
+  color: #faf5ed !important;
+  font-family: var(--font-sans), Georgia, serif !important;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+  margin: 0 !important;
 }
 
-/* POPUP ORGANIZADO DE AÇÕES E COMANDOS RPG (FIM DO AMONTOADO DE BOTÕES) */
-.vn-command-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
+.vn-dialogue-text.is-narration {
+  color: #dfd7cc !important;
+  font-style: italic !important;
 }
 
-.vn-command-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: linear-gradient(180deg, #2a2333 0%, #1a1520 100%);
-  border: 1px solid rgba(229, 184, 105, 0.4);
-  color: #f4ecdf;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-family: var(--font-fantasy);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+.vn-blinking-cursor {
+  position: absolute !important;
+  bottom: 2px !important;
+  right: 8px !important;
+  color: #e5b869 !important;
+  font-size: 13px !important;
+  animation: bounceCursor 1s infinite alternate !important;
 }
 
-.vn-command-trigger:hover, .vn-command-trigger.active {
-  background: linear-gradient(180deg, #3d314b 0%, #251d30 100%);
-  border-color: #e5b869;
-  color: #fff;
-  box-shadow: 0 0 15px rgba(229, 184, 105, 0.35);
+/* BARRA DE AÇÃO RPG INTEGRADA (Fim do visual de chat de IA!) */
+.vn-action-dock {
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(229, 184, 105, 0.2) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
 }
 
-.vn-command-trigger small {
-  color: #e5b869;
-  font-size: 10px;
+.vn-attached-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(229, 184, 105, 0.15) !important;
+  border: 1px solid #e5b869 !important;
+  border-radius: 6px !important;
+  padding: 3px 8px !important;
+  width: fit-content !important;
+  font-size: 10px !important;
+  color: #ffd98a !important;
+  font-family: var(--font-fantasy) !important;
+}
+
+.vn-attached-chip img {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 4px !important;
+  object-fit: cover !important;
+}
+
+.vn-attached-chip button {
+  background: transparent !important;
+  border: none !important;
+  color: #ff6b6b !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+}
+
+.vn-action-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+.vn-dock-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: rgba(30, 24, 38, 0.9) !important;
+  border: 1px solid rgba(229, 184, 105, 0.35) !important;
+  color: #ecdcc3 !important;
+  padding: 8px 14px !important;
+  border-radius: 6px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: all 0.2s ease !important;
+}
+
+.vn-dock-btn:hover, .vn-dock-btn.active {
+  background: rgba(229, 184, 105, 0.25) !important;
+  border-color: #e5b869 !important;
+  color: #fff !important;
+}
+
+.vn-command-container {
+  position: relative !important;
+}
+
+.vn-dock-input {
+  flex: 1 !important;
+  background: rgba(8, 6, 12, 0.8) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+  padding: 8px 12px !important;
+  font-size: 15px !important;
+  transition: border-color 0.2s ease !important;
+}
+
+.vn-dock-input:focus {
+  border-color: #e5b869 !important;
+  box-shadow: 0 0 10px rgba(229, 184, 105, 0.25) !important;
+  outline: none !important;
+}
+
+.vn-dock-send-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: linear-gradient(180deg, #f0c978 0%, #c9933e 100%) !important;
+  color: #171108 !important;
+  border: 1px solid #ffd98a !important;
+  border-radius: 6px !important;
+  padding: 8px 18px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.1em !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 10px rgba(201, 147, 62, 0.4) !important;
+}
+
+.vn-dock-send-btn:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.5) !important;
+}
+
+/* NAVEGAÇÃO DE PÁGINAS DO DIÁLOGO */
+.vn-dialogue-bottom-nav {
+  margin-top: 6px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+}
+
+.vn-nav-step-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: rgba(30, 24, 38, 0.8) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  color: #dcd3c3 !important;
+  padding: 5px 14px !important;
+  border-radius: 6px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+}
+
+.vn-nav-step-btn.primary {
+  background: linear-gradient(180deg, #e5b869 0%, #b88530 100%) !important;
+  color: #171108 !important;
+  border-color: #ffd98a !important;
+  font-weight: bold !important;
 }
 
 .vn-command-dropdown {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 0;
-  width: min(520px, 92vw);
-  background: #15111b;
-  border: 1px solid #e5b869;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.18);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-height: 55vh;
-  overflow-y: auto;
-  animation: dropUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes dropUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  position: absolute !important;
+  bottom: calc(100% + 12px) !important;
+  left: 0 !important;
+  width: min(520px, 92vw) !important;
+  background: #15111b !important;
+  border: 1px solid #e5b869 !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.18) !important;
+  z-index: 50 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  max-height: 55vh !important;
+  overflow-y: auto !important;
+  animation: dropUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .vn-command-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
 }
 
 .vn-command-header {
-  font-family: var(--font-fantasy);
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  color: #e5b869;
-  font-weight: bold;
+  font-family: var(--font-fantasy) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.15em !important;
+  color: #e5b869 !important;
+  font-weight: bold !important;
 }
 
 .vn-command-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
 }
 
 .vn-command-grid button {
-  background: rgba(36, 29, 44, 0.9);
-  border: 1px solid rgba(229, 184, 105, 0.25);
-  color: #e6dfd3;
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  background: rgba(36, 29, 44, 0.9) !important;
+  border: 1px solid rgba(229, 184, 105, 0.25) !important;
+  color: #e6dfd3 !important;
+  padding: 7px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
 }
 
 .vn-command-grid button:hover {
-  background: rgba(229, 184, 105, 0.25);
-  border-color: #e5b869;
-  color: #fff;
-  transform: translateY(-1px);
+  background: rgba(229, 184, 105, 0.25) !important;
+  border-color: #e5b869 !important;
+  color: #fff !important;
+  transform: translateY(-1px) !important;
 }
+

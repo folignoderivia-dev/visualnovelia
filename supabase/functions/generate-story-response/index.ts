@@ -80,9 +80,12 @@ Deno.serve(async (req) => {
     const { admin } = ctx
 
     const mode: 'start' | 'turn' = body.mode === 'start' ? 'start' : 'turn'
-    const action = s(body.action, MAX_ACTION)
+    let action = s(body.action, MAX_ACTION)
     const image = body.image
-    if (mode === 'turn' && !action) throw new HttpError(400, 'empty_action', 'Escreva o que seu protagonista faz ou diz.')
+    if (mode === 'turn' && !action && image) {
+      action = '[O jogador mostra esta foto/imagem e aguarda sua reação]'
+    }
+    if (mode === 'turn' && !action) throw new HttpError(400, 'empty_action', 'Escreva o que seu protagonista faz ou diz, ou anexe uma imagem.')
 
     // ---------- trava de concorrência: uma geração por vez por história ----------
     const { data: claimed, error: claimErr } = await admin.rpc('claim_story_generation', { p_story_id: story.id, p_seconds: 90 })
