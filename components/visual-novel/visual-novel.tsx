@@ -417,7 +417,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
       {/* CAIXA DE DIÁLOGO PURA DA PERSONAGEM (Exatamente igual à Alisa - Imagem 2) */}
       <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
-        <input type="file" ref={fileInputRef} className="sr-only" accept="image/*" onChange={handleFileChange} />
+        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleFileChange} />
         
         {loadingInit ? (
           <div className="vn-dialogue-loading"><Sparkles className="pulse" /> Carregando crônicas...</div>
@@ -475,11 +475,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         ) : null}
       </section>
 
-      {/* PAINEL SEPARADO DE AÇÃO DO PROTAGONISTA (Totalmente desacoplado do balão de fala da personagem) */}
+      {/* PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
       {!loadingInit && !thinking && !error && current && atEnd && (
         <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
           <div className="vn-action-console-inner">
-            <div className="vn-action-console-badge">SUA RESPOSTA</div>
+            <span className="vn-action-console-badge">SUA RESPOSTA</span>
             <div className="vn-action-input-cluster">
               {actionImage && (
                 <div className="vn-decision-img-preview">
@@ -491,7 +491,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               <input
                 type="file"
                 ref={actionImageRef}
-                className="sr-only"
+                style={{ display: 'none' }}
                 accept="image/*"
                 onChange={(e) => {
                   const f = (e.target as any)?.files?.[0];

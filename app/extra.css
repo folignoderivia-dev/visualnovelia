@@ -846,13 +846,13 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 /* SPRITES: MOLDURA DO PERSONAGEM (SEMPRE EM ALTA RESOLUÇÃO E NUNCA CRUZA O DIÁLOGO) */
 .novel-portrait-frame {
   position: absolute !important;
-  bottom: 235px !important;
+  bottom: 275px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   top: auto !important;
-  height: min(45vh, 400px) !important;
-  max-height: 400px !important;
-  max-width: 330px !important;
+  height: min(38vh, 330px) !important;
+  max-height: 330px !important;
+  max-width: 290px !important;
   width: auto !important;
   z-index: 15 !important;
   pointer-events: none !important;
@@ -866,12 +866,12 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   height: 100% !important;
   width: auto !important;
   max-width: 100% !important;
-  border-radius: 14px !important;
+  border-radius: 12px !important;
   overflow: hidden !important;
   background: radial-gradient(ellipse at center, rgba(38, 30, 48, 0.95) 0%, rgba(12, 9, 16, 0.98) 100%) !important;
   border: 2.5px solid #e5b869 !important;
-  outline: 2px solid rgba(0, 0, 0, 0.85) !important;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.7) !important;
+  outline: 2px solid rgba(0, 0, 0, 0.9) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.35), inset 0 0 20px rgba(0, 0, 0, 0.7) !important;
 }
 
 .novel-portrait-inner img {
@@ -882,7 +882,9 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   object-position: top center !important;
   image-rendering: -webkit-optimize-contrast !important;
   image-rendering: crisp-edges !important;
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.8)) !important;
+  filter: contrast(1.12) brightness(1.03) saturate(1.08) drop-shadow(0 6px 18px rgba(0, 0, 0, 0.8)) !important;
+  transform: translateZ(0) !important;
+  backface-visibility: hidden !important;
   display: block !important;
 }
 
@@ -893,7 +895,7 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 /* BALÕES DE ESCOLHAS NO ESTILO DA IMAGEM 3 (Speech bubble choice buttons) */
 .vn-choices-balloon-row {
   position: absolute !important;
-  bottom: 235px !important;
+  bottom: 275px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   display: flex !important;
@@ -945,17 +947,17 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 /* CAIXA DE DIÁLOGO PURA DE VISUAL NOVEL (Idêntica à referência da Alisa - Imagem 2) */
 .dialogue-panel.vn-dialogue-window {
   position: absolute !important;
-  bottom: 78px !important;
+  bottom: 84px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: min(880px, 86vw) !important;
-  min-height: 125px !important;
-  max-height: 180px !important;
-  background: linear-gradient(180deg, rgba(22, 10, 20, 0.95) 0%, rgba(12, 5, 12, 0.98) 100%) !important;
-  border: 1.5px solid rgba(229, 184, 105, 0.5) !important;
-  border-radius: 6px !important;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(0, 0, 0, 0.8) !important;
-  padding: 20px 32px 18px !important;
+  width: min(840px, 86vw) !important;
+  min-height: 110px !important;
+  max-height: 155px !important;
+  background: linear-gradient(180deg, rgba(20, 10, 18, 0.96) 0%, rgba(10, 5, 10, 0.98) 100%) !important;
+  border: 2px solid rgba(229, 184, 105, 0.6) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.95), inset 0 0 20px rgba(0, 0, 0, 0.8) !important;
+  padding: 18px 28px 14px !important;
   z-index: 30 !important;
   backdrop-filter: blur(16px) !important;
   display: flex !important;
@@ -975,8 +977,8 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 /* Nameplate com Brasão no topo esquerdo da moldura (exatamente como em "Alisa" - Imagem 2) */
 .vn-nameplate-alisa-wrap {
   position: absolute !important;
-  top: -38px !important;
-  left: -12px !important;
+  top: -34px !important;
+  left: 8px !important;
   display: flex !important;
   align-items: center !important;
   z-index: 10 !important;
@@ -1035,15 +1037,15 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 
 .vn-dialogue-body {
   flex: 1 !important;
-  padding-top: 8px !important;
+  padding-top: 6px !important;
   position: relative !important;
 }
 
 .vn-dialogue-text {
   font-family: Georgia, 'Times New Roman', serif !important;
-  font-size: 20px !important;
+  font-size: 21px !important;
   line-height: 1.6 !important;
-  color: #fbf5eb !important;
+  color: #fffaf0 !important;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
   margin: 0 !important;
 }
@@ -1062,14 +1064,14 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   animation: pulse 1s infinite alternate !important;
 }
 
-/* PAINEL SEPARADO DE AÇÃO DO PROTAGONISTA (TOTALMENTE DESACOPLADO DA CAIXA DE DIÁLOGO DA PERSONAGEM) */
+/* PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA (TOTALMENTE DESACOPLADO DA CAIXA DE DIÁLOGO) */
 .vn-player-action-console {
   position: absolute !important;
-  bottom: 14px !important;
+  bottom: 12px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: min(880px, 86vw) !important;
-  z-index: 35 !important;
+  width: min(840px, 86vw) !important;
+  z-index: 45 !important;
   pointer-events: auto !important;
 }
 
@@ -1077,12 +1079,12 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  background: rgba(16, 12, 20, 0.95) !important;
-  border: 1px solid rgba(229, 184, 105, 0.4) !important;
-  border-radius: 6px !important;
+  background: rgba(14, 11, 18, 0.96) !important;
+  border: 1.5px solid rgba(229, 184, 105, 0.5) !important;
+  border-radius: 8px !important;
   padding: 6px 12px !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85) !important;
-  backdrop-filter: blur(12px) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.95) !important;
+  backdrop-filter: blur(14px) !important;
 }
 
 .vn-action-console-badge {
