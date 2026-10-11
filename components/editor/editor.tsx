@@ -240,9 +240,15 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
               </div>
               <Field label="Aparência" placeholder="Como ele/ela é fisicamente?" multiline rows={3} value={editing.appearance} onChange={ch('appearance')} />
               <Field label="Personalidade" placeholder="Como pensa e age?" multiline rows={3} value={editing.personality} onChange={ch('personality')} />
-              <Field label="Jeito de falar" placeholder="Gírias, formalidade, tiques de fala…" value={editing.speech_style} onChange={ch('speech_style')} />
-              <Field label="Relação com o protagonista" placeholder="Quem é para o seu protagonista?" value={editing.relationship_to_protagonist} onChange={ch('relationship_to_protagonist')} />
-              <Field label="História" placeholder="Passado do personagem." multiline rows={3} value={editing.history} onChange={ch('history')} />
+              <div style={{ border: '1.5px solid #e5b869', borderRadius: '8px', padding: '14px', background: 'rgba(229, 184, 105, 0.08)', margin: '10px 0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#e5b869', fontWeight: 'bold', fontSize: '12px', marginBottom: '4px' }}>
+                  <Sparkles size={14} /> ⭐ O QUE PENSA ATUALMENTE SOBRE VOCÊ (REGRA DE OURO DA IA)
+                </div>
+                <p style={{ fontSize: '11px', color: '#888', margin: '0 0 8px 0', lineHeight: 1.4 }}>
+                  Regra absoluta: O Gemini seguirá à risca este campo como os sentimentos e segredos inegociáveis deste personagem em relação ao protagonista.
+                </p>
+                <Field label="" placeholder="Ex.: Ela finge amizade mas secretamente desconfia de você, querendo descobrir seu passado..." multiline rows={3} value={editing.relationship_to_protagonist} onChange={ch('relationship_to_protagonist')} />
+              </div>
               <div className="two-col"><Field label="Objetivos" placeholder="O que quer?" multiline rows={3} value={editing.goals} onChange={ch('goals')} /><Field label="Medos" placeholder="Do que tem medo?" multiline rows={3} value={editing.fears} onChange={ch('fears')} /></div>
               <Field label="Segredos" placeholder="O que o narrador sabe mas não deve revelar sem motivo." multiline rows={3} value={editing.secrets} onChange={ch('secrets')} />
               <Field label="Informações extras" placeholder="Qualquer outra coisa importante." multiline rows={3} value={editing.extra_information} onChange={ch('extra_information')} />

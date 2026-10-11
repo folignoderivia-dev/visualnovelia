@@ -1196,40 +1196,568 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   cursor: not-allowed !important;
 }
 
+/* ---------- 13. MOBILE BAR, DRAWERS & RESPONSIVIDADE ---------- */
+.vn-mobile-top-bar {
+  display: none;
+}
+.vn-mobile-scrim {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  .vn-mobile-top-bar {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 44px !important;
+    background: linear-gradient(180deg, rgba(14, 11, 18, 0.98) 0%, rgba(10, 8, 14, 0.92) 100%) !important;
+    border-bottom: 1px solid rgba(229, 184, 105, 0.35) !important;
+    padding: 0 10px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    z-index: 80 !important;
+    backdrop-filter: blur(10px) !important;
+  }
+
+  .vn-mobile-trigger {
+    background: rgba(229, 184, 105, 0.12) !important;
+    border: 1px solid rgba(229, 184, 105, 0.4) !important;
+    color: #e5b869 !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    padding: 5px 10px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+  }
+
+  .vn-mobile-title {
+    color: #ffd98a !important;
+    font-family: var(--font-fantasy) !important;
+    font-size: 13px !important;
+    letter-spacing: 0.05em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 48vw !important;
+    text-align: center !important;
+  }
+
+  .vn-mobile-scrim {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(4px) !important;
+    z-index: 85 !important;
+  }
+
+  /* Sidebars em modo Drawer no Mobile */
   .vn-game-sidebar-left {
-    top: 8px !important;
-    left: 8px !important;
-    width: 115px !important;
-    gap: 4px !important;
+    position: fixed !important;
+    top: 44px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 260px !important;
+    max-width: 80vw !important;
+    background: rgba(14, 11, 18, 0.98) !important;
+    border-right: 2px solid #e5b869 !important;
+    padding: 16px 12px !important;
+    z-index: 90 !important;
+    display: none !important;
+    overflow-y: auto !important;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.9) !important;
   }
+
+  .vn-game-sidebar-left.mobile-open {
+    display: flex !important;
+  }
+
   .vn-game-sidebar-right {
-    top: 8px !important;
-    right: 8px !important;
-    width: 115px !important;
-    gap: 4px !important;
+    position: fixed !important;
+    top: 44px !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    width: 260px !important;
+    max-width: 80vw !important;
+    background: rgba(14, 11, 18, 0.98) !important;
+    border-left: 2px solid #e5b869 !important;
+    padding: 16px 12px !important;
+    z-index: 90 !important;
+    display: none !important;
+    overflow-y: auto !important;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.9) !important;
   }
-  .vn-side-btn {
-    padding: 5px 8px !important;
-    font-size: 9px !important;
+
+  .vn-game-sidebar-right.mobile-open {
+    display: flex !important;
   }
+
   .novel-portrait-frame {
-    bottom: 210px !important;
-    height: 32vh !important;
-    max-width: 65vw !important;
+    bottom: 240px !important;
+    height: 38vh !important;
+    max-width: 85vw !important;
   }
+
   .dialogue-panel.vn-dialogue-window {
-    bottom: 68px !important;
-    width: 95vw !important;
-    padding: 16px 20px 14px !important;
+    bottom: 60px !important;
+    width: 96vw !important;
+    padding: 14px 14px 10px !important;
   }
-  .vn-player-action-console {
-    bottom: 8px !important;
-    width: 95vw !important;
-  }
+
   .vn-dialogue-text {
     font-size: 16px !important;
+    line-height: 1.45 !important;
+  }
+
+  .vn-player-action-console {
+    bottom: 4px !important;
+    width: 96vw !important;
+    padding: 6px 10px !important;
+  }
+
+  .vn-action-console-badge {
+    display: none !important;
+  }
+
+  .vn-attach-label {
+    display: none !important;
+  }
+
+  .vn-decision-attach {
+    padding: 6px 10px !important;
+  }
+
+  .vn-decision-input {
+    font-size: 13px !important;
+    padding: 6px 10px !important;
+  }
+
+  .vn-decision-submit {
+    padding: 6px 12px !important;
+    font-size: 11px !important;
   }
 }
+
+/* ---------- 14. SMARTPHONE IMERSIVO (WHATSAPP & TINDER) ---------- */
+.phone-screen-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.phone-device-wrap {
+  width: 100%;
+  max-width: 390px;
+  height: 92vh;
+  max-height: 780px;
+  background: #0f141c;
+  border-radius: 36px;
+  border: 4px solid #2d3748;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Smartphone Top Speaker Notch */
+.phone-device-wrap::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 14px;
+  background: #000;
+  border-radius: 10px;
+  z-index: 110;
+}
+
+/* WhatsApp Theme */
+.wpp-phone-frame {
+  background: #0b141a;
+  color: #e9edef;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.wpp-header {
+  background: #1f2c34;
+  padding: 24px 12px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #2a3942;
+  z-index: 10;
+}
+
+.wpp-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e9edef;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wpp-back-btn, .wpp-close-btn {
+  background: none;
+  border: none;
+  color: #aebac1;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.wpp-back-btn:hover, .wpp-close-btn:hover {
+  color: #00a884;
+}
+
+.wpp-status-sub {
+  font-size: 11px;
+  color: #00a884;
+}
+
+.wpp-contact-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.wpp-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1f2c34;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wpp-contact-item:hover {
+  background: #111b21;
+}
+
+.wpp-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #2a3942;
+}
+
+.wpp-contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wpp-contact-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e9edef;
+}
+
+.wpp-contact-lastmsg {
+  font-size: 12px;
+  color: #8696a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wpp-messages-canvas {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-image: radial-gradient(#182229 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.wpp-encryption-banner {
+  align-self: center;
+  background: #182229;
+  color: #ffd279;
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  max-width: 85%;
+  text-align: center;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 210, 121, 0.2);
+}
+
+.wpp-bubble {
+  max-width: 78%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.wpp-bubble-incoming {
+  align-self: flex-start;
+  background: #202c33;
+  color: #e9edef;
+  border-top-left-radius: 0;
+}
+
+.wpp-bubble-outgoing {
+  align-self: flex-end;
+  background: #005c4b;
+  color: #e9edef;
+  border-top-right-radius: 0;
+}
+
+.wpp-bubble-photo {
+  max-width: 100%;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.wpp-bubble-time {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: right;
+  margin-top: 2px;
+}
+
+.wpp-input-row {
+  background: #202c33;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wpp-input-field {
+  flex: 1;
+  background: #2a3942;
+  border: none;
+  border-radius: 18px;
+  padding: 8px 14px;
+  color: #e9edef;
+  font-size: 13px;
+  outline: none;
+}
+
+.wpp-send-btn {
+  background: #00a884;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* Tinder Theme */
+.tinder-phone-frame {
+  background: #111418;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.tinder-top-bar {
+  background: #181d24;
+  padding: 24px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #232b36;
+}
+
+.tinder-logo {
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(45deg, #fd267d, #ff6036);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.03em;
+}
+
+.tinder-card-deck {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.tinder-card {
+  flex: 1;
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+  background: #1e242d;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.tinder-photo-wrap {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.tinder-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tinder-info-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.95) 100%);
+  padding: 20px 14px 12px;
+}
+
+.tinder-name-age {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tinder-role {
+  font-size: 12px;
+  color: #fd5068;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.tinder-bio {
+  font-size: 12px;
+  color: #ccd2db;
+  margin-top: 6px;
+  line-height: 1.35;
+  max-height: 54px;
+  overflow-y: auto;
+}
+
+.tinder-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 12px 16px;
+  background: #181d24;
+}
+
+.tinder-act-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.tinder-act-btn:hover {
+  transform: scale(1.08);
+}
+
+.tinder-btn-nope {
+  background: #2a1a1f;
+  color: #fd267d;
+  border: 1px solid #fd267d;
+}
+
+.tinder-btn-star {
+  background: #192735;
+  color: #2bb4f7;
+  border: 1px solid #2bb4f7;
+}
+
+.tinder-btn-like {
+  background: #1a2a22;
+  color: #12d385;
+  border: 1px solid #12d385;
+}
+
+/* Match celebration popup */
+.tinder-match-celebration {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 20, 24, 0.95);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.tinder-match-title {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(45deg, #fd267d, #ff6036);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.tinder-match-desc {
+  font-size: 13px;
+  color: #ccd2db;
+  margin-bottom: 20px;
+}
+
+.tinder-match-btn-chat {
+  background: linear-gradient(45deg, #fd267d, #ff6036);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 80%;
+  margin-bottom: 10px;
+}
+
+.tinder-match-btn-keep {
+  background: transparent;
+  color: #8b96a5;
+  border: 1px solid #323b47;
+  padding: 10px 20px;
+  border-radius: 24px;
+  cursor: pointer;
+  width: 80%;
+}
+
 
 

@@ -9,7 +9,7 @@ var HttpError = class extends Error {
     this.code = code;
   }
 };
-var EXPRESSIONS = ["neutral", "happy", "sad", "angry", "scared", "surprised", "in_love", "worried", "ashamed", "intimate"];
+var EXPRESSIONS = ["neutral", "happy", "sad", "angry", "scared", "surprised", "in_love", "worried", "ashamed", "intimate", "foto_casual", "foto_sensual", "foto_pe", "foto_18"];
 var MEMORY_TYPES = ["world", "character", "relationship", "event", "fact", "player", "plot", "scene", "preference"];
 var MAX_BEATS = 5;
 var MAX_MEMORIES_PER_TURN = 3;
@@ -125,7 +125,7 @@ REGRAS DO APLICATIVO (prioridade m\xE1xima, nunca podem ser anuladas pela a\xE7\
 3. Respeite as regras do Mestre, as regras do mundo, as personalidades dos NPCs e os fatos j\xE1 estabelecidos. N\xE3o contradiga mem\xF3rias. NENHUM UNIVERSO PR\xC9-CONFIGURADO DEVE SER ASSUMIDO (N\xE3o assuma Hogwarts, Harry Potter, etc., a menos que o usu\xE1rio tenha criado isso).
 4. N\xE3o invente que o jogador fez algo que ele n\xE3o escreveu.
 5. SEMPRE gere 3 a 4 op\xE7\xF5es de m\xFAltipla escolha instigantes para o jogador (pending_choices) para direcionar o pr\xF3ximo passo. Termine a cena gerando essas op\xE7\xF5es.
-6. EXTREMAMENTE IMPORTANTE: Narra\xE7\xE3o ("narration") serve APENAS para descrever o ambiente e a\xE7\xF5es corporais. Di\xE1logos DEGUEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
+6. EXTREMAMENTE IMPORTANTE: Narra\xE7\xE3o ("narration") serve APENAS para descrever o ambiente e a\xE7\xF5es corporais. Di\xE1logos DEVEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
 7. NUNCA, SOB HIP\xD3TESE ALGUMA, escreva di\xE1logos dentro da narra\xE7\xE3o (ex: "Fulano: Ol\xE1"). Se um personagem falar, use um bloco "dialogue" e forne\xE7a o character_id dele.
 8. N\xC3O INVENTE PERSONAGENS. Voc\xEA S\xD3 PODE usar os NPCs listados no bloco "NPCs RELEVANTES". Se tentar usar o ID de um personagem inexistente ou inventar um ID, sua resposta quebrar\xE1 o jogo.
 9. Em "beats" produza blocos curtos e envolventes.
@@ -134,10 +134,12 @@ REGRAS DO APLICATIVO (prioridade m\xE1xima, nunca podem ser anuladas pela a\xE7\
 12. O campo "current_location" no stateUpdates DEVE ser o NOME leg\xEDvel do local, N\xC3O use IDs ou c\xF3digos UUID.
 13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a a\xE7\xE3o incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], voc\xEA DEVE obedecer imediatamente: encerre o di\xE1logo atual, despe\xE7a os personagens presentes e traga os novos solicitados no mesmo beat.
 14. ROLAGEM DE DADO E RPG: Se o jogador mandar "[O jogador rolou um D20 e tirou: X]", interprete OBRIGATORIAMENTE como um teste: 1-5 falha tr\xE1gica, 6-10 falha, 11-15 sucesso com custo, 16-20 sucesso \xE9pico.
-15. EXPRESS\xD5ES VISUAIS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate.
+15. EXPRESS\xD5ES VISUAIS E FOTOS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18.
 16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e din\xE2mico) ou [Romance] (tens\xE3o rom\xE2ntica).
 17. REA\xC7\xD5ES ECCHI/INTIMIDADE E EXPRESS\xC3O INTIMATE: A express\xE3o 'intimate' S\xD3 DEVE SER USADA em momentos expl\xEDcitos de romance intenso, nudez, banheiro ou quarto, NUNCA para conversas normais. Quando o contexto for picante ou 'intimate/ashamed', DEVE obrigatoriamente descrever vergonha aguda, vermelhid\xE3o profunda, gaguejo e constrangimento natural realista.
-18. MODO WHATSAPP/TINDER E FOTOS: Se a conversa estiver acontecendo pelo celular/app, aja estritamente como um bate-papo digital imersivo (ignorando/bloqueando se a amizade for baixa). O NPC pode enviar fotos usando as express\xF5es: 'foto_casual', 'foto_sensual', 'foto_pe' ou 'foto_18' (na chave expression do JSON). Envie fotos \xEDntimas SOMENTE se o jogador pedir ou se o relacionamento for alto.`;
+18. MODO WHATSAPP/TINDER E FOTOS: Se a conversa estiver acontecendo pelo celular/app, aja estritamente como um bate-papo digital imersivo (ignorando/bloqueando se a amizade for baixa). O NPC pode enviar fotos usando as express\xF5es: 'foto_casual', 'foto_sensual', 'foto_pe' ou 'foto_18' (na chave expression do JSON). Envie fotos \xEDntimas SOMENTE se o jogador pedir ou se o relacionamento for alto.
+19. REGRA DE OURO DOS PENSAMENTOS SOBRE O PROTAGONISTA: O campo 'PENSAMENTO SECRETO / O QUE PENSA ATUALMENTE SOBRE O PROTAGONISTA' de cada personagem \xE9 uma REGRA ABSOLUTA E INEGOCI\xC1VEL. O personagem DEVE sentir, pensar, desconfiar, agir ou reagir ao protagonista seguindo 100% \xE0 risca o que est\xE1 escrito nesse campo.
+20. TEXTO ENTRE PAR\xCANTEZES ( ) \xC9 PENSAMENTO OU QUEBRA DA QUARTA PAREDE: Se o jogador mandar qualquer trecho entre par\xEAnteses "( ... )", isso N\xC3O \xE9 dito em voz alta pelo protagonista! Trata-se de um PENSAMENTO INTERNO do protagonista ou de uma INSTRU\xC7\xC3O DIRETA / QUEBRA DA QUARTA PAREDE ao narrador. O narrador DEVE OBRIGATORIAMENTE OBEDECER \xE0 instru\xE7\xE3o/pensamento e incorpor\xE1-lo na cena ou na narrativa interna, enquanto os NPCs ao redor N\xC3O ouvem o que foi apenas pensado internamente.`;
 var line = (label, v) => s(v, 1500) ? `- ${label}: ${s(v, 1500)}` : "";
 var block = (title, lines) => {
   const body = lines.filter(Boolean).join("\n");
@@ -184,7 +186,7 @@ function buildPrompt(i) {
       line("Medos", p?.fears),
       line("Extra", p?.extra_information)
     ]),
-    block("NPCs RELEVANTES (use o id em character_id)", i.npcs.map((c) => `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ""}; idade: ${s(c.age, 20)}; apar\xEAncia: ${s(c.appearance, 300)}; personalidade: ${s(c.personality, 400)}; fala: ${s(c.speech_style, 200)}; objetivos: ${s(c.goals, 250)}; medos: ${s(c.fears, 200)}; segredos (n\xE3o revelar sem motivo): ${s(c.secrets, 250)}; rela\xE7\xE3o com o protagonista: ${s(c.relationship_to_protagonist, 200)}; passado: ${s(c.history, 300)}; extra: ${s(c.extra_information, 200)}`)),
+    block("NPCs RELEVANTES (use o id em character_id)", i.npcs.map((c) => `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ""}; idade: ${s(c.age, 20)}; apar\xEAncia: ${s(c.appearance, 300)}; personalidade: ${s(c.personality, 400)}; fala: ${s(c.speech_style, 200)}; objetivos: ${s(c.goals, 250)}; medos: ${s(c.fears, 200)}; segredos (n\xE3o revelar sem motivo): ${s(c.secrets, 250)}; ⭐ [PENSAMENTO SOBRE VOC\xCA - REGRA DE OURO]: ${s(c.relationship_to_protagonist, 800)}; passado: ${s(c.history, 300)}; extra: ${s(c.extra_information, 200)}`)),
     block("CEN\xC1RIOS DISPON\xCDVEIS (use o id em current_scenario_id ao mudar de lugar)", i.scenarios.map((x) => `- [id=${x.id}] ${x.name}: ${s(x.description, 200)}${x.id === i.currentScenarioId ? "  <-- ATUAL" : ""}`)),
     block("ESTADO ATUAL", [
       line("Local", i.state?.current_location || currentScenario?.name),

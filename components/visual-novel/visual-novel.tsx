@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload, Phone, Video, Send, Flame, CheckCheck, Swords, Camera, Smile } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
@@ -31,6 +31,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [tags, setTags] = useState<any[]>([])
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [tinderIndex, setTinderIndex] = useState(0)
+  const [tinderMatched, setTinderMatched] = useState<Character | null>(null)
+  const [tinderChatContact, setTinderChatContact] = useState<Character | null>(null)
+  const [tinderInput, setTinderInput] = useState('')
+  const [wppContact, setWppContact] = useState<Character | null>(null)
+  const [wppInput, setWppInput] = useState('')
+  const [showMobileLeft, setShowMobileLeft] = useState(false)
+  const [showMobileRight, setShowMobileRight] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -276,18 +283,34 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {!scenario?.image_url && <div className="backdrop-grid" />}
         {scenario?.image_url && <div className="novel-bg-shade" />}
       </div>
+      {/* TOP BAR MOBILE - COMPACTA E NÃO ATROPELA A TELA */}
+      <div className="vn-mobile-top-bar" onClick={(e) => e.stopPropagation()}>
+        <button className="vn-mobile-trigger" onClick={() => { setShowMobileLeft(!showMobileLeft); setShowMobileRight(false); }}>
+          <Swords size={14}/> <span>RPG</span>
+        </button>
+        <span className="vn-mobile-title">{title}</span>
+        <button className="vn-mobile-trigger" onClick={() => { setShowMobileRight(!showMobileRight); setShowMobileLeft(false); }}>
+          <Settings size={14}/> <span>MENU</span>
+        </button>
+      </div>
+
+      {(showMobileLeft || showMobileRight) && (
+        <div className="vn-mobile-scrim" onClick={() => { setShowMobileLeft(false); setShowMobileRight(false); }} />
+      )}
+
       {/* HUD LATERAL ESQUERDO: COMANDOS DE NARRATIVA & RPG */}
-      <aside className="vn-game-sidebar-left" onClick={(e) => e.stopPropagation()}>
+      <aside className={`vn-game-sidebar-left ${showMobileLeft ? 'mobile-open' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="vn-side-brand">
           <span className="vn-brand-crest">❖</span>
           <span className="vn-brand-title">{title}</span>
+          {showMobileLeft && <button className="icon-button light mobile-close" onClick={() => setShowMobileLeft(false)}><X size={14}/></button>}
         </div>
         <nav className="vn-side-actions">
-          <button className="vn-side-btn" onClick={() => openPanel('history')} title="Histórico da História"><BookOpen size={15}/> <span>LOG / HISTÓRICO</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('cast')} title="Elenco de Personagens"><UsersRound size={15}/> <span>ELENCO</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('memory')} title="Memória do Mundo"><Sparkles size={15}/> <span>MEMÓRIA</span></button>
-          <button className="vn-side-btn" onClick={() => regenerateTurn()} title="Regerar Cena / Trocar Personagem"><RotateCcw size={15}/> <span>REGERAR</span></button>
-          {current && <button className="vn-side-btn" onClick={() => { setEditingMsg(current.id); setEditText(current.content); }} title="Editar fala"><Pencil size={15}/> <span>EDITAR FALA</span></button>}
+          <button className="vn-side-btn" onClick={() => { openPanel('history'); setShowMobileLeft(false); }} title="Histórico da História"><BookOpen size={15}/> <span>LOG / HISTÓRICO</span></button>
+          <button className="vn-side-btn" onClick={() => { openPanel('cast'); setShowMobileLeft(false); }} title="Elenco de Personagens"><UsersRound size={15}/> <span>ELENCO</span></button>
+          <button className="vn-side-btn" onClick={() => { openPanel('memory'); setShowMobileLeft(false); }} title="Memória do Mundo"><Sparkles size={15}/> <span>MEMÓRIA</span></button>
+          <button className="vn-side-btn" onClick={() => { regenerateTurn(); setShowMobileLeft(false); }} title="Regerar Cena / Trocar Personagem"><RotateCcw size={15}/> <span>REGERAR</span></button>
+          {current && <button className="vn-side-btn" onClick={() => { setEditingMsg(current.id); setEditText(current.content); setShowMobileLeft(false); }} title="Editar fala"><Pencil size={15}/> <span>EDITAR FALA</span></button>}
           
           <div className="vn-side-divider" />
 
@@ -301,22 +324,23 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               <div className="vn-command-section">
                 <span className="vn-command-header">MODOS NARRATIVOS</span>
                 <div className="vn-command-grid">
-                  <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false) }}>🎭 Imersivo</button>
-                  <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false) }}>⚔️ Combate</button>
-                  <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false) }}>❤️ Romance</button>
+                  <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false); setShowMobileLeft(false); }}>🎭 Imersivo</button>
+                  <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false); setShowMobileLeft(false); }}>⚔️ Combate</button>
+                  <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false); setShowMobileLeft(false); }}>❤️ Romance</button>
                 </div>
               </div>
               <div className="vn-command-section">
                 <span className="vn-command-header">TESTES & MUDANÇA DE CENA</span>
                 <div className="vn-command-grid">
-                  <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[D20: ${r}] `); setShowShortcuts(false) }}>🎲 Rolar D20</button>
-                  <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA] "); setShowShortcuts(false) }}>🔚 Fim da Cena</button>
+                  <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[D20: ${r}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>🎲 Rolar D20</button>
+                  <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA] "); setShowShortcuts(false); setShowMobileLeft(false); }}>🔚 Fim da Cena</button>
                   <button type="button" onClick={() => {
                     if (characters.length > 0) {
                       const randomNpc = characters[Math.floor(Math.random() * characters.length)];
                       setInput(input + `[Trazer ${randomNpc.name}] `);
                     }
                     setShowShortcuts(false);
+                    setShowMobileLeft(false);
                   }}>🎲 NPC Aleatório</button>
                 </div>
               </div>
@@ -325,7 +349,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <span className="vn-command-header">TAGS</span>
                   <div className="vn-command-grid">
                     {tags.map(t => (
-                      <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false) }}>🏷️ {t.name}</button>
+                      <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>🏷️ {t.name}</button>
                     ))}
                   </div>
                 </div>
@@ -335,7 +359,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <span className="vn-command-header">CHAMAR NPC</span>
                   <div className="vn-command-grid">
                     {characters.map(c => (
-                      <button key={c.id} type="button" onClick={() => { setInput(input + `[Chamar ${c.name}] `); setShowShortcuts(false) }}>👤 {c.name}</button>
+                      <button key={c.id} type="button" onClick={() => { setInput(input + `[Chamar ${c.name}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>👤 {c.name}</button>
                     ))}
                   </div>
                 </div>
@@ -346,17 +370,17 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       </aside>
 
       {/* HUD LATERAL DIREITO: MENU DE SISTEMA, VIAGEM & CONFIGURAÇÕES */}
-      <aside className="vn-game-sidebar-right" onClick={(e) => e.stopPropagation()}>
+      <aside className={`vn-game-sidebar-right ${showMobileRight ? 'mobile-open' : ''}`} onClick={(e) => e.stopPropagation()}>
         <nav className="vn-side-actions">
-          <button className="vn-side-btn" onClick={() => notify('Progresso salvo automaticamente.')} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('tags')} title="Gerenciar Tags"><Tag size={15}/> <span>TAGS</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('map')} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
-          <button className="vn-side-btn vn-side-accent" onClick={() => openPanel('tinder')} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
-          <button className="vn-side-btn vn-side-whatsapp" onClick={() => openPanel('whatsapp')} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
-          {onEdit && <button className="vn-side-btn vn-side-editor" onClick={onEdit} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
+          <button className="vn-side-btn" onClick={() => { notify('Progresso salvo automaticamente.'); setShowMobileRight(false); }} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
+          <button className="vn-side-btn" onClick={() => { openPanel('tags'); setShowMobileRight(false); }} title="Gerenciar Tags"><Tag size={15}/> <span>TAGS</span></button>
+          <button className="vn-side-btn" onClick={() => { openPanel('map'); setShowMobileRight(false); }} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
+          <button className="vn-side-btn vn-side-accent" onClick={() => { openPanel('tinder'); setShowMobileRight(false); }} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
+          <button className="vn-side-btn vn-side-whatsapp" onClick={() => { openPanel('whatsapp'); setShowMobileRight(false); }} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
+          {onEdit && <button className="vn-side-btn vn-side-editor" onClick={() => { onEdit(); setShowMobileRight(false); }} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
           <div className="vn-side-divider" />
-          <button className="vn-side-btn" onClick={handleRestart} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
-          <button className="vn-side-btn vn-side-exit" onClick={onBack} title="Sair do Jogo"><ArrowLeft size={16}/> <span>SAIR</span></button>
+          <button className="vn-side-btn" onClick={() => { handleRestart(); setShowMobileRight(false); }} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
+          <button className="vn-side-btn vn-side-exit" onClick={() => { onBack(); setShowMobileRight(false); }} title="Sair do Jogo"><ArrowLeft size={16}/> <span>SAIR</span></button>
         </nav>
       </aside>
 
@@ -568,7 +592,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name}</strong>
                   </div>
                   <div className="field"><span>Nome</span><input value={editingChar.name} onChange={(e) => setEditingChar({ ...editingChar, name: e.target.value })} /></div>
-                  <div className="field"><span>Apelido / Função</span><input value={editingChar.nickname} onChange={(e) => setEditingChar({ ...editingChar, nickname: e.target.value })} /></div><div className="field"><span>Personalidade (Prompt)</span><textarea value={editingChar.personality} onChange={(e) => setEditingChar({ ...editingChar, personality: e.target.value })} rows={3} /></div><div className="field"><span>Passado / História</span><textarea value={editingChar.history} onChange={(e) => setEditingChar({ ...editingChar, history: e.target.value })} rows={3} /></div><div className="field"><span>Pensamentos e Objetivos com você</span><textarea value={editingChar.relationship_to_protagonist} onChange={(e) => setEditingChar({ ...editingChar, relationship_to_protagonist: e.target.value })} rows={3} placeholder="Diário ou pensamentos secretos do NPC em relação ao seu personagem..." /></div><div className="field"><span>Aparência Física</span><textarea value={editingChar.appearance} onChange={(e) => setEditingChar({ ...editingChar, appearance: e.target.value })} rows={2} /></div><div className="field"><span>Estilo de Fala</span><textarea value={editingChar.speech_style} onChange={(e) => setEditingChar({ ...editingChar, speech_style: e.target.value })} rows={2} /></div><div className="field"><span>Objetivos e Medos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>{editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
+                  <div className="field"><span>Passado / História</span><textarea value={editingChar.history} onChange={(e) => setEditingChar({ ...editingChar, history: e.target.value })} rows={3} /></div>
+                  <div style={{ border: '1.5px solid #e5b869', borderRadius: '8px', padding: '12px', background: 'rgba(229, 184, 105, 0.08)', margin: '10px 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#e5b869', fontWeight: 'bold', fontSize: '11px', marginBottom: '4px' }}>
+                      <Sparkles size={13} /> ⭐ O QUE PENSA ATUALMENTE SOBRE VOCÊ (REGRA DE OURO DA IA)
+                    </div>
+                    <p style={{ fontSize: '10px', color: '#aaa', margin: '0 0 6px 0', lineHeight: 1.4 }}>
+                      Regra de ouro inegociável: O Gemini seguirá à risca este campo para ditar o comportamento e as intenções reais deste personagem.
+                    </p>
+                    <textarea value={editingChar.relationship_to_protagonist} onChange={(e) => setEditingChar({ ...editingChar, relationship_to_protagonist: e.target.value })} rows={3} placeholder="O que este personagem pensa secretamente sobre você agora..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(229,184,105,0.3)', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '12px' }} />
+                  </div><div className="field"><span>Estilo de Fala</span><textarea value={editingChar.speech_style} onChange={(e) => setEditingChar({ ...editingChar, speech_style: e.target.value })} rows={2} /></div><div className="field"><span>Objetivos e Medos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>{editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
                   
                   <div className="expressions-grid">
                     <span>Expressões Visuais</span>
@@ -654,56 +687,318 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   }}>Criar Novo Cenário</button>
                 </div>
               </>}
-              {panel === 'tinder' && (() => {
-                const tinderCharacters = characters.filter(c => !c.relationship || c.relationship.relationship_value < 10);
-                if (tinderCharacters.length === 0) return <p className="drawer-note">Ninguém novo por perto... Tente criar novos personagens ou abaixar os pontos de amizade de alguém!</p>;
-                const currentTinder = tinderCharacters[tinderIndex % tinderCharacters.length];
-                return <>
-                  <p className="drawer-note">Modo Aplicativo de Namoro. Apenas desconhecidos (Relacionamento &lt; 10).</p>
-                  <div className="tinder-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'rgba(30,30,30,0.9)', padding: '20px', borderRadius: '16px', textAlign: 'center', border: '1px solid #444', marginTop: '20px' }}>
-                     {currentTinder.image_url ? (
-                       <img src={currentTinder.image_url!} style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '12px' }} alt="" />
-                     ) : (
-                       <div style={{ width: '200px', height: '200px', background: '#333', borderRadius: '12px', display: 'grid', placeItems: 'center' }}><UserRound size={40} /></div>
-                     )}
-                     <h3 style={{ marginTop: '15px', fontSize: '24px', color: '#fff' }}>{currentTinder.name}</h3>
-                     <p style={{ fontSize: '14px', color: '#ccc', margin: '10px 0', minHeight: '40px' }}>{currentTinder.nickname || 'Buscando conexão...'}</p>
-                     <div style={{ display: 'flex', gap: '30px', marginTop: '20px' }}>
-                        <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#ff4444', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => setTinderIndex(tinderIndex + 1)} title="Passar"><X size={30}/></button>
-                        <button className="icon-button" style={{ width: '60px', height: '60px', background: '#333', color: '#44ff44', borderRadius: '50%', display: 'flex', placeItems: 'center', justifyContent: 'center' }} onClick={() => {
-                           setInput(input + `[O JOGADOR DEU MATCH NO APLICATIVO COM ${currentTinder.name} E ELES COMEÇARAM A CONVERSAR. FAÇA UM ROLEPLAY IMERSIVO DE CHAT DE CELULAR AGORA. AJA COMO UM APLICATIVO DE CELULAR.] `);
-                           setPanel(null);
-                        }} title="Dar Match"><Heart size={30}/></button>
-                     </div>
-                  </div>
-                </>;
-              })()}
-              {panel === 'whatsapp' && (() => {
-                const wppCharacters = characters.filter(c => c.relationship && c.relationship.relationship_value >= 10);
-                return <>
-                  <p className="drawer-note">WhatsApp. Selecione um contato conhecido (Amizade &gt;= 10) para abrir o chat.</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-                    {wppCharacters.length === 0 && <p style={{color: '#999'}}>Nenhum contato com intimidade suficiente ainda.</p>}
-                    {wppCharacters.map(c => (
-                       <button key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(37, 211, 102, 0.1)', border: '1px solid #25D366', padding: '15px', borderRadius: '12px', cursor: 'pointer', textAlign: 'left', color: '#fff' }} onClick={() => {
-                          setInput(input + `[O JOGADOR ABRIU O WHATSAPP E MANDOU MENSAGEM PARA ${c.name}. INICIE O MODO MENSAGEM DE TEXTO: a partir de agora, responda apenas como as mensagens de celular dela, curtas, ignorando se a amizade for baixa, ou enviando fotos sensuais/casuais se a amizade for alta e o jogador pedir.] `);
-                          setPanel(null);
-                       }}>
-                          <img src={c.image_url || ''} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} alt=""/>
-                          <div style={{ flex: 1 }}>
-                             <strong style={{ display: 'block', fontSize: '16px' }}>{c.name}</strong>
-                             <span style={{ fontSize: '12px', color: '#25D366' }}>Online</span>
-                          </div>
-                          <MessageCircle color="#25D366" />
-                       </button>
-                    ))}
-                  </div>
-                </>;
-              })()}
             </div>
           </aside>
         </div>
       )}
+
+      {/* SMARTPHONE IMERSIVO: WHATSAPP */}
+      {panel === 'whatsapp' && (
+        <div className="phone-screen-modal" onClick={() => { setPanel(null); setWppContact(null); }}>
+          <div className="phone-device-wrap wpp-phone-frame" onClick={(e) => e.stopPropagation()}>
+            {/* Status bar */}
+            <div className="phone-status-bar wpp-bar">
+              <span>12:45</span>
+              <div className="phone-notch" />
+              <div className="phone-status-icons">📶 100% 🔋</div>
+            </div>
+
+            {!wppContact ? (
+              /* LISTA DE CONVERSAS DO WHATSAPP */
+              <div className="wpp-app-view">
+                <div className="wpp-header-main">
+                  <div className="wpp-header-title">
+                    <strong>WhatsApp</strong>
+                    <button className="icon-button light" onClick={() => setPanel(null)}><X size={18}/></button>
+                  </div>
+                  <div className="wpp-header-tabs">
+                    <span className="wpp-tab active">CONVERSAS ({characters.length})</span>
+                    <span className="wpp-tab">STATUS</span>
+                    <span className="wpp-tab">CHAMADAS</span>
+                  </div>
+                </div>
+
+                <div className="wpp-chats-list">
+                  {characters.length === 0 && (
+                    <p className="wpp-empty-hint">Nenhum contato encontrado no celular.</p>
+                  )}
+                  {characters.map((c) => {
+                    const lastNpcMsg = messages.filter(m => m.character_id === c.id || (m.sender_type === 'player' && m.content.includes(c.name))).slice(-1)[0]
+                    const intimacy = c.relationship?.relationship_value ?? 0
+                    return (
+                      <div key={c.id} className="wpp-chat-item" onClick={() => setWppContact(c)}>
+                        <div className="wpp-avatar-wrap">
+                          {c.image_url ? <img src={c.image_url} alt="" /> : <UserRound size={22}/>}
+                          <span className="wpp-online-badge" />
+                        </div>
+                        <div className="wpp-chat-details">
+                          <div className="wpp-chat-top">
+                            <strong>{c.name}</strong>
+                            <small>12:44</small>
+                          </div>
+                          <div className="wpp-chat-preview">
+                            <span className="wpp-check">✓✓</span>
+                            <p>{lastNpcMsg ? lastNpcMsg.content.slice(0, 38) + (lastNpcMsg.content.length > 38 ? '...' : '') : (c.nickname || 'Olá! Estou online.')}</p>
+                          </div>
+                        </div>
+                        <div className="wpp-intimacy-chip" title="Intimidade">
+                          {intimacy >= 50 ? '❤️' : intimacy >= 20 ? '💬' : '👋'} {intimacy}/100
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* TELA DE CHAT ATIVA DO WHATSAPP */
+              <div className="wpp-chat-view">
+                <div className="wpp-chat-header">
+                  <button className="wpp-back-btn" onClick={() => setWppContact(null)}><ArrowLeft size={18}/></button>
+                  <div className="wpp-header-avatar">
+                    {wppContact.image_url ? <img src={wppContact.image_url} alt="" /> : <UserRound size={18}/>}
+                  </div>
+                  <div className="wpp-header-info">
+                    <strong>{wppContact.name}</strong>
+                    <span>online</span>
+                  </div>
+                  <div className="wpp-header-actions">
+                    <button className="icon-button light" onClick={() => notify('Iniciando chamada de vídeo...') as any}><Video size={16}/></button>
+                    <button className="icon-button light" onClick={() => notify('Iniciando chamada de áudio...') as any}><Phone size={16}/></button>
+                    <button className="icon-button light" onClick={() => { setPanel(null); setWppContact(null); }}><X size={18}/></button>
+                  </div>
+                </div>
+
+                <div className="wpp-messages-canvas">
+                  <div className="wpp-encryption-notice">
+                    🔒 As mensagens e chamadas são protegidas com a criptografia de ponta a ponta.
+                  </div>
+
+                  {messages
+                    .filter((m) => m.character_id === wppContact.id || (m.sender_type === 'player' && (m.content.includes(wppContact.name) || m.content.includes('[MENSAGEM DE WHATSAPP'))))
+                    .slice(-15)
+                    .map((m, idx) => {
+                      const isMe = m.sender_type === 'player'
+                      const isPhoto = m.expression && m.expression.startsWith('foto_')
+                      const photoUrl = isPhoto ? ((wppContact as any).expressions?.[m.expression!] || wppContact.image_url) : null
+
+                      return (
+                        <div key={m.id || idx} className={`wpp-bubble-wrap ${isMe ? 'is-me' : 'is-them'}`}>
+                          <div className={`wpp-bubble ${isMe ? 'me' : 'them'}`}>
+                            {photoUrl && (
+                              <div className="wpp-photo-message">
+                                <img src={photoUrl} alt="Foto enviada" />
+                                <span className="wpp-photo-badge">📷 Foto recebida</span>
+                              </div>
+                            )}
+                            <p className="wpp-bubble-text">{m.content.replace(/\[MENSAGEM DE WHATSAPP PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO WHATSAPP:.*$/, '')}</p>
+                            <div className="wpp-bubble-meta">
+                              <span>12:45</span>
+                              {isMe && <span className="wpp-double-check">✓✓</span>}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                  {thinking && (
+                    <div className="wpp-bubble-wrap is-them">
+                      <div className="wpp-bubble them wpp-typing">
+                        <span>{wppContact.name} está digitando</span>
+                        <div className="dots"><i>.</i><i>.</i><i>.</i></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* BARRA DE INPUT DO WHATSAPP */}
+                <div className="wpp-input-bar">
+                  <button type="button" className="wpp-icon-btn"><Smile size={20}/></button>
+                  <input
+                    className="wpp-text-input"
+                    value={wppInput}
+                    onChange={(e) => setWppInput(e.target.value)}
+                    placeholder="Mensagem"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                        if (!wppInput.trim() || busy.current) return
+                        const msg = wppInput.trim()
+                        setWppInput('')
+                        run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
+                      }
+                    }}
+                  />
+                  <button type="button" className="wpp-icon-btn" onClick={() => { setUploadTarget(`expr:${wppContact.id}:foto_casual`); fileInputRef.current?.click(); }} title="Enviar foto"><Camera size={20}/></button>
+                  <button
+                    type="button"
+                    className="wpp-send-btn"
+                    disabled={!wppInput.trim() || busy.current}
+                    onClick={() => {
+                      if (!wppInput.trim() || busy.current) return
+                      const msg = wppInput.trim()
+                      setWppInput('')
+                      run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
+                    }}
+                  >
+                    <Send size={16}/>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SMARTPHONE IMERSIVO: TINDER */}
+      {panel === 'tinder' && (() => {
+        const tinderList = characters.filter(c => !c.relationship || c.relationship.relationship_value < 20);
+        const activeList = tinderList.length > 0 ? tinderList : characters;
+        const currentTinder = activeList[tinderIndex % Math.max(1, activeList.length)];
+
+        return (
+          <div className="phone-screen-modal" onClick={() => { setPanel(null); setTinderChatContact(null); setTinderMatched(null); }}>
+            <div className="phone-device-wrap tinder-phone-frame" onClick={(e) => e.stopPropagation()}>
+              <div className="phone-status-bar tinder-bar">
+                <span>12:45</span>
+                <div className="phone-notch" />
+                <div className="phone-status-icons">📶 100% 🔋</div>
+              </div>
+
+              {tinderChatContact ? (
+                /* CHAT DO TINDER APÓS MATCH */
+                <div className="tinder-chat-view">
+                  <div className="tinder-chat-header">
+                    <button className="tinder-back-btn" onClick={() => setTinderChatContact(null)}><ArrowLeft size={18}/></button>
+                    <div className="tinder-chat-avatar">
+                      {tinderChatContact.image_url ? <img src={tinderChatContact.image_url} alt="" /> : <UserRound size={18}/>}
+                    </div>
+                    <strong>{tinderChatContact.name}</strong>
+                    <button className="icon-button light" style={{ marginLeft: 'auto' }} onClick={() => { setPanel(null); setTinderChatContact(null); }}><X size={18}/></button>
+                  </div>
+                  <div className="tinder-messages-canvas">
+                    <div className="tinder-match-banner">
+                      <Flame size={20} color="#ff4458"/>
+                      <span>VOCÊS DERAM MATCH! Digite um oi para quebrar o gelo.</span>
+                    </div>
+                    {messages
+                      .filter((m) => m.character_id === tinderChatContact.id || (m.sender_type === 'player' && m.content.includes(tinderChatContact.name)))
+                      .slice(-10)
+                      .map((m, idx) => {
+                        const isMe = m.sender_type === 'player'
+                        return (
+                          <div key={idx} className={`tinder-bubble-wrap ${isMe ? 'is-me' : 'is-them'}`}>
+                            <div className={`tinder-bubble ${isMe ? 'me' : 'them'}`}>
+                              <p>{m.content.replace(/\[MENSAGEM NO TINDER PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO TINDER CHAT:.*$/, '')}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    {thinking && (
+                      <div className="tinder-bubble-wrap is-them">
+                        <div className="tinder-bubble them tinder-typing">
+                          <small>{tinderChatContact.name} está digitando...</small>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="tinder-input-bar">
+                    <input
+                      className="tinder-text-input"
+                      value={tinderInput}
+                      onChange={(e) => setTinderInput(e.target.value)}
+                      placeholder="Diga algo interessante..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                          if (!tinderInput.trim() || busy.current) return
+                          const msg = tinderInput.trim()
+                          setTinderInput('')
+                          run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)
+                        }
+                      }}
+                    />
+                    <button
+                      className="tinder-send-btn"
+                      disabled={!tinderInput.trim() || busy.current}
+                      onClick={() => {
+                        if (!tinderInput.trim() || busy.current) return
+                        const msg = tinderInput.trim()
+                        setTinderInput('')
+                        run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)
+                      }}
+                    >
+                      <Send size={16}/>
+                    </button>
+                  </div>
+                </div>
+              ) : tinderMatched ? (
+                /* TELA POPUP DE MATCH */
+                <div className="tinder-match-celebration">
+                  <div className="match-title">IT'S A MATCH!</div>
+                  <p>Você e {tinderMatched.name} curtiram um ao outro!</p>
+                  <div className="match-avatars-row">
+                    <div className="match-avatar-circle">
+                      {player?.image_url ? <img src={player.image_url} alt="" /> : <UserRound size={32}/>}
+                    </div>
+                    <div className="match-heart-pulse">❤️</div>
+                    <div className="match-avatar-circle">
+                      {tinderMatched.image_url ? <img src={tinderMatched.image_url} alt="" /> : <UserRound size={32}/>}
+                    </div>
+                  </div>
+                  <button className="tinder-match-action-btn" onClick={() => { setTinderChatContact(tinderMatched); setTinderMatched(null); }}>
+                    MANDAR MENSAGEM AGORA
+                  </button>
+                  <button className="tinder-match-ghost-btn" onClick={() => { setTinderMatched(null); setTinderIndex(i => i + 1); }}>
+                    CONTINUAR DESLIZANDO
+                  </button>
+                </div>
+              ) : (
+                /* TELA DE SWIPE CARDS DO TINDER */
+                <div className="tinder-swipe-view">
+                  <div className="tinder-header">
+                    <div className="tinder-logo-badge">
+                      <Flame size={22} color="#ff4458" />
+                      <strong>tinder</strong>
+                    </div>
+                    <button className="icon-button light" onClick={() => setPanel(null)}><X size={18}/></button>
+                  </div>
+
+                  {!currentTinder ? (
+                    <div className="tinder-empty-state">
+                      <Flame size={40} color="#ff4458" />
+                      <h3>Sem pessoas novas por perto</h3>
+                      <p>Crie novos personagens no elenco para encontrar novas pessoas para paquerar!</p>
+                    </div>
+                  ) : (
+                    <div className="tinder-card-deck">
+                      <div className="tinder-card-visual">
+                        {currentTinder.image_url ? (
+                          <img src={currentTinder.image_url} alt="" className="tinder-card-img" />
+                        ) : (
+                          <div className="tinder-no-img"><UserRound size={60}/></div>
+                        )}
+                        <div className="tinder-card-overlay">
+                          <div className="tinder-card-name-row">
+                            <h3>{currentTinder.name}</h3>
+                            <span>{currentTinder.age || '22'}</span>
+                          </div>
+                          <p className="tinder-card-role">{currentTinder.nickname || 'Procurando alguém legal'}</p>
+                          <p className="tinder-card-bio">{currentTinder.personality ? currentTinder.personality.slice(0, 110) + '...' : 'Vamos conversar e ver no que dá!'}</p>
+                        </div>
+                      </div>
+
+                      <div className="tinder-actions-bar">
+                        <button className="tinder-action-btn rewind" onClick={() => setTinderIndex(Math.max(0, tinderIndex - 1))} title="Voltar">↺</button>
+                        <button className="tinder-action-btn nope" onClick={() => setTinderIndex(tinderIndex + 1)} title="Passar"><X size={26}/></button>
+                        <button className="tinder-action-btn star" onClick={() => setTinderMatched(currentTinder)} title="Super Like">★</button>
+                        <button className="tinder-action-btn like" onClick={() => setTinderMatched(currentTinder)} title="Like"><Heart size={26}/></button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </main>
   )
 }
