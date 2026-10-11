@@ -214,8 +214,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         }
       }
       notify('Imagem atualizada com sucesso.')
-    } catch (err) {
-      notify(friendlyError(err, 'Erro ao enviar imagem.'), 'error')
+    } catch (err: any) {
+      console.error('[UPLOAD_ERROR]', err);
+      const details = err?.message || err?.error_description || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+      notify(Erro ao enviar imagem: \, 'error')
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
       setUploadTarget(null as any)
