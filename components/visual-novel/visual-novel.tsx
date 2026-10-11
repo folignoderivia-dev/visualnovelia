@@ -276,14 +276,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {!scenario?.image_url && <div className="backdrop-grid" />}
         {scenario?.image_url && <div className="novel-bg-shade" />}
       </div>
-      {/* HUD LATERAL ESQUERDO: MENU COMPLETO DO JOGO (RPG / VISUAL NOVEL) */}
+      {/* HUD LATERAL ESQUERDO: COMANDOS DE NARRATIVA & RPG */}
       <aside className="vn-game-sidebar-left" onClick={(e) => e.stopPropagation()}>
         <div className="vn-side-brand">
           <span className="vn-brand-crest">❖</span>
           <span className="vn-brand-title">{title}</span>
         </div>
         <nav className="vn-side-actions">
-          {/* Controles de Jogo & História */}
           <button className="vn-side-btn" onClick={() => openPanel('history')} title="Histórico da História"><BookOpen size={15}/> <span>LOG / HISTÓRICO</span></button>
           <button className="vn-side-btn" onClick={() => openPanel('cast')} title="Elenco de Personagens"><UsersRound size={15}/> <span>ELENCO</span></button>
           <button className="vn-side-btn" onClick={() => openPanel('memory')} title="Memória do Mundo"><Sparkles size={15}/> <span>MEMÓRIA</span></button>
@@ -343,16 +342,19 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               )}
             </div>
           )}
+        </nav>
+      </aside>
 
-          <div className="vn-side-divider" />
-
-          {/* Sistema & Viagem */}
+      {/* HUD LATERAL DIREITO: MENU DE SISTEMA, VIAGEM & CONFIGURAÇÕES */}
+      <aside className="vn-game-sidebar-right" onClick={(e) => e.stopPropagation()}>
+        <nav className="vn-side-actions">
           <button className="vn-side-btn" onClick={() => notify('Progresso salvo automaticamente.')} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
           <button className="vn-side-btn" onClick={() => openPanel('tags')} title="Gerenciar Tags"><Tag size={15}/> <span>TAGS</span></button>
           <button className="vn-side-btn" onClick={() => openPanel('map')} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
           <button className="vn-side-btn vn-side-accent" onClick={() => openPanel('tinder')} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
           <button className="vn-side-btn vn-side-whatsapp" onClick={() => openPanel('whatsapp')} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
           {onEdit && <button className="vn-side-btn vn-side-editor" onClick={onEdit} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
+          <div className="vn-side-divider" />
           <button className="vn-side-btn" onClick={handleRestart} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
           <button className="vn-side-btn vn-side-exit" onClick={onBack} title="Sair do Jogo"><ArrowLeft size={16}/> <span>SAIR</span></button>
         </nav>
@@ -371,7 +373,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </button>
         )}
 
-        {/* SPRITE DO PERSONAGEM EM PÉ NO CENÁRIO (Com moldura sutil de VN, sem corte, proporcional e limpo) */}
+        {/* SPRITE DO PERSONAGEM EM PÉ NO CENÁRIO (Sem atravessar o diálogo, com moldura e alta definição) */}
         {speaker && speakerImg && (
           <div key={speaker.id} className="novel-portrait-frame">
             <div className="novel-portrait-inner">
@@ -413,7 +415,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
       </section>
 
-      {/* CAIXA DE DIÁLOGO DE VISUAL NOVEL (Idêntica à referência da Alisa - Imagem 2) */}
+      {/* CAIXA DE DIÁLOGO PURA DA PERSONAGEM (Exatamente igual à Alisa - Imagem 2) */}
       <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
         <input type="file" ref={fileInputRef} className="sr-only" accept="image/*" onChange={handleFileChange} />
         
@@ -469,63 +471,68 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 {!atEnd && <span className="vn-alisa-pointer">▶</span>}
               </div>
             )}
-
-            {/* Se estiver no final da fala, exibe opção limpa de ação/resposta sem poluir como chat */}
-            {atEnd && (
-              <div className="vn-decision-strip" onClick={(e) => e.stopPropagation()}>
-                {actionImage && (
-                  <div className="vn-decision-img-preview">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={actionImage} alt="" />
-                    <button type="button" onClick={() => setActionImage(null)}>✕</button>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  ref={actionImageRef}
-                  className="sr-only"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const f = (e.target as any)?.files?.[0];
-                    if (!f) return;
-                    const reader = new FileReader();
-                    reader.onload = (re) => setActionImage(re.target?.result as string);
-                    reader.readAsDataURL(f);
-                  }}
-                />
-                <button
-                  type="button"
-                  className={`vn-decision-attach ${actionImage ? 'active' : ''}`}
-                  onClick={() => actionImageRef.current?.click()}
-                  title="Anexar Imagem para o Personagem Ver"
-                >
-                  <ImagePlus size={15} />
-                  <span>{actionImage ? 'Foto Carregada' : 'Anexar Foto'}</span>
-                </button>
-                <input
-                  className="vn-decision-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  maxLength={2000}
-                  placeholder={`Responder ou agir livremente como ${player?.name || 'você'}...`}
-                  aria-label="Resposta do protagonista"
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
-                />
-                <button
-                  type="button"
-                  className="vn-decision-submit"
-                  onClick={send}
-                  disabled={!input.trim() && !actionImage}
-                  title="Confirmar sua ação"
-                >
-                  <span>AGIR</span>
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            )}
           </div>
         ) : null}
       </section>
+
+      {/* PAINEL SEPARADO DE AÇÃO DO PROTAGONISTA (Totalmente desacoplado do balão de fala da personagem) */}
+      {!loadingInit && !thinking && !error && current && atEnd && (
+        <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
+          <div className="vn-action-console-inner">
+            <div className="vn-action-console-badge">SUA RESPOSTA</div>
+            <div className="vn-action-input-cluster">
+              {actionImage && (
+                <div className="vn-decision-img-preview">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={actionImage} alt="" />
+                  <button type="button" onClick={() => setActionImage(null)}>✕</button>
+                </div>
+              )}
+              <input
+                type="file"
+                ref={actionImageRef}
+                className="sr-only"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = (e.target as any)?.files?.[0];
+                  if (!f) return;
+                  const reader = new FileReader();
+                  reader.onload = (re) => setActionImage(re.target?.result as string);
+                  reader.readAsDataURL(f);
+                }}
+              />
+              <button
+                type="button"
+                className={`vn-decision-attach ${actionImage ? 'active' : ''}`}
+                onClick={() => actionImageRef.current?.click()}
+                title="Anexar Imagem para a Personagem Ver"
+              >
+                <ImagePlus size={15} />
+                <span>{actionImage ? 'Foto Carregada' : 'Foto'}</span>
+              </button>
+              <input
+                className="vn-decision-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                maxLength={2000}
+                placeholder={`Como ${player?.name || 'você'} reage ou responde agora...?`}
+                aria-label="Resposta do jogador"
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
+              />
+              <button
+                type="button"
+                className="vn-decision-submit"
+                onClick={send}
+                disabled={!input.trim() && !actionImage}
+                title="Confirmar sua ação"
+              >
+                <span>AGIR</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {panel && (
         <div className="drawer-backdrop" onClick={() => setPanel(null)}>
