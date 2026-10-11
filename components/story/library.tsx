@@ -40,7 +40,7 @@ export function Library({ stories, loading, onCreate, onOpen, onDelete }: {
       const data = JSON.parse(text)
       notify('Construindo mundo e forjando personagens...')
       const newStory = await svc.importFullCampaign(data)
-      notify('Campanha importada com sucesso! Abrindo...', 'ok')
+      notify('Campanha importada! Crie seu protagonista para começar a aventura!', 'ok')
       // Limpa input
       if (fileInputRef.current) fileInputRef.current.value = ''
       onOpen({ ...newStory, cover: newStory.cover_url ?? null })

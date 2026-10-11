@@ -234,7 +234,7 @@ export interface FullCampaignData {
   }
   world: Partial<World>
   master: Partial<MasterSettings>
-  player: Partial<PlayerCharacter>
+  player?: null
   scenarios: Partial<Scenario>[]
   characters: (Partial<Character> & { expressions?: Record<string, string>; relationship?: any })[]
   tags: any[]
@@ -255,7 +255,8 @@ export async function exportFullCampaign(storyId: string): Promise<FullCampaignD
     },
     world: strip(bundle.world),
     master: strip(bundle.master),
-    player: strip(bundle.player),
+    // Protagonista não é exportado: cada jogador cria seu próprio personagem
+    player: null,
     scenarios: bundle.scenarios.map((sc) => ({
       name: sc.name,
       description: sc.description,
@@ -304,13 +305,13 @@ export async function exportFullCampaign(storyId: string): Promise<FullCampaignD
 }
 
 export async function importFullCampaign(data: any): Promise<Story> {
-  const campaign = data.story ? data : { story: data, world: {}, master: {}, player: {}, scenarios: [], characters: [], tags: [] }
+  const campaign = data.story ? data : { story: data, world: {}, master: {}, scenarios: [], characters: [], tags: [] }
   
   // 1. Cria uma nova história no Supabase via RPC (já cria as tabelas filhas com o ID do usuário conectado)
   const newStory = await createStory()
   const storyId = newStory.id
 
-  // 2. Atualiza a história principal com status 'ready' para poder jogar imediatamente
+  // 2. Atualiza a história principal com status 'draft' e editor_step 4 para o amigo criar o protagonista dele
   if (campaign.story) {
     const { title, description, genre, tone, cover_url } = campaign.story
     await supabase.from('stories').update({
@@ -319,7 +320,8 @@ export async function importFullCampaign(data: any): Promise<Story> {
       genre: genre || 'Fantasia / RPG',
       tone: tone || 'Imersivo',
       cover_url: cover_url || null,
-      status: 'ready',
+      status: 'draft',
+      editor_step: 4, // Abre direto na etapa 05: Crie seu protagonista
     }).eq('id', storyId)
   }
 
@@ -333,12 +335,6 @@ export async function importFullCampaign(data: any): Promise<Story> {
   if (campaign.master) {
     const { id: _, story_id: __, ...masterData } = campaign.master
     await saveMaster({ ...masterData, story_id: storyId } as MasterSettings)
-  }
-
-  // 5. Salva Protagonista
-  if (campaign.player) {
-    const { id: _, story_id: __, user_id: ___, ...playerData } = campaign.player
-    await savePlayer({ ...playerData, story_id: storyId } as PlayerCharacter)
   }
 
   // 6. Cenários
