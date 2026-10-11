@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Compass, Play, Plus, Save,
-  Sparkles, Trash2, UserRound, UsersRound, WandSparkles,
+  Sparkles, Trash2, UserRound, UsersRound, WandSparkles, Upload, Download,
 } from 'lucide-react'
 import type { Character, MasterSettings, PlayerCharacter, Scenario, Story, StoryBundle, World } from '@/lib/types'
 import * as svc from '@/lib/story/service'
@@ -262,7 +262,76 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
                   <div className="mini-portrait">{c.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={c.image_url} alt="" loading="lazy" /> : <UserRound />}</div>
                   <div><strong>{c.name || 'Personagem sem nome'}</strong><span>Clique para editar</span></div><ChevronRight />
                 </button>))}</div>}
-              <div className="empty-character"><button className="primary-button" onClick={newCharacter}><Plus /> Novo personagem</button></div>
+              <div className="empty-character" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button className="primary-button" onClick={newCharacter}><Plus /> Novo personagem</button>
+                <button
+                  className="soft-button"
+                  onClick={() => {
+                    const i = document.createElement('input')
+                    i.type = 'file'
+                    i.accept = '.json'
+                    i.onchange = async (e) => {
+                      const f = (e.target as any)?.files?.[0]
+                      if (!f) return
+                      try {
+                        const t = await f.text()
+                        const d = JSON.parse(t)
+                        const list = Array.isArray(d) ? d : [d]
+                        const { supabase } = await import('@/lib/supabase/client')
+                        const created: Character[] = []
+                        for (const item of list) {
+                          const { data: nc } = await supabase.from('characters').insert({
+                            story_id: storyId,
+                            name: item.name || 'Personagem Importado',
+                            nickname: item.nickname || '',
+                            age: item.age || '',
+                            appearance: item.appearance || '',
+                            personality: item.personality || '',
+                            history: item.history || '',
+                            goals: item.goals || '',
+                            fears: item.fears || '',
+                            secrets: item.secrets || '',
+                            speech_style: item.speech_style || '',
+                            relationship_to_protagonist: item.relationship_to_protagonist || '',
+                            extra_information: item.extra_information || '',
+                            image_url: item.image_url || null,
+                            expressions: item.expressions || {}
+                          }).select().single()
+                          if (nc) created.push(nc)
+                        }
+                        if (created.length > 0) {
+                          update((b) => ({ ...b, characters: [...b.characters, ...created] }), 'story')
+                          notify(`${created.length} personagem(ns) importado(s) com sucesso!`)
+                        }
+                      } catch (err) {
+                        notify(friendlyError(err, 'Erro ao importar JSON.'), 'error')
+                      }
+                    }
+                    i.click()
+                  }}
+                  title="Importar elenco completo ou personagem de outra história via JSON"
+                >
+                  <Upload size={14} /> Importar Elenco (JSON)
+                </button>
+                {characters.length > 0 && (
+                  <button
+                    className="soft-button"
+                    onClick={() => {
+                      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(characters, null, 2))
+                      const el = document.createElement('a')
+                      el.setAttribute('href', dataStr)
+                      el.setAttribute('download', `elenco_${storyTitle ? storyTitle.replace(/\s+/g, '_').toLowerCase() : 'historia'}.json`)
+                      document.body.appendChild(el)
+                      el.click()
+                      el.remove()
+                      notify(`Elenco (${characters.length} personagens) exportado com sucesso!`)
+                    }}
+                    title="Exportar todos os personagens para usar em qualquer aventura"
+                  >
+                    <Download size={14} /> Exportar Elenco ({characters.length})
+                  </button>
+                )}
+              </div>
             </div>
           )}</>}
 

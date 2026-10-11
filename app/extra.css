@@ -100,10 +100,45 @@
 .send-button:disabled { opacity:.35; }
 
 /* ---------- gavetas (histórico / elenco / memória) ---------- */
-.drawer-backdrop { position:fixed; inset:0; background:#0009; z-index:20; display:flex; justify-content:flex-end; animation:bgfade .2s; }
-.drawer { width:min(420px,100%); height:100%; background:#171717; color:#eee; display:flex; flex-direction:column; border-left:1px solid #ffffff20; }
-.drawer-head { display:flex; justify-content:space-between; align-items:center; padding:18px 20px; border-bottom:1px solid #ffffff20; font:normal 17px Georgia,serif; }
-.drawer-body { flex:1; overflow-y:auto; padding:14px 20px 30px; display:flex; flex-direction:column; gap:10px; }
+.drawer-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  z-index: 100 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  animation: bgfade .2s !important;
+}
+.drawer {
+  width: min(540px, 100%) !important;
+  height: 100% !important;
+  background: #14101a !important;
+  color: #eee !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-left: 2px solid #e5b869 !important;
+  box-shadow: -15px 0 50px rgba(0, 0, 0, 0.95) !important;
+  z-index: 101 !important;
+}
+.drawer-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 18px 22px !important;
+  border-bottom: 1px solid rgba(229, 184, 105, 0.3) !important;
+  font: bold 16px var(--font-fantasy) !important;
+  color: #ffd98a !important;
+  background: rgba(10, 8, 14, 0.9) !important;
+}
+.drawer-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 16px 22px 36px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
 .drawer-empty,.drawer-note { color:#777; font-size:11px; line-height:1.5; margin:6px 0; }
 .drawer-more { align-self:center; }
 .hist-item { text-align:left; border:0; background:transparent; color:#ddd; padding:10px 0; border-bottom:1px solid #ffffff12; }

@@ -667,7 +667,79 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
               </>}
               {panel === 'cast' && !editingChar && <>
-<div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}><button className="outline-button light" onClick={() => { const i = document.createElement('input'); i.type='file'; i.accept='.json'; i.onchange=async(e)=>{ const f = (e.target as any)?.files?.[0]; if(f){ try{ const t = await f.text(); const d = JSON.parse(t); const { supabase } = await import('@/lib/supabase/client'); const { data: nc } = await supabase.from('characters').insert({ story_id: storyId, name: d.name, nickname: d.nickname, age: d.age, appearance: d.appearance, personality: d.personality, history: d.history, goals: d.goals, fears: d.fears, secrets: d.secrets, speech_style: d.speech_style, relationship_to_protagonist: d.relationship_to_protagonist, extra_information: d.extra_information, image_url: d.image_url }).select().single(); if(nc) { setCharacters(x => [...x, nc]); notify('Personagem importado com sucesso!'); } }catch(err){ notify('Erro ao importar JSON', 'error'); } } }; i.click(); }}><Upload size={14}/> Importar Personagem</button></div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button
+                    className="outline-button light"
+                    style={{ flex: 1, minWidth: '150px' }}
+                    onClick={() => {
+                      const i = document.createElement('input')
+                      i.type = 'file'
+                      i.accept = '.json'
+                      i.onchange = async (e) => {
+                        const f = (e.target as any)?.files?.[0]
+                        if (!f) return
+                        try {
+                          const t = await f.text()
+                          const d = JSON.parse(t)
+                          const list = Array.isArray(d) ? d : [d]
+                          const { supabase } = await import('@/lib/supabase/client')
+                          const created: Character[] = []
+                          for (const item of list) {
+                            const { data: nc } = await supabase.from('characters').insert({
+                              story_id: storyId,
+                              name: item.name || 'Personagem Importado',
+                              nickname: item.nickname,
+                              age: item.age,
+                              appearance: item.appearance,
+                              personality: item.personality,
+                              history: item.history,
+                              goals: item.goals,
+                              fears: item.fears,
+                              secrets: item.secrets,
+                              speech_style: item.speech_style,
+                              relationship_to_protagonist: item.relationship_to_protagonist,
+                              extra_information: item.extra_information,
+                              image_url: item.image_url,
+                              expressions: item.expressions || {}
+                            }).select().single()
+                            if (nc) created.push(nc)
+                          }
+                          if (created.length > 0) {
+                            setCharacters((prev) => [...prev, ...created])
+                            notify(`${created.length} personagem(ns) importado(s) com sucesso para esta aventura!`)
+                          }
+                        } catch {
+                          notify('Erro ao processar arquivo JSON.', 'error')
+                        }
+                      }
+                      i.click()
+                    }}
+                    title="Importar um personagem ou elenco completo via JSON"
+                  >
+                    <Upload size={14} /> Importar Elenco (JSON)
+                  </button>
+                  <button
+                    className="outline-button light"
+                    style={{ flex: 1, minWidth: '150px' }}
+                    onClick={() => {
+                      if (characters.length === 0) {
+                        notify('Nenhum personagem no elenco para exportar.', 'error')
+                        return
+                      }
+                      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(characters, null, 2))
+                      const el = document.createElement('a')
+                      el.setAttribute('href', dataStr)
+                      el.setAttribute('download', `elenco_${story?.title ? story.title.replace(/\s+/g, '_').toLowerCase() : 'aventura'}.json`)
+                      document.body.appendChild(el)
+                      el.click()
+                      el.remove()
+                      notify(`Elenco completo (${characters.length} personagens) exportado com sucesso!`)
+                    }}
+                    title="Exportar todos os personagens com suas fotos e regras para um arquivo JSON"
+                  >
+                    <Download size={14} /> Exportar Elenco ({characters.length})
+                  </button>
+                </div>
                 {player && <div className="cast-item"><div className="cast-avatar">{player.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={player.image_url} alt="" /> : <UserRound />}</div><div><strong>{player.name}</strong><span>VOCÊ CONTROLA</span></div></div>}
                 {characters.map((c) => (
                   <div key={c.id} className="cast-item">
