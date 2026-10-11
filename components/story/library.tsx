@@ -1,8 +1,10 @@
 'use client'
 
-import { ArrowRight, Clapperboard, Compass, Flame, MoreHorizontal, Play, Plus, Sparkles, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, Clapperboard, Compass, Download, Flame, MoreHorizontal, Play, Plus, Sparkles, Trash2, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
 import type { Story } from '@/lib/types'
+import * as svc from '@/lib/story/service'
+import { useToast } from '@/components/ui/toast'
 
 export type LibraryStory = Story & { cover: string | null }
 
@@ -23,7 +25,33 @@ function relativeDate(iso: string | null) {
 export function Library({ stories, loading, onCreate, onOpen, onDelete }: {
   stories: LibraryStory[]; loading: boolean; onCreate: () => void; onOpen: (s: LibraryStory) => void; onDelete: (s: LibraryStory) => void
 }) {
+  const { notify } = useToast()
   const [menu, setMenu] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    notify('Lendo pergaminho da campanha...')
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      notify('Construindo mundo e forjando personagens...')
+      const newStory = await svc.importFullCampaign(data)
+      notify('Campanha importada com sucesso! Abrindo...', 'ok')
+      // Limpa input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      onOpen({ ...newStory, cover: newStory.cover_url ?? null })
+    } catch (err: any) {
+      console.error(err)
+      notify('Erro ao importar campanha: ' + (err.message || 'Arquivo JSON inválido'), 'error')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <section className="library-page vn-library-realm">
       <div className="vn-hero-banner">
@@ -35,6 +63,21 @@ export function Library({ stories, loading, onCreate, onOpen, onDelete }: {
             <button className="primary-button vn-gold-button" onClick={onCreate}>
               <Plus size={17} /> Criar Nova Aventura
             </button>
+            <button
+              className="outline-button light vn-import-campaign-btn"
+              disabled={importing}
+              onClick={() => fileInputRef.current?.click()}
+              title="Carregar uma aventura pronta em formato JSON pelo celular ou PC"
+            >
+              <Upload size={17} /> {importing ? 'Importando aventura...' : 'Importar Campanha (JSON)'}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              accept=".json,application/json"
+              onChange={handleFileImport}
+            />
           </div>
         </div>
         <div className="vn-hero-crest">
@@ -89,6 +132,18 @@ export function Library({ stories, loading, onCreate, onOpen, onDelete }: {
                     </button>
                     {menu === s.id && (
                       <div className="story-menu-pop vn-menu-pop">
+                        <button onClick={async () => {
+                          setMenu(null)
+                          try {
+                            notify('Exportando campanha completa...')
+                            await svc.exportFullCampaign(s.id)
+                            notify('Campanha baixada com sucesso!')
+                          } catch (e: any) {
+                            notify('Erro ao exportar: ' + (e.message || String(e)), 'error')
+                          }
+                        }}>
+                          <Download size={14} /> Exportar Campanha (JSON)
+                        </button>
                         <button onClick={() => { setMenu(null); if (confirm('Excluir esta história para sempre? Isso apaga personagens, mensagens e memórias.')) onDelete(s) }}>
                           <Trash2 size={14} /> Excluir Save
                         </button>

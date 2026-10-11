@@ -357,7 +357,35 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
             <div className="review-card"><span>PROTAGONISTA</span><h3>{player.name || 'Seu protagonista'}</h3><p>O personagem que você controla.</p><button onClick={() => goStep(4)}>Editar <ChevronRight /></button></div>
           </div>
           {missing.length > 0 && <div className="rule-note review-missing"><Sparkles /><div><strong>Falta pouco</strong>{missing.map((m) => <p key={m}>{m}</p>)}</div></div>}
-          <div className="ready-card"><Sparkles /><div><span className="eyebrow">PRÓXIMO CAPÍTULO</span><h3>Seu mundo está esperando.</h3><p>Você poderá continuar editando tudo enquanto sua história evolui.</p></div><button className="primary-button" disabled={!canStart} onClick={start}><Play /> {story.status === 'playing' ? 'Continuar história' : 'Iniciar história'}</button></div></>}
+          <div className="ready-card">
+            <Sparkles />
+            <div>
+              <span className="eyebrow">PRÓXIMO CAPÍTULO</span>
+              <h3>Seu mundo está pronto para ser jogado ou compartilhado.</h3>
+              <p>Você pode iniciar a história agora ou exportar esta campanha completa em JSON para enviar a um amigo.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="outline-button light"
+                onClick={async () => {
+                  try {
+                    notify('Exportando campanha completa...')
+                    await svc.exportFullCampaign(storyId)
+                    notify('Campanha baixada com sucesso!')
+                  } catch(e: any) {
+                    notify(String(e), 'error')
+                  }
+                }}
+                title="Exportar arquivo JSON para seu amigo carregar e jogar do zero"
+              >
+                <Download size={16} /> Exportar Campanha Completa (JSON)
+              </button>
+              <button className="primary-button" disabled={!canStart} onClick={start}>
+                <Play /> {story.status === 'playing' ? 'Continuar história' : 'Iniciar história'}
+              </button>
+            </div>
+          </div></>}
 
         <div className="editor-footer"><button className="ghost-button" disabled={step === 0} onClick={() => goStep(Math.max(0, step - 1))}><ArrowLeft /> Anterior</button>{step < 5 && <button className="primary-button" onClick={() => goStep(Math.min(5, step + 1))}>Próxima etapa <ArrowRight /></button>}</div>
       </div><aside className="editor-aside"><div className="aside-card"><span className="eyebrow">SUA CRIAÇÃO</span><div className="aside-title"><div className="tiny-mark">A</div><div><strong>{storyTitle}</strong><span>Rascunho</span></div></div><div className="aside-progress"><div><span>Progresso</span><strong>{progress}%</strong></div><div className="progress-track"><i style={{ width: `${progress}%` }} /></div></div><div className="aside-list">{steps.map((item, index) => <button key={item.label} onClick={() => goStep(index)} className={index === step ? 'active' : ''}><span>{index < step ? <Check /> : item.number}</span>{item.label}<ChevronRight /></button>)}</div></div><div className="aside-tip"><Sparkles /><div><strong>Construa sem limites</strong><p>Não existe uma forma certa de contar uma história. Comece onde sua imaginação levar.</p></div></div></aside></div>

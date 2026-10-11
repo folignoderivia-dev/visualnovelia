@@ -221,3 +221,205 @@ export async function getDailyUsage(): Promise<{ isWhitelisted: boolean; used: n
   }
 }
 
+export interface FullCampaignData {
+  version: number
+  type: 'ai_novel_campaign'
+  exported_at: string
+  story: {
+    title: string
+    description: string
+    genre: string
+    tone: string
+    cover_url: string | null
+  }
+  world: Partial<World>
+  master: Partial<MasterSettings>
+  player: Partial<PlayerCharacter>
+  scenarios: Partial<Scenario>[]
+  characters: (Partial<Character> & { expressions?: Record<string, string>; relationship?: any })[]
+  tags: any[]
+}
+
+export async function exportFullCampaign(storyId: string): Promise<FullCampaignData> {
+  const bundle = await loadBundle(storyId)
+  const data: FullCampaignData = {
+    version: 1,
+    type: 'ai_novel_campaign',
+    exported_at: new Date().toISOString(),
+    story: {
+      title: bundle.story.title,
+      description: bundle.story.description,
+      genre: bundle.story.genre,
+      tone: bundle.story.tone,
+      cover_url: bundle.story.cover_url,
+    },
+    world: strip(bundle.world),
+    master: strip(bundle.master),
+    player: strip(bundle.player),
+    scenarios: bundle.scenarios.map((sc) => ({
+      name: sc.name,
+      description: sc.description,
+      image_url: sc.image_url,
+      is_starting_scenario: sc.is_starting_scenario,
+    })),
+    characters: bundle.characters.map((c) => ({
+      name: c.name,
+      nickname: c.nickname,
+      age: c.age,
+      appearance: c.appearance,
+      personality: c.personality,
+      history: c.history,
+      speech_style: c.speech_style,
+      goals: c.goals,
+      fears: c.fears,
+      secrets: c.secrets,
+      relationship_to_protagonist: c.relationship_to_protagonist,
+      extra_information: c.extra_information,
+      image_url: c.image_url,
+      expressions: c.expressions || {},
+      relationship: c.relationship ? { relationship_value: c.relationship.relationship_value } : undefined,
+    })),
+    tags: (bundle.tags || []).map((t: any) => ({
+      name: t.name,
+      prompt: t.prompt,
+      category: t.category,
+      color: t.color,
+    })),
+  }
+
+  if (typeof window !== 'undefined') {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const cleanTitle = (bundle.story.title || 'aventura').toLowerCase().replace(/[^a-z0-9_-]/g, '_')
+    a.href = url
+    a.download = `${cleanTitle}-campanha.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  return data
+}
+
+export async function importFullCampaign(data: any): Promise<Story> {
+  const campaign = data.story ? data : { story: data, world: {}, master: {}, player: {}, scenarios: [], characters: [], tags: [] }
+  
+  // 1. Cria uma nova história no Supabase via RPC (já cria as tabelas filhas com o ID do usuário conectado)
+  const newStory = await createStory()
+  const storyId = newStory.id
+
+  // 2. Atualiza a história principal com status 'ready' para poder jogar imediatamente
+  if (campaign.story) {
+    const { title, description, genre, tone, cover_url } = campaign.story
+    await supabase.from('stories').update({
+      title: title || 'Aventura Importada',
+      description: description || '',
+      genre: genre || 'Fantasia / RPG',
+      tone: tone || 'Imersivo',
+      cover_url: cover_url || null,
+      status: 'ready',
+    }).eq('id', storyId)
+  }
+
+  // 3. Salva Mundo
+  if (campaign.world) {
+    const { id: _, story_id: __, ...worldData } = campaign.world
+    await saveWorld({ ...worldData, story_id: storyId } as World)
+  }
+
+  // 4. Salva Mestre / Regras
+  if (campaign.master) {
+    const { id: _, story_id: __, ...masterData } = campaign.master
+    await saveMaster({ ...masterData, story_id: storyId } as MasterSettings)
+  }
+
+  // 5. Salva Protagonista
+  if (campaign.player) {
+    const { id: _, story_id: __, user_id: ___, ...playerData } = campaign.player
+    await savePlayer({ ...playerData, story_id: storyId } as PlayerCharacter)
+  }
+
+  // 6. Cenários
+  if (Array.isArray(campaign.scenarios) && campaign.scenarios.length > 0) {
+    const existingScenarios = check(await supabase.from('scenarios').select('*').eq('story_id', storyId)) as Scenario[]
+    const firstImported = campaign.scenarios[0]
+    if (existingScenarios.length > 0 && firstImported) {
+      await supabase.from('scenarios').update({
+        name: firstImported.name || 'Cenário Inicial',
+        description: firstImported.description || '',
+        image_url: firstImported.image_url || null,
+        is_starting_scenario: true,
+      }).eq('id', existingScenarios[0].id)
+    }
+    for (let i = 1; i < campaign.scenarios.length; i++) {
+      const sc = campaign.scenarios[i]
+      await supabase.from('scenarios').insert({
+        story_id: storyId,
+        name: sc.name || `Cenário ${i + 1}`,
+        description: sc.description || '',
+        image_url: sc.image_url || null,
+        is_starting_scenario: false,
+      })
+    }
+  }
+
+  // 7. Personagens, Expressões e Relacionamento
+  if (Array.isArray(campaign.characters)) {
+    for (const c of campaign.characters) {
+      const { data: newChar } = await supabase.from('characters').insert({
+        story_id: storyId,
+        name: c.name || 'Personagem',
+        nickname: c.nickname || '',
+        age: c.age || '',
+        appearance: c.appearance || '',
+        personality: c.personality || '',
+        history: c.history || '',
+        speech_style: c.speech_style || '',
+        goals: c.goals || '',
+        fears: c.fears || '',
+        secrets: c.secrets || '',
+        relationship_to_protagonist: c.relationship_to_protagonist || '',
+        extra_information: c.extra_information || '',
+        image_url: c.image_url || null,
+      }).select().single()
+
+      if (newChar) {
+        if (c.expressions && typeof c.expressions === 'object') {
+          for (const [exprType, imgUrl] of Object.entries(c.expressions)) {
+            if (typeof imgUrl === 'string' && imgUrl) {
+              await saveExpression(newChar.id, exprType, imgUrl, '')
+            }
+          }
+        }
+        if (c.relationship && typeof c.relationship.relationship_value === 'number') {
+          await supabase.from('character_relationships').insert({
+            story_id: storyId,
+            character_a_id: newChar.id,
+            relationship_value: c.relationship.relationship_value,
+          })
+        }
+      }
+    }
+  }
+
+  // 8. Tags da história
+  if (Array.isArray(campaign.tags)) {
+    for (const t of campaign.tags) {
+      if (t.name) {
+        await supabase.from('story_tags').insert({
+          story_id: storyId,
+          name: t.name,
+          prompt: t.prompt || '',
+          category: t.category || 'Geral',
+          color: t.color || '#e5b869',
+        })
+      }
+    }
+  }
+
+  return check(await supabase.from('stories').select('*').eq('id', storyId).single()) as Story
+}
+
+

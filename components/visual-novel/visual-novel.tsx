@@ -374,6 +374,22 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           <button className="vn-side-btn vn-side-accent" onClick={() => { openPanel('tinder'); setShowMobileRight(false); }} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
           <button className="vn-side-btn vn-side-whatsapp" onClick={() => { openPanel('whatsapp'); setShowMobileRight(false); }} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
           {onEdit && <button className="vn-side-btn vn-side-editor" onClick={() => { onEdit(); setShowMobileRight(false); }} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
+          <button
+            className="vn-side-btn"
+            onClick={async () => {
+              try {
+                notify('Exportando campanha completa...')
+                await svc.exportFullCampaign(storyId)
+                notify('Campanha baixada com sucesso!')
+                setShowMobileRight(false)
+              } catch(e: any) {
+                notify('Erro ao exportar: ' + (e.message || String(e)), 'error')
+              }
+            }}
+            title="Exportar Campanha Completa com todos personagens e regras (JSON)"
+          >
+            <Download size={15}/> <span>EXPORTAR</span>
+          </button>
           <div className="vn-side-divider" />
           <button className="vn-side-btn" onClick={() => { handleRestart(); setShowMobileRight(false); }} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
           <button className="vn-side-btn vn-side-exit" onClick={() => { onBack(); setShowMobileRight(false); }} title="Sair do Jogo"><ArrowLeft size={16}/> <span>SAIR</span></button>
