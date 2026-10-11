@@ -163,13 +163,19 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !uploadTarget) return
-    const isExpr = uploadTarget.startsWith('expr_')
+    const isExpr = uploadTarget.startsWith('expr:') || uploadTarget.startsWith('expr_')
     let id: string | undefined
     let exprType = ''
     if (isExpr) {
-      const parts = uploadTarget.split('_')
-      id = parts[1]
-      exprType = parts[2]
+      const parts = uploadTarget.split(':')
+      if (parts.length >= 3) {
+        id = parts[1]
+        exprType = parts[2]
+      } else {
+        const uParts = uploadTarget.split('_')
+        id = uParts[1]
+        exprType = uParts.slice(2).join('_')
+      }
     } else {
       id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
     }
@@ -408,7 +414,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       {['neutral', 'happy', 'angry', 'ashamed', 'intimate', 'foto_casual', 'foto_sensual', 'foto_pe', 'foto_18'].map((expr) => {
                         const img = (editingChar as any).expressions?.[expr] || (expr === 'neutral' ? editingChar.image_url : null)
                         return (
-                          <div key={expr} className="expr-slot" onClick={() => { setUploadTarget(`expr_${editingChar.id}_${expr}`); fileInputRef.current?.click() }}>
+                          <div key={expr} className="expr-slot" onClick={() => { setUploadTarget(`expr:${editingChar.id}:${expr}`); fileInputRef.current?.click() }}>
                             {img ? <img src={img} alt={expr} /> : <div className="expr-empty"><ImagePlus size={16}/></div>}
                             <small>{expr.replace('foto_', 'foto ')}</small>
                           </div>
