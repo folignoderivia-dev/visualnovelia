@@ -185,3 +185,39 @@ export async function restartStory(storyId: string): Promise<void> {
   check(await supabase.from('story_memories').delete().eq('story_id', storyId).select())
   check(await supabase.from('story_state').delete().eq('story_id', storyId).select())
 }
+
+export async function getDailyUsage(): Promise<{ isWhitelisted: boolean; used: number; max: number; remaining: number }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { isWhitelisted: false, used: 0, max: 20, remaining: 20 }
+    const email = (user.email || '').toLowerCase().trim()
+    const ADMIN_EMAILS = ['guifoligno@gmail.com', 'guilhermefoligno@gmail.com']
+    if (ADMIN_EMAILS.includes(email)) {
+      return { isWhitelisted: true, used: 0, max: 20, remaining: 9999 }
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: userStories } = await supabase.from('stories').select('id')
+    const storyIds = (userStories ?? []).map((s) => s.id)
+    if (storyIds.length === 0) return { isWhitelisted: false, used: 0, max: 20, remaining: 20 }
+
+    const { count, error } = await supabase
+      .from('story_messages')
+      .select('id', { count: 'exact', head: true })
+      .in('story_id', storyIds)
+      .eq('sender_type', 'player')
+      .gte('created_at', since)
+
+    if (error || typeof count !== 'number') return { isWhitelisted: false, used: 0, max: 20, remaining: 20 }
+    const used = count
+    return {
+      isWhitelisted: false,
+      used,
+      max: 20,
+      remaining: Math.max(0, 20 - used),
+    }
+  } catch {
+    return { isWhitelisted: false, used: 0, max: 20, remaining: 20 }
+  }
+}
+

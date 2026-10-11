@@ -77,7 +77,38 @@ Deno.serve(async (req) => {
     const ctx = await authenticate(req)
     const body = await req.json().catch(() => ({}))
     const story = await assertStoryOwner(ctx, body.story_id)
-    const { admin } = ctx
+    const { admin, userEmail, userId } = ctx
+    const ADMIN_EMAILS = ['guifoligno@gmail.com', 'guilhermefoligno@gmail.com']
+    const isWhitelisted = ADMIN_EMAILS.includes(userEmail)
+
+    // Rate limit blindado: se não for admin, máximo de 20 mensagens diárias (24h)
+    let usedToday = 0
+    const DAILY_LIMIT = 20
+    if (!isWhitelisted) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { data: userStories } = await admin.from('stories').select('id').eq('user_id', userId)
+      const storyIds = (userStories ?? []).map((s: any) => s.id)
+
+      if (storyIds.length > 0) {
+        const { count, error: countErr } = await admin
+          .from('story_messages')
+          .select('id', { count: 'exact', head: true })
+          .in('story_id', storyIds)
+          .eq('sender_type', 'player')
+          .gte('created_at', since)
+        if (!countErr && typeof count === 'number') {
+          usedToday = count
+        }
+      }
+
+      if (usedToday >= DAILY_LIMIT) {
+        throw new HttpError(
+          429,
+          'daily_limit_reached',
+          `Você atingiu o limite de ${DAILY_LIMIT} mensagens diárias como convidado! Seu limite é renovado a cada 24 horas.`
+        )
+      }
+    }
 
     const mode: 'start' | 'turn' = body.mode === 'start' ? 'start' : 'turn'
     let action = s(body.action, MAX_ACTION)
@@ -195,7 +226,18 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any
     ;(globalThis as any).EdgeRuntime?.waitUntil?.(bg)
 
-    return json({ messages: savedMsgs, state: { story_id: story.id, ...nextState }, scenario_changed: !!turn.newScenarioId, memories_saved: memoriesSaved })
+    return json({
+      messages: savedMsgs,
+      state: { story_id: story.id, ...nextState },
+      scenario_changed: !!turn.newScenarioId,
+      memories_saved: memoriesSaved,
+      daily_limit: {
+        is_whitelisted: isWhitelisted,
+        used: isWhitelisted ? 0 : usedToday + 1,
+        max: DAILY_LIMIT,
+        remaining: isWhitelisted ? 9999 : Math.max(0, DAILY_LIMIT - (usedToday + 1)),
+      },
+    })
   } catch (err) {
     return errorResponse(err)
   } finally {

@@ -232,7 +232,8 @@ async function authenticate(req) {
   const { data, error } = await userClient.auth.getUser(authHeader.slice("Bearer ".length));
   if (error || !data.user) throw new HttpError(401, "unauthenticated", "Sua sess\xE3o expirou. Entre novamente.");
   const admin = createClient(url, service, { auth: { persistSession: false } });
-  return { userId: data.user.id, userClient, admin };
+  const userEmail = (data.user.email || "").toLowerCase().trim();
+  return { userId: data.user.id, userEmail, userClient, admin };
 }
 async function assertStoryOwner(ctx, storyId) {
   if (!isUuid(storyId)) throw new HttpError(400, "bad_request", "Hist\xF3ria inv\xE1lida.");
@@ -430,10 +431,44 @@ Deno.serve(async (req) => {
     const ctx = await authenticate(req);
     const body = await req.json().catch(() => ({}));
     const story = await assertStoryOwner(ctx, body.story_id);
-    const { admin } = ctx;
+    const { admin, userEmail, userId } = ctx;
+    const ADMIN_EMAILS = ["guifoligno@gmail.com", "guilhermefoligno@gmail.com"];
+    const isWhitelisted = ADMIN_EMAILS.includes(userEmail);
+
+    let usedToday = 0;
+    const DAILY_LIMIT = 20;
+    if (!isWhitelisted) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: userStories } = await admin.from("stories").select("id").eq("user_id", userId);
+      const storyIds = (userStories ?? []).map((s: any) => s.id);
+
+      if (storyIds.length > 0) {
+        const { count, error: countErr } = await admin
+          .from("story_messages")
+          .select("id", { count: "exact", head: true })
+          .in("story_id", storyIds)
+          .eq("sender_type", "player")
+          .gte("created_at", since);
+        if (!countErr && typeof count === "number") {
+          usedToday = count;
+        }
+      }
+
+      if (usedToday >= DAILY_LIMIT) {
+        throw new HttpError(
+          429,
+          "daily_limit_reached",
+          `Você atingiu o limite de ${DAILY_LIMIT} mensagens diárias como convidado! Seu limite é renovado a cada 24 horas.`
+        );
+      }
+    }
+
     const mode = body.mode === "start" ? "start" : "turn";
     const action = s(body.action, MAX_ACTION);
     const image = body.image;
+    if (mode === "turn" && !action && image) {
+      action = "[O jogador mostra esta foto/imagem e aguarda sua reacao]";
+    }
     if (mode === "turn" && !action) throw new HttpError(400, "empty_action", "Escreva o que seu protagonista faz ou diz.");
     const { data: claimed, error: claimErr } = await admin.rpc("claim_story_generation", { p_story_id: story.id, p_seconds: 90 });
     if (claimErr) throw claimErr;
@@ -562,7 +597,18 @@ Deno.serve(async (req) => {
     }
     const bg = summarizeStory(admin, story.id).catch((e) => console.error("[summary]", e));
     globalThis.EdgeRuntime?.waitUntil?.(bg);
-    return json({ messages: savedMsgs, state: { story_id: story.id, ...nextState }, scenario_changed: !!turn.newScenarioId, memories_saved: memoriesSaved });
+    return json({
+      messages: savedMsgs,
+      state: { story_id: story.id, ...nextState },
+      scenario_changed: !!turn.newScenarioId,
+      memories_saved: memoriesSaved,
+      daily_limit: {
+        is_whitelisted: isWhitelisted,
+        used: isWhitelisted ? 0 : usedToday + 1,
+        max: DAILY_LIMIT,
+        remaining: isWhitelisted ? 9999 : Math.max(0, DAILY_LIMIT - (usedToday + 1)),
+      },
+    });
   } catch (err) {
     return errorResponse(err);
   } finally {

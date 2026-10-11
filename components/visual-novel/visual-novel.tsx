@@ -38,6 +38,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [wppInput, setWppInput] = useState('')
   const [showMobileLeft, setShowMobileLeft] = useState(false)
   const [showMobileRight, setShowMobileRight] = useState(false)
+  const [dailyLimit, setDailyLimit] = useState<{ isWhitelisted: boolean; used: number; max: number; remaining: number }>({
+    isWhitelisted: true,
+    used: 0,
+    max: 20,
+    remaining: 20,
+  })
   const [hasMore, setHasMore] = useState(false)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -109,6 +115,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
   const run = useCallback(async (kind: 'start' | 'turn', action = '', img?: string) => {
     if (busy.current) return
+    if (kind === 'turn' && !dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+      notify('Limite diário de 20 mensagens atingido para sua conta. Tente novamente amanhã!', 'error')
+      return
+    }
     busy.current = true
     const prevVisible = visibleCountRef.current
     retry.current = () => { run(kind, action, img) }
@@ -127,11 +137,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       if (kind === 'turn') {
         setInput('');
         setActionImage(null);
+        if (!dailyLimit.isWhitelisted) {
+          setDailyLimit((prev) => ({ ...prev, used: prev.used + 1, remaining: Math.max(0, prev.remaining - 1) }))
+        }
       }
     } catch (e) {
       setError(friendlyError(e, 'O narrador não conseguiu responder. Tente novamente.'))
     } finally { busy.current = false; setThinking(false) }
-  }, [storyId, applyResponse, recover])
+  }, [storyId, applyResponse, recover, dailyLimit, notify])
 
   async function regenerateTurn() {
     if (busy.current || thinking) return;
@@ -152,10 +165,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     let alive = true
     ;(async () => {
       try {
-        const [b, st, msgs] = await Promise.all([svc.loadBundle(storyId), svc.loadState(storyId), svc.loadRecentMessages(storyId, 40)])
+        const [b, st, msgs, limit] = await Promise.all([
+          svc.loadBundle(storyId),
+          svc.loadState(storyId),
+          svc.loadRecentMessages(storyId, 40),
+          svc.getDailyUsage().catch(() => ({ isWhitelisted: true, used: 0, max: 20, remaining: 20 }))
+        ])
         if (!alive) return
         setStory(b.story); setScenarios(b.scenarios); setCharacters(b.characters); setPlayer(b.player); setState(st); setTags(b.tags || [])
         setMessages(msgs); setHasMore(msgs.length >= 40)
+        setDailyLimit(limit)
         const vis = msgs.filter((m) => !HIDDEN.includes(m.message_type))
         setCursor(Math.max(0, vis.length - 1))
         setLoadingInit(false)
@@ -171,6 +190,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     const hasText = input.trim().length > 0
     const hasImg = Boolean(actionImage)
     if ((!hasText && !hasImg) || busy.current || thinking || !atEnd) return
+    if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+      notify('Limite diário de 20 mensagens atingido!', 'error')
+      return
+    }
     const action = hasText ? input.trim() : '[O jogador mostra uma foto/imagem e aguarda sua reação]'
     const imgToSend = actionImage || undefined
     run('turn', action, imgToSend)
@@ -362,6 +385,21 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           <span>CAPÍTULO {String(state?.current_chapter ?? 1).padStart(2, '0')}</span>
           <span className="dot">•</span>
           <span>{(state?.current_location || scenario?.name || 'PRIMEIRA CENA').toString().toUpperCase()}</span>
+          {!dailyLimit.isWhitelisted && (
+            <>
+              <span className="dot">•</span>
+              <span
+                style={{
+                  color: dailyLimit.remaining <= 5 ? '#ff4d4f' : '#e5b869',
+                  fontWeight: 'bold',
+                  letterSpacing: '0.5px'
+                }}
+                title={`Limite diário: ${dailyLimit.used}/${dailyLimit.max} usadas. Restam ${dailyLimit.remaining} mensagens nas últimas 24h.`}
+              >
+                ⚡ {dailyLimit.remaining}/{dailyLimit.max} MSG
+              </span>
+            </>
+          )}
         </div>
 
         {scenario && (
@@ -521,7 +559,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={2000}
-                placeholder={`Como ${player?.name || 'você'} reage ou responde agora...?`}
+                disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
+                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : `Como ${player?.name || 'você'} reage ou responde agora...?`}
                 aria-label="Resposta do jogador"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
               />
@@ -529,8 +568,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 type="button"
                 className="vn-decision-submit"
                 onClick={send}
-                disabled={!input.trim() && !actionImage}
-                title="Confirmar sua ação"
+                disabled={(!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) || (!input.trim() && !actionImage)}
+                title={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? 'Limite diário atingido' : 'Confirmar sua ação'}
               >
                 <span>AGIR</span>
                 <ArrowRight size={14} />
@@ -983,10 +1022,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     className="wpp-text-input"
                     value={wppInput}
                     onChange={(e) => setWppInput(e.target.value)}
-                    placeholder="Mensagem"
+                    disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
+                    placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? 'Limite diário de 20 msgs atingido' : 'Mensagem'}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                         if (!wppInput.trim() || busy.current) return
+                        if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+                          notify('Limite diário de 20 mensagens atingido!', 'error')
+                          return
+                        }
                         const msg = wppInput.trim()
                         setWppInput('')
                         run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
@@ -997,9 +1041,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <button
                     type="button"
                     className="wpp-send-btn"
-                    disabled={!wppInput.trim() || busy.current}
+                    disabled={(!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) || !wppInput.trim() || busy.current}
                     onClick={() => {
                       if (!wppInput.trim() || busy.current) return
+                      if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+                        notify('Limite diário de 20 mensagens atingido!', 'error')
+                        return
+                      }
                       const msg = wppInput.trim()
                       setWppInput('')
                       run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
@@ -1072,10 +1120,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       className="tinder-text-input"
                       value={tinderInput}
                       onChange={(e) => setTinderInput(e.target.value)}
-                      placeholder="Diga algo interessante..."
+                      disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
+                      placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? 'Limite diário de 20 msgs atingido' : 'Diga algo interessante...'}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                           if (!tinderInput.trim() || busy.current) return
+                          if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+                            notify('Limite diário de 20 mensagens atingido!', 'error')
+                            return
+                          }
                           const msg = tinderInput.trim()
                           setTinderInput('')
                           run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)
@@ -1084,9 +1137,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     />
                     <button
                       className="tinder-send-btn"
-                      disabled={!tinderInput.trim() || busy.current}
+                      disabled={(!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) || !tinderInput.trim() || busy.current}
                       onClick={() => {
                         if (!tinderInput.trim() || busy.current) return
+                        if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+                          notify('Limite diário de 20 mensagens atingido!', 'error')
+                          return
+                        }
                         const msg = tinderInput.trim()
                         setTinderInput('')
                         run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)

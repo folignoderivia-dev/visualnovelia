@@ -26,6 +26,7 @@ export function errorResponse(err: unknown) {
 
 export interface AuthContext {
   userId: string
+  userEmail: string
   /** Cliente com o token do usuário: respeita RLS. */
   userClient: SupabaseClient
   /** Cliente com service role: SÓ usar depois de validar dono da história. */
@@ -47,7 +48,8 @@ export async function authenticate(req: Request): Promise<AuthContext> {
   if (error || !data.user) throw new HttpError(401, 'unauthenticated', 'Sua sessão expirou. Entre novamente.')
 
   const admin = createClient(url, service, { auth: { persistSession: false } })
-  return { userId: data.user.id, userClient, admin }
+  const userEmail = (data.user.email || '').toLowerCase().trim()
+  return { userId: data.user.id, userEmail, userClient, admin }
 }
 
 /** Garante que a história existe e pertence ao usuário (RLS + checagem explícita). */
