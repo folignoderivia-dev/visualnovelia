@@ -82,11 +82,7 @@
 .novel-mode { height:100vh; height:100dvh; }
 .novel-bg-img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; animation:bgfade .9s ease; }
 @keyframes bgfade { from { opacity:0; transform:scale(1.03) } }
-.novel-bg-shade { position:absolute; inset:0; background:linear-gradient(#0000004d,#0000 25%,#0000 45%,#000000b3); }
-.novel-stage { cursor:pointer; position:relative; padding-bottom:40px !important; justify-content:flex-start !important; padding-top:20px !important; }
-.novel-portrait { position:absolute; bottom:0; left:50%; transform:translateX(-50%); height:92%; max-width:90%; animation:portrait .45s ease; pointer-events:none; }
-.novel-portrait img { height:100%; width:auto; max-width:100%; object-fit:contain; filter:drop-shadow(0 10px 30px #0008); }
-@keyframes portrait { from { opacity:0; transform:translateX(-50%) translateY(14px) } }
+.novel-bg-shade { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.65) 100%); pointer-events:none; }
 .dialogue-panel { padding-bottom:max(18px, env(safe-area-inset-bottom)) !important; }
 .dialogue-text { min-height:2.8em; max-height:34vh; overflow-y:auto; }
 .dialogue-text.dim,.dialogue-text.thinking { color:#a39c95; font-style:italic; }
@@ -646,19 +642,126 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 }
 /* ==========================================================================
    RPG MAKER & VISUAL NOVEL GAME LAYOUT (Being a DIK / Classic VN Layout)
+/* ==========================================================================
+   RPG MAKER & VISUAL NOVEL GAME LAYOUT (Being a DIK / Classic VN Layout)
    ========================================================================== */
 
 /* Moldura e borda da tela de jogo de Visual Novel */
 .novel-mode {
-  border: 6px solid #141118 !important;
-  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 0, 0, 0.8) !important;
+  border: 4px solid #1a1622 !important;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 0, 0, 0.8) !important;
   background: #08060a !important;
   position: relative !important;
   height: 100vh !important;
   width: 100vw !important;
   overflow: hidden !important;
+  display: flex !important;
 }
 
+/* ---------- HUD LATERAL ESQUERDO: BOTÕES E MENUS VERTICAIS (RPG / VN) ---------- */
+.vn-game-sidebar-left {
+  position: absolute !important;
+  top: 18px !important;
+  left: 18px !important;
+  z-index: 40 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  pointer-events: auto !important;
+  max-width: 170px !important;
+}
+
+.vn-side-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 12px !important;
+  background: rgba(14, 11, 18, 0.88) !important;
+  border: 1px solid rgba(229, 184, 105, 0.4) !important;
+  border-radius: 6px !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+}
+
+.vn-brand-crest {
+  color: #e5b869 !important;
+  font-size: 13px !important;
+  filter: drop-shadow(0 0 5px rgba(229, 184, 105, 0.6));
+}
+
+.vn-brand-title {
+  font-family: var(--font-fantasy) !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  letter-spacing: 0.08em !important;
+  color: #f5eedf !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 120px !important;
+}
+
+.vn-side-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.vn-side-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 7px 12px !important;
+  background: linear-gradient(90deg, rgba(22, 18, 28, 0.9) 0%, rgba(32, 25, 42, 0.85) 100%) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  border-left: 3px solid #e5b869 !important;
+  border-radius: 4px !important;
+  color: #ded6c9 !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  letter-spacing: 0.1em !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.vn-side-btn:hover {
+  background: linear-gradient(90deg, rgba(229, 184, 105, 0.25) 0%, rgba(201, 147, 62, 0.35) 100%) !important;
+  border-color: #ffd98a !important;
+  color: #fff !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 4px 16px rgba(229, 184, 105, 0.3) !important;
+}
+
+.vn-side-btn.vn-side-accent {
+  border-left-color: #ff4b6e !important;
+  color: #ff9db4 !important;
+}
+.vn-side-btn.vn-side-accent:hover {
+  background: rgba(255, 75, 110, 0.25) !important;
+  border-color: #ff4b6e !important;
+  color: #fff !important;
+}
+
+.vn-side-btn.vn-side-whatsapp {
+  border-left-color: #25d366 !important;
+  color: #72e69d !important;
+}
+.vn-side-btn.vn-side-whatsapp:hover {
+  background: rgba(37, 211, 102, 0.25) !important;
+  border-color: #25d366 !important;
+  color: #fff !important;
+}
+
+.vn-side-btn.vn-side-editor {
+  border-left-color: #a78bfa !important;
+  color: #c4b5fd !important;
+}
+
+/* PALCO DO JOGO */
 .novel-stage {
   position: absolute !important;
   inset: 0 !important;
@@ -666,21 +769,43 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   margin: 0 !important;
   pointer-events: auto !important;
   cursor: pointer !important;
+  overflow: hidden !important;
 }
 
-/* SPRITES: Personagem em pé no cenário (visível da cintura/peito pra cima, nunca cortado) */
+.chapter-label {
+  position: absolute !important;
+  top: 18px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 20 !important;
+  background: rgba(14, 11, 18, 0.75) !important;
+  border: 1px solid rgba(229, 184, 105, 0.35) !important;
+  border-radius: 20px !important;
+  padding: 5px 18px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.18em !important;
+  color: #e5b869 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* SPRITES: Personagem em pé no cenário (Proporcional, Alta Definição, Sem Cortar) */
 .novel-portrait {
   position: absolute !important;
-  bottom: 215px !important;
-  right: 16% !important;
-  height: min(68vh, 650px) !important;
-  max-width: 480px !important;
+  bottom: 190px !important;
+  right: 18% !important;
+  height: 58vh !important;
+  max-height: 520px !important;
+  max-width: 440px !important;
   width: auto !important;
   z-index: 10 !important;
   pointer-events: none !important;
   display: flex !important;
   align-items: flex-end !important;
   justify-content: center !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
 }
 
 .novel-portrait img {
@@ -689,20 +814,26 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   max-width: 100% !important;
   object-fit: contain !important;
   object-position: bottom center !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: high-quality !important;
   filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.85)) !important;
-  mask-image: linear-gradient(to bottom, black 85%, transparent 100%) !important;
-  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%) !important;
   animation: spriteEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 @media (max-width: 768px) {
+  .vn-game-sidebar-left {
+    position: fixed !important;
+    top: 10px !important;
+    left: 10px !important;
+    max-width: 140px !important;
+  }
   .novel-portrait {
     right: auto !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    bottom: 245px !important;
-    height: 48vh !important;
-    max-width: 85vw !important;
+    bottom: 230px !important;
+    height: 42vh !important;
+    max-width: 80vw !important;
   }
 }
 
@@ -714,17 +845,25 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 /* ESCOLHAS FLUTUANTES NO CENÁRIO (Idêntico às referências de Visual Novel - Imagens 2 e 3) */
 .vn-choices-overlay {
   position: absolute !important;
-  top: 38% !important;
-  left: 50% !important;
+  top: 36% !important;
+  left: 55% !important;
   transform: translate(-50%, -50%) !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   gap: 12px !important;
-  width: min(580px, 92vw) !important;
+  width: min(540px, 86vw) !important;
   z-index: 25 !important;
   pointer-events: auto !important;
   animation: dropUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.vn-choices-header {
+  font-family: var(--font-fantasy) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.2em !important;
+  color: #ffd98a !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9) !important;
 }
 
 .vn-choices-list {
@@ -774,10 +913,10 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   bottom: 16px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: min(1140px, 95vw) !important;
-  min-height: 180px !important;
-  max-height: 38vh !important;
-  background: linear-gradient(180deg, rgba(16, 13, 22, 0.95) 0%, rgba(9, 7, 13, 0.98) 100%) !important;
+  width: min(1080px, 94vw) !important;
+  min-height: 165px !important;
+  max-height: 35vh !important;
+  background: linear-gradient(180deg, rgba(16, 13, 22, 0.96) 0%, rgba(9, 7, 13, 0.98) 100%) !important;
   border: 2px solid #e5b869 !important;
   border-radius: 14px !important;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(229, 184, 105, 0.08), 0 0 20px rgba(229, 184, 105, 0.18) !important;

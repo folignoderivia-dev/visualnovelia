@@ -276,25 +276,24 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {!scenario?.image_url && <div className="backdrop-grid" />}
         {scenario?.image_url && <div className="novel-bg-shade" />}
       </div>
-      <header className="novel-topbar vn-game-topbar">
-        <button className="vn-top-btn" onClick={onBack} aria-label="Voltar à Biblioteca" title="Retornar à Biblioteca de Histórias">
-          <ArrowLeft size={16} /> <span>SAIR</span>
-        </button>
-        <div className="novel-brand vn-top-brand">
-          <span className="eyebrow">CAMPANHA INTERATIVA</span>
-          <strong>{title}</strong>
+      {/* HUD LATERAL ESQUERDO: MENU VERTICAL DO JOGO (RPG / VISUAL NOVEL) */}
+      <aside className="vn-game-sidebar-left">
+        <div className="vn-side-brand">
+          <span className="vn-brand-crest">❖</span>
+          <span className="vn-brand-title">{title}</span>
         </div>
-        <div className="novel-actions vn-top-actions">
-          <button className="vn-top-btn" aria-label="Reiniciar História" title="Reiniciar Campanha do zero" onClick={handleRestart}><RotateCcw size={15}/> <span>REINICIAR</span></button>
-          <button className="vn-top-btn" aria-label="Salvar" title="Salvar progresso" onClick={() => notify('Seu progresso é gravado automaticamente.')}><Save size={15}/> <span>SALVAR</span></button>
-          <button className="vn-top-btn" aria-label="Configurações" title="Memórias & Configurações" onClick={() => openPanel('memory')}><Settings size={15}/> <span>REGRAS</span></button>
-          <button className="vn-top-btn" aria-label="Tags" title="Gerenciar Tags de Contexto" onClick={() => openPanel('tags')}><Tag size={15}/> <span>TAGS</span></button>
-          <button className="vn-top-btn" aria-label="Mapa" title="Mapa Mundi & Viagem Rápida" onClick={() => openPanel('map')}><MapIcon size={15}/> <span>MAPA</span></button>
-          <button className="vn-top-btn vn-accent-btn" aria-label="Tinder" title="Dating App (Apenas Desconhecidos)" onClick={() => openPanel('tinder')}><Smartphone size={15}/> <span>TINDER</span></button>
-          <button className="vn-top-btn vn-whatsapp-btn" aria-label="WhatsApp" title="WhatsApp Chat (Contatos Conhecidos)" onClick={() => openPanel('whatsapp')}><MessageCircle size={15}/> <span>WHATSAPP</span></button>
-          {onEdit && <button className="vn-top-btn vn-editor-btn" aria-label="Editor" title="Editor do Criador" onClick={onEdit}><Pencil size={15}/> <span>EDITOR</span></button>}
-        </div>
-      </header>
+        <nav className="vn-side-actions">
+          <button className="vn-side-btn" onClick={onBack} title="Retornar à Biblioteca"><ArrowLeft size={16}/> <span>SAIR</span></button>
+          <button className="vn-side-btn" onClick={handleRestart} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
+          <button className="vn-side-btn" onClick={() => notify('Progresso salvo automaticamente.')} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('memory')} title="Regras e Memórias"><Settings size={15}/> <span>REGRAS</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('tags')} title="Tags de Contexto"><Tag size={15}/> <span>TAGS</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('map')} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
+          <button className="vn-side-btn vn-side-accent" onClick={() => openPanel('tinder')} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
+          <button className="vn-side-btn vn-side-whatsapp" onClick={() => openPanel('whatsapp')} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
+          {onEdit && <button className="vn-side-btn vn-side-editor" onClick={onEdit} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
+        </nav>
+      </aside>
 
       <section className="novel-stage" onClick={advance}>
         <div className="chapter-label">
@@ -309,7 +308,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </button>
         )}
 
-        {/* Personagem Sprite em pé no cenário (Estilo Visual Novel / Being a DIK / RPG Maker) */}
+        {/* SPRITE DO PERSONAGEM EM PÉ NO CENÁRIO (Renderizado proporcionalmente em alta definição) */}
         {speaker && speakerImg && (
           <div key={speaker.id} className="novel-portrait">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -332,10 +331,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </div>
         )}
 
-        {/* ESCOLHAS FLUTUANTES NO CENÁRIO (Idêntico às referências do usuário - Imagens 2 e 3) */}
+        {/* ESCOLHAS FLUTUANTES NO CENÁRIO (Sistema de Escolhas e Diálogos de Visual Novel) */}
         {!loadingInit && !thinking && !error && atEnd && Array.isArray((state?.state_data as any)?.pending_choices) && ((state?.state_data as any)?.pending_choices.length > 0) && (
           <div className="vn-choices-overlay" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-choices-glow" />
+            <div className="vn-choices-header">COMO VOCÊ REAGE?</div>
             <div className="vn-choices-list">
               {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
                 <button
@@ -352,7 +351,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
       </section>
 
-      {/* CAIXA DE DIÁLOGO VISUAL NOVEL (Fixa na parte inferior com Nameplate e Controles) */}
+      {/* CAIXA DE DIÁLOGO DE VISUAL NOVEL (Moldura de RPG Maker com Nameplate, Log e Opções) */}
       <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
         <input type="file" ref={fileInputRef} className="sr-only" accept="image/*" onChange={handleFileChange} />
         
@@ -360,7 +359,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           <div className="vn-dialogue-loading"><Sparkles className="pulse" /> Carregando crônicas...</div>
         ) : thinking ? (
           <div className="vn-dialogue-loading">
-            <div className="vn-thinking-badge"><Sparkles size={14} className="pulse"/> O NARRADOR ESTÁ ESCREVENDO...</div>
+            <div className="vn-thinking-badge"><Sparkles size={14} className="pulse"/> O NARRADOR ESTÁ RESPONDENDO...</div>
             <div className="dots"><i>.</i><i>.</i><i>.</i></div>
           </div>
         ) : error ? (
@@ -392,7 +391,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 </div>
               </div>
 
-              {/* Controles Rápidos da Visual Novel (Log, Elenco, Memória, Regerar, Editar) */}
+              {/* Botões Rápidos da VN: Log, Elenco, Memória, Regerar, Editar */}
               <div className="vn-dialogue-quickmenu">
                 <span className="vn-turn-counter">CENA {cursor + 1}/{visible.length}</span>
                 <button className="vn-quick-btn" title="Histórico da História" onClick={(e) => { e.stopPropagation(); openPanel('history'); }}>
@@ -429,10 +428,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               </div>
             )}
 
-            {/* Rodapé da Caixa: Barra de Ação RPG Integrada (Fim do visual de chat de IA!) */}
+            {/* Rodapé da Caixa: Sistema de Ação e Interação do Jogador */}
             {atEnd ? (
               <div className="vn-action-dock" onClick={(e) => e.stopPropagation()}>
-                {/* Chip de Miniatura se imagem for anexada */}
+                {/* Chip de Foto Anexada */}
                 {actionImage && (
                   <div className="vn-attached-chip">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -460,10 +459,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     type="button"
                     className={`vn-dock-btn ${actionImage ? 'active' : ''}`}
                     onClick={() => actionImageRef.current?.click()}
-                    title="Anexar Imagem/Foto para Visão IA"
+                    title="Anexar Imagem para o Personagem Reagir"
                   >
                     <ImagePlus size={16} />
-                    <span>{actionImage ? 'FOTO PRONTA' : 'ANEXAR FOTO'}</span>
+                    <span>{actionImage ? 'FOTO CARREGADA' : 'ENVIAR FOTO'}</span>
                   </button>
 
                   <div className="vn-command-container">
@@ -471,9 +470,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       type="button"
                       className={`vn-dock-btn ${showShortcuts ? 'active' : ''}`}
                       onClick={() => setShowShortcuts(!showShortcuts)}
-                      title="Ações e Comandos de RPG"
+                      title="Ações de RPG & Mudança de Cena"
                     >
-                      <span>⚔️ RPG</span>
+                      <span>⚔️ AÇÕES RPG</span>
                       <small>{showShortcuts ? '▲' : '▼'}</small>
                     </button>
 
@@ -530,8 +529,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     maxLength={2000}
-                    placeholder={`O que ${player?.name || 'você'} faz, diz ou pergunta livremente...`}
-                    aria-label="Ação livre"
+                    placeholder={`Como ${player?.name || 'você'} reage, fala ou age nesta cena...?`}
+                    aria-label="Ação do protagonista"
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
                   />
 
@@ -540,9 +539,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     className="vn-dock-send-btn"
                     onClick={send}
                     disabled={!input.trim() && !actionImage}
-                    title="Enviar Ação"
+                    title="Executar sua ação"
                   >
-                    <span>AGIR</span>
+                    <span>DECIDIR</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
