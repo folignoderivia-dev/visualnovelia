@@ -46,6 +46,27 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [editingChar, setEditingChar] = useState<Character | null>(null)
   const retry = useRef<null | (() => void)>(null)
   const startedRef = useRef(false)
+  const wppEndRef = useRef<HTMLDivElement>(null)
+  const tinderEndRef = useRef<HTMLDivElement>(null)
+
+  const handleInsertTag = useCallback((tagText: string) => {
+    setInput((prev) => (prev.trim() ? `${prev.trim()} ${tagText} ` : `${tagText} `))
+    notify(`Tag adicionada: ${tagText}`)
+    setShowShortcuts(false)
+    setShowMobileLeft(false)
+  }, [notify])
+
+  useEffect(() => {
+    if (panel === 'whatsapp' && wppContact) {
+      setTimeout(() => wppEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+    }
+  }, [panel, wppContact, messages, thinking])
+
+  useEffect(() => {
+    if (panel === 'tinder' && tinderChatContact) {
+      setTimeout(() => tinderEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+    }
+  }, [panel, tinderChatContact, messages, thinking])
 
   const visible = useMemo(() => messages.filter((m) => !HIDDEN.includes(m.message_type)), [messages])
   const current = visible[Math.min(cursor, visible.length - 1)]
@@ -315,57 +336,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           <div className="vn-side-divider" />
 
           {/* Grimório / Ações RPG */}
-          <button className={`vn-side-btn vn-side-rpg ${showShortcuts ? 'active' : ''}`} onClick={() => setShowShortcuts(!showShortcuts)} title="Ações RPG, D20 e Contexto">
-            <span>⚔️ AÇÕES RPG</span> <small>{showShortcuts ? '▲' : '▼'}</small>
+          <button className={`vn-side-btn vn-side-rpg ${showShortcuts ? 'active' : ''}`} onClick={() => { setShowShortcuts(true); setShowMobileLeft(false); }} title="Abrir Grimório de Ações e Tags RPG">
+            <Swords size={15}/> <span>⚔️ AÇÕES RPG</span> <small>▶</small>
           </button>
-
-          {showShortcuts && (
-            <div className="vn-command-dropdown vn-side-dropdown">
-              <div className="vn-command-section">
-                <span className="vn-command-header">MODOS NARRATIVOS</span>
-                <div className="vn-command-grid">
-                  <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false); setShowMobileLeft(false); }}>🎭 Imersivo</button>
-                  <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false); setShowMobileLeft(false); }}>⚔️ Combate</button>
-                  <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false); setShowMobileLeft(false); }}>❤️ Romance</button>
-                </div>
-              </div>
-              <div className="vn-command-section">
-                <span className="vn-command-header">TESTES & MUDANÇA DE CENA</span>
-                <div className="vn-command-grid">
-                  <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[D20: ${r}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>🎲 Rolar D20</button>
-                  <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA] "); setShowShortcuts(false); setShowMobileLeft(false); }}>🔚 Fim da Cena</button>
-                  <button type="button" onClick={() => {
-                    if (characters.length > 0) {
-                      const randomNpc = characters[Math.floor(Math.random() * characters.length)];
-                      setInput(input + `[Trazer ${randomNpc.name}] `);
-                    }
-                    setShowShortcuts(false);
-                    setShowMobileLeft(false);
-                  }}>🎲 NPC Aleatório</button>
-                </div>
-              </div>
-              {tags.length > 0 && (
-                <div className="vn-command-section">
-                  <span className="vn-command-header">TAGS</span>
-                  <div className="vn-command-grid">
-                    {tags.map(t => (
-                      <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>🏷️ {t.name}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {characters.length > 0 && (
-                <div className="vn-command-section">
-                  <span className="vn-command-header">CHAMAR NPC</span>
-                  <div className="vn-command-grid">
-                    {characters.map(c => (
-                      <button key={c.id} type="button" onClick={() => { setInput(input + `[Chamar ${c.name}] `); setShowShortcuts(false); setShowMobileLeft(false); }}>👤 {c.name}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </nav>
       </aside>
 
@@ -534,6 +507,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <ImagePlus size={15} />
                 <span>{actionImage ? 'Foto Carregada' : 'Foto'}</span>
               </button>
+              <button
+                type="button"
+                className={`vn-decision-rpg-btn ${showShortcuts ? 'active' : ''}`}
+                onClick={() => setShowShortcuts(!showShortcuts)}
+                title="Ações RPG, D20 e Tags Clicáveis"
+              >
+                <Swords size={15} />
+                <span>Ações RPG</span>
+              </button>
               <input
                 className="vn-decision-input"
                 value={input}
@@ -556,6 +538,117 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             </div>
           </div>
         </section>
+      )}
+
+      {/* MODAL / GRIMÓRIO DE AÇÕES RPG & TAGS CLICÁVEIS */}
+      {showShortcuts && (
+        <div className="vn-rpg-modal-backdrop" onClick={() => setShowShortcuts(false)}>
+          <div className="vn-rpg-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-rpg-modal-header">
+              <div className="vn-rpg-modal-title">
+                <Swords size={18} color="#e5b869" />
+                <strong>GRIMÓRIO DE AÇÕES & TAGS RPG</strong>
+              </div>
+              <button className="icon-button light" onClick={() => setShowShortcuts(false)} aria-label="Fechar"><X size={18} /></button>
+            </div>
+            
+            <p className="vn-rpg-modal-subtitle">
+              Clique em qualquer ação ou tag abaixo para inseri-la instantaneamente na sua resposta:
+            </p>
+
+            <div className="vn-rpg-modal-body">
+              {/* MODOS NARRATIVOS */}
+              <div className="vn-rpg-group">
+                <span className="vn-rpg-group-title">🎭 MODOS NARRATIVOS</span>
+                <div className="vn-rpg-chips">
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Roleplay Imersivo]')}>🎭 Imersivo</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Batalha / Combate]')}>⚔️ Combate</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Romance]')}>❤️ Romance</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Modo Íntimo +18]')}>🌶️ Íntimo +18</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Investigação e Mistério]')}>🔍 Investigação</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Comédia / Descontração]')}>😄 Cômico</button>
+                </div>
+              </div>
+
+              {/* D20 E AÇÕES DE CENA */}
+              <div className="vn-rpg-group">
+                <span className="vn-rpg-group-title">🎲 TESTES DE SORTE & MUDANÇA DE CENA</span>
+                <div className="vn-rpg-chips">
+                  <button type="button" className="vn-rpg-chip dice" onClick={() => {
+                    const r = Math.floor(Math.random() * 20) + 1;
+                    handleInsertTag(`[D20: ${r}]`);
+                  }}>🎲 Rolar D20</button>
+                  <button type="button" className="vn-rpg-chip scene" onClick={() => handleInsertTag('[ENCERRAR CENA]')}>🔚 Encerrar Cena</button>
+                  <button type="button" className="vn-rpg-chip scene" onClick={() => {
+                    if (characters.length > 0) {
+                      const randomNpc = characters[Math.floor(Math.random() * characters.length)];
+                      handleInsertTag(`[Trazer ${randomNpc.name}]`);
+                    } else {
+                      handleInsertTag('[Aparece um desconhecido]');
+                    }
+                  }}>🎲 NPC Aleatório</button>
+                  <button type="button" className="vn-rpg-chip" onClick={() => handleInsertTag('[Quebra da 4ª Parede]')}>⚡ 4ª Parede</button>
+                </div>
+              </div>
+
+              {/* TAGS CUSTOMIZADAS CRIADAS */}
+              <div className="vn-rpg-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className="vn-rpg-group-title">🏷️ TAGS DA CRÔNICA ({tags.length})</span>
+                  <button
+                    type="button"
+                    className="outline-button light"
+                    style={{ fontSize: '10px', padding: '3px 8px' }}
+                    onClick={() => { setShowShortcuts(false); openPanel('tags'); }}
+                  >
+                    + Criar Nova Tag
+                  </button>
+                </div>
+                {tags.length === 0 ? (
+                  <p className="vn-rpg-empty">Nenhuma tag criada ainda. Clique em &quot;+ Criar Nova Tag&quot; para criar atalhos personalizados!</p>
+                ) : (
+                  <div className="vn-rpg-chips">
+                    {tags.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="vn-rpg-chip custom-tag"
+                        onClick={() => handleInsertTag(`[${t.name}]`)}
+                        title={t.prompt}
+                      >
+                        🏷️ <strong>{t.name}</strong>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* CHAMAR PERSONAGENS DO ELENCO */}
+              {characters.length > 0 && (
+                <div className="vn-rpg-group">
+                  <span className="vn-rpg-group-title">👤 CHAMAR PERSONAGEM DO ELENCO</span>
+                  <div className="vn-rpg-chips">
+                    {characters.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="vn-rpg-chip char-chip"
+                        onClick={() => handleInsertTag(`[Chamar ${c.name}]`)}
+                      >
+                        {c.image_url ? (
+                          <img src={c.image_url} alt="" className="vn-chip-avatar" />
+                        ) : (
+                          <span>👤</span>
+                        )}
+                        <span>{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {panel && (
@@ -808,6 +901,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       </div>
                     </div>
                   )}
+                  <div ref={wppEndRef} />
                 </div>
 
                 {/* BARRA DE INPUT DO WHATSAPP */}
@@ -899,6 +993,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                         </div>
                       </div>
                     )}
+                    <div ref={tinderEndRef} />
                   </div>
                   <div className="tinder-input-bar">
                     <input
