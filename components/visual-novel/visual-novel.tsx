@@ -29,6 +29,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [panel, setPanel] = useState<Panel>(null)
   const [memories, setMemories] = useState<StoryMemory[]>([])
   const [tags, setTags] = useState<any[]>([])
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const [tinderIndex, setTinderIndex] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [editingMsg, setEditingMsg] = useState<string | null>(null)
@@ -97,6 +98,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       setCursor(prevVisible) // primeiro bloco novo
       if (kind === 'turn') {
         setInput('');
+        setActionImage(null);
       }
     } catch (e) {
       setError(friendlyError(e, 'O narrador não conseguiu responder. Tente novamente.'))
@@ -140,7 +142,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   function send() {
     const action = input.trim()
     if (!action || busy.current || thinking || !atEnd) return
-    run('turn', action) // o texto só é limpo quando a resposta chega; se falhar, continua no campo
+    const imgToSend = actionImage || undefined
+    run('turn', action, imgToSend)
   }
 
   const advance = () => { if (!atEnd) setCursor((c) => c + 1) }
@@ -271,10 +274,24 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {!scenario?.image_url && <div className="backdrop-grid" />}
         {scenario?.image_url && <div className="novel-bg-shade" />}
       </div>
-      <header className="novel-topbar">
-        <button className="icon-button light" onClick={onBack} aria-label="Voltar ao editor"><ArrowLeft /></button>
-        <div className="novel-brand"><span className="eyebrow">AI NOVEL / VISUAL NOVEL</span><strong>{title}</strong></div>
-        <div className="novel-actions"><button className="icon-button light" aria-label="Reiniciar História" title="Recomeçar do zero" onClick={handleRestart}><RotateCcw /></button><button className="icon-button light" aria-label="Salvar" onClick={() => notify('Seu progresso é salvo automaticamente.')}><Save /></button><button className="icon-button light" aria-label="Configurações" onClick={() => openPanel('memory')}><Settings /></button><button className="icon-button light" onClick={() => openPanel('tags')}><Tag /></button><button className="icon-button light" aria-label="Mapa / Viagem Rápida" onClick={() => openPanel('map')}><MapIcon /></button><button className="icon-button light" aria-label="App de Namoro" title="Dating App / Tinder" onClick={() => openPanel('tinder')}><Smartphone /></button><button className="icon-button light" aria-label="WhatsApp" title="WhatsApp Chat" onClick={() => openPanel('whatsapp')}><MessageCircle /></button>{onEdit && <button className="icon-button light" aria-label="Abrir Painel do Criador" title="Ir para o Editor (Cenários, Regras, Resumo)" onClick={onEdit}><Pencil /></button>}</div>
+      <header className="novel-topbar vn-game-topbar">
+        <button className="vn-top-btn" onClick={onBack} aria-label="Voltar à Biblioteca" title="Retornar à Biblioteca de Histórias">
+          <ArrowLeft size={16} /> <span>SAIR</span>
+        </button>
+        <div className="novel-brand vn-top-brand">
+          <span className="eyebrow">CAMPANHA INTERATIVA</span>
+          <strong>{title}</strong>
+        </div>
+        <div className="novel-actions vn-top-actions">
+          <button className="vn-top-btn" aria-label="Reiniciar História" title="Reiniciar Campanha do zero" onClick={handleRestart}><RotateCcw size={15}/> <span>REINICIAR</span></button>
+          <button className="vn-top-btn" aria-label="Salvar" title="Salvar progresso" onClick={() => notify('Seu progresso é gravado automaticamente.')}><Save size={15}/> <span>SALVAR</span></button>
+          <button className="vn-top-btn" aria-label="Configurações" title="Memórias & Configurações" onClick={() => openPanel('memory')}><Settings size={15}/> <span>REGRAS</span></button>
+          <button className="vn-top-btn" aria-label="Tags" title="Gerenciar Tags de Contexto" onClick={() => openPanel('tags')}><Tag size={15}/> <span>TAGS</span></button>
+          <button className="vn-top-btn" aria-label="Mapa" title="Mapa Mundi & Viagem Rápida" onClick={() => openPanel('map')}><MapIcon size={15}/> <span>MAPA</span></button>
+          <button className="vn-top-btn vn-accent-btn" aria-label="Tinder" title="Dating App (Apenas Desconhecidos)" onClick={() => openPanel('tinder')}><Smartphone size={15}/> <span>TINDER</span></button>
+          <button className="vn-top-btn vn-whatsapp-btn" aria-label="WhatsApp" title="WhatsApp Chat (Contatos Conhecidos)" onClick={() => openPanel('whatsapp')}><MessageCircle size={15}/> <span>WHATSAPP</span></button>
+          {onEdit && <button className="vn-top-btn vn-editor-btn" aria-label="Editor" title="Editor do Criador" onClick={onEdit}><Pencil size={15}/> <span>EDITOR</span></button>}
+        </div>
       </header>
 
       <section className="novel-stage" onClick={advance}>
@@ -349,29 +366,63 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   ))}
                 </div>
               )}
-              <div className="player-toolbar">
-                <button onClick={() => setInput(input + "[Roleplay Imersivo] ")} title="Narrativa detalhada">🎭</button>
-                <button onClick={() => setInput(input + "[Batalha] ")} title="Focar em combate">⚔️</button>
-                <button onClick={() => setInput(input + "[Romance] ")} title="Focar em romance">❤️</button>
-                {tags.map(t => <button key={t.id} onClick={() => setInput(input + `[${t.name}] `)} title={t.prompt}>🏷️ {t.name}</button>)}
-                <button onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `) }} title="Rolar D20">🎲 D20</button>
-                <button onClick={() => setInput(input + "[ENCERRAR CENA: Finalize a conversa atual. Force uma despedida e na próxima cena dê prioridade a OUTROS personagens do elenco.] ")} title="Encerrar cena e trocar elenco">🔚 Encerrar Cena</button>
-                <button onClick={() => {
-                  const npcs = characters;
-                  if (npcs.length > 0) {
-                    const randomNpc = npcs[Math.floor(Math.random() * npcs.length)];
-                    setInput(input + `[INCLUIR PERSONAGEM: Traga ${randomNpc.name} para a cena agora.] `);
-                  }
-                }} title="Forçar um personagem aleatório a aparecer">🎲 Aleatório</button>
-                <select onChange={(e) => {
-                  if (e.target.value) {
-                    setInput(input + `[INCLUIR PERSONAGEM: Traga ${e.target.value} para a cena agora.] `);
-                    e.target.value = "";
-                  }
-                }} style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2px 8px', fontSize: '11px', outline: 'none', cursor: 'pointer' }}>
-                  <option value="">👤 Chamar...</option>
-                  {characters.map(c => <option key={c.id} value={c.name} style={{ color: '#000' }}>{c.name}</option>)}
-                </select>
+              <div className="vn-command-bar">
+                <button 
+                  type="button" 
+                  className={`vn-command-trigger ${showShortcuts ? 'active' : ''}`}
+                  onClick={() => setShowShortcuts(!showShortcuts)}
+                  title="Abrir Grimório de Comandos e Ações de RPG"
+                >
+                  <span>⚔️ AÇÕES / RPG</span>
+                  <small>{showShortcuts ? '▲ FECHAR' : '▼ ESCOLHER'}</small>
+                </button>
+
+                {showShortcuts && (
+                  <div className="vn-command-dropdown">
+                    <div className="vn-command-section">
+                      <span className="vn-command-header">MODOS NARRATIVOS</span>
+                      <div className="vn-command-grid">
+                        <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false) }}>🎭 Roleplay Imersivo</button>
+                        <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false) }}>⚔️ Batalha / Combate</button>
+                        <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false) }}>❤️ Romance / Tensão</button>
+                      </div>
+                    </div>
+                    <div className="vn-command-section">
+                      <span className="vn-command-header">TESTES & MUDANÇA DE CENA</span>
+                      <div className="vn-command-grid">
+                        <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `); setShowShortcuts(false) }}>🎲 Rolar D20</button>
+                        <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA: Finalize a conversa atual e traga novos personagens.] "); setShowShortcuts(false) }}>🔚 Encerrar Cena</button>
+                        <button type="button" onClick={() => {
+                          if (characters.length > 0) {
+                            const randomNpc = characters[Math.floor(Math.random() * characters.length)];
+                            setInput(input + `[INCLUIR PERSONAGEM: Traga ${randomNpc.name} para a cena agora.] `);
+                          }
+                          setShowShortcuts(false);
+                        }}>🎲 Personagem Aleatório</button>
+                      </div>
+                    </div>
+                    {tags.length > 0 && (
+                      <div className="vn-command-section">
+                        <span className="vn-command-header">TAGS DE CONTEXTO</span>
+                        <div className="vn-command-grid">
+                          {tags.map(t => (
+                            <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false) }}>🏷️ {t.name}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {characters.length > 0 && (
+                      <div className="vn-command-section">
+                        <span className="vn-command-header">CONVOCAR PERSONAGEM</span>
+                        <div className="vn-command-grid">
+                          {characters.map(c => (
+                            <button key={c.id} type="button" onClick={() => { setInput(input + `[INCLUIR PERSONAGEM: Traga ${c.name} para a cena agora.] `); setShowShortcuts(false) }}>👤 Chamar {c.name}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="player-input">
                 {actionImage && <div style={{ position: 'absolute', bottom: 'calc(100% + 10px)', left: 0, padding: '4px', background: 'rgba(0,0,0,0.5)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)' }}>

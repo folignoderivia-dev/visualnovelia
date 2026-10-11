@@ -644,3 +644,271 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 .novel-bg-img {
   image-rendering: auto !important;
 }
+/* ==========================================================================
+   RPG MAKER & BEING A DIK / VISUAL NOVEL POLISH (Comic Dialogue & Sprite Fixes)
+   ========================================================================== */
+
+/* Moldura e borda da tela de jogo de Visual Novel */
+.novel-mode {
+  border: 8px solid #141118 !important;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 0, 0, 0.8) !important;
+  background: #08060a !important;
+}
+
+/* SPRITES: Ajuste do tamanho exagerado - Agora Proporcional, Elegante e Responsivo */
+.novel-portrait {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  height: 62vh !important;
+  max-height: 650px !important;
+  max-width: 520px !important;
+  width: auto !important;
+  z-index: 5 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+}
+
+.novel-portrait img {
+  height: 100% !important;
+  width: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+  object-position: bottom center !important;
+  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.85)) !important;
+  animation: spriteEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes spriteEntrance {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* TOPBAR: Botões de RPG de visual novel */
+.vn-game-topbar {
+  padding: 14px 28px !important;
+  background: linear-gradient(180deg, rgba(12, 10, 16, 0.92) 0%, rgba(12, 10, 16, 0.4) 80%, transparent 100%) !important;
+  border-bottom: 1px solid rgba(229, 184, 105, 0.15) !important;
+}
+
+.vn-top-brand strong {
+  font-size: 19px !important;
+  color: #fff !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.vn-top-actions {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.vn-top-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: rgba(26, 22, 32, 0.8) !important;
+  border: 1px solid rgba(229, 184, 105, 0.25) !important;
+  color: #dcd4c7 !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.08em !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.vn-top-btn:hover {
+  background: rgba(229, 184, 105, 0.2) !important;
+  border-color: #e5b869 !important;
+  color: #fff !important;
+  transform: translateY(-1px) !important;
+}
+
+.vn-accent-btn {
+  border-color: rgba(255, 75, 110, 0.4) !important;
+  color: #ff94b0 !important;
+}
+.vn-accent-btn:hover {
+  background: rgba(255, 75, 110, 0.2) !important;
+  border-color: #ff4b6e !important;
+  color: #fff !important;
+}
+
+.vn-whatsapp-btn {
+  border-color: rgba(37, 211, 102, 0.4) !important;
+  color: #6ce498 !important;
+}
+.vn-whatsapp-btn:hover {
+  background: rgba(37, 211, 102, 0.2) !important;
+  border-color: #25d366 !important;
+  color: #fff !important;
+}
+
+/* CAIXA DE DIÁLOGO: ESTILO BALÃO DE QUADRINHOS & VISUAL NOVEL CLÁSSICO */
+.vn-dialogue-content {
+  position: relative !important;
+  background: #110e16 !important;
+  border: 2px solid #e5b869 !important;
+  border-radius: 16px !important;
+  padding: 20px 26px 18px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(229, 184, 105, 0.15) !important;
+  margin-bottom: 8px !important;
+}
+
+/* Pontinhos / rabo de fala indicando a fala do personagem (formato de balão de quadrinhos) */
+.vn-dialogue-content::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -12px !important;
+  left: 60px !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: #110e16 !important;
+  border-left: 2px solid #e5b869 !important;
+  border-top: 2px solid #e5b869 !important;
+  transform: rotate(45deg) !important;
+}
+
+.vn-nameplate-bar {
+  margin-bottom: 8px !important;
+}
+
+.vn-nameplate {
+  position: relative !important;
+  z-index: 2 !important;
+  background: linear-gradient(135deg, #e5b869 0%, #aa7a28 100%) !important;
+  border: 1px solid #ffd98a !important;
+  border-radius: 6px !important;
+  padding: 5px 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+.vn-nameplate-title {
+  color: #16110a !important;
+  font-weight: 900 !important;
+  font-size: 15px !important;
+  letter-spacing: 0.12em !important;
+  text-shadow: none !important;
+}
+
+.vn-nameplate-mood {
+  color: #422d0b !important;
+  font-weight: bold !important;
+}
+
+.vn-nameplate-crest {
+  color: #16110a !important;
+}
+
+.vn-dialogue-text {
+  font-size: 21px !important;
+  line-height: 1.6 !important;
+  color: #f7f3ec !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* POPUP ORGANIZADO DE AÇÕES E COMANDOS RPG (FIM DO AMONTOADO DE BOTÕES) */
+.vn-command-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vn-command-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #2a2333 0%, #1a1520 100%);
+  border: 1px solid rgba(229, 184, 105, 0.4);
+  color: #f4ecdf;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: var(--font-fantasy);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.vn-command-trigger:hover, .vn-command-trigger.active {
+  background: linear-gradient(180deg, #3d314b 0%, #251d30 100%);
+  border-color: #e5b869;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(229, 184, 105, 0.35);
+}
+
+.vn-command-trigger small {
+  color: #e5b869;
+  font-size: 10px;
+}
+
+.vn-command-dropdown {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: min(520px, 92vw);
+  background: #15111b;
+  border: 1px solid #e5b869;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.18);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 55vh;
+  overflow-y: auto;
+  animation: dropUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vn-command-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vn-command-header {
+  font-family: var(--font-fantasy);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: #e5b869;
+  font-weight: bold;
+}
+
+.vn-command-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vn-command-grid button {
+  background: rgba(36, 29, 44, 0.9);
+  border: 1px solid rgba(229, 184, 105, 0.25);
+  color: #e6dfd3;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vn-command-grid button:hover {
+  background: rgba(229, 184, 105, 0.25);
+  border-color: #e5b869;
+  color: #fff;
+  transform: translateY(-1px);
+}
