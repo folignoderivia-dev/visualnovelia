@@ -1,8 +1,21 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Cinzel, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import './extra.css'
 import { RegisterSW } from '@/components/navigation/register-sw'
+
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  variable: '--font-cinzel',
+  display: 'swap',
+})
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'AI Novel Creator',
@@ -41,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${cinzel.variable} ${jakarta.variable}`}>
       <body className="antialiased">
         {children}
         <RegisterSW />

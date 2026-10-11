@@ -301,14 +301,40 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             <div className="novel-retry">{retry.current && <button className="outline-button light" onClick={() => retry.current?.()}>Tentar de novo</button>}{current && <button className="ghost-button light" onClick={() => setError('')}>Editar minha ação</button>}<button className="ghost-button light" onClick={onBack}>Voltar ao editor</button></div>
           </>
         ) : current ? (
-          <>
-            <div className="dialogue-meta"><div className="speaker-mark" /><span>{label.toUpperCase()}</span>{current.expression && current.expression !== 'neutral' && <span className="muted">{current.expression}</span>}<span className="meta-line" /><span className="muted">{cursor + 1}/{visible.length}</span><button className="icon-button light edit-msg-btn" aria-label="Regerar com outro personagem" title="Regerar Cena (Trocar Personagem)" onClick={regenerateTurn}><RotateCcw size={14}/></button><button className="icon-button light edit-msg-btn" aria-label="Editar mensagem" onClick={() => { setEditingMsg(current.id); setEditText(current.content) }}><Pencil size={14}/></button></div>
+          <div className="vn-dialogue-content">
+            <div className="vn-nameplate-bar">
+              <div className="vn-nameplate">
+                <span className="vn-nameplate-crest">◆</span>
+                <span className="vn-nameplate-title">{label.toUpperCase()}</span>
+                {current.expression && current.expression !== 'neutral' && (
+                  <span className="vn-nameplate-mood">({current.expression})</span>
+                )}
+              </div>
+              <div className="vn-dialogue-meta-tools">
+                <span className="vn-turn-counter">CENA {cursor + 1}/{visible.length}</span>
+                <button className="icon-button light edit-msg-btn vn-meta-icon" aria-label="Regerar com outro personagem" title="Regerar Cena (Trocar Personagem)" onClick={regenerateTurn}>
+                  <RotateCcw size={14}/>
+                </button>
+                <button className="icon-button light edit-msg-btn vn-meta-icon" aria-label="Editar mensagem" onClick={() => { setEditingMsg(current.id); setEditText(current.content) }}>
+                  <Pencil size={14}/>
+                </button>
+              </div>
+            </div>
             {editingMsg === current.id ? (
-              <div className="edit-message-box"><textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input" /><button className="icon-button light" onClick={saveEdit}><Check size={18} /></button><button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button></div>
+              <div className="edit-message-box vn-edit-message-box">
+                <textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input vn-dialogue-edit-input" />
+                <button className="icon-button light" onClick={saveEdit}><Check size={18} /></button>
+                <button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button>
+              </div>
             ) : (
-              <p className={`dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`} onClick={advance}>{current.message_type === 'dialogue' ? `“${current.content}”` : current.content}</p>
+              <div className="vn-dialogue-body" onClick={advance}>
+                <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
+                  {current.message_type === 'dialogue' ? `“${current.content}”` : current.content}
+                </p>
+                {!atEnd && <span className="vn-blinking-cursor">▼</span>}
+              </div>
             )}
-          </>
+          </div>
         ) : null}
 
         {!loadingInit && !thinking && !error && current && (

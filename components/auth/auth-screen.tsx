@@ -60,36 +60,68 @@ export function AuthScreen({ recovery, onRecovered }: { recovery: boolean; onRec
     if (error) throw error
   })
 
-  const title = recovery ? 'Crie uma nova senha' : mode === 'login' ? 'Bem-vindo de volta' : mode === 'signup' ? 'Comece sua história' : 'Recuperar senha'
+  const title = recovery ? 'Redefinir Senha' : mode === 'login' ? 'Continuar Aventura' : mode === 'signup' ? 'Criar Novo Personagem' : 'Recuperar Acesso'
 
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <div className="brand auth-brand"><div className="brand-mark">A</div><div><strong>AI NOVEL</strong><span>STORY STUDIO</span></div></div>
+    <main className="auth-page vn-auth-experience">
+      <div className="vn-auth-bg-fx" />
+      <div className="auth-card vn-crystal-card">
+        <div className="vn-card-ornament top-ornament" />
+        <div className="brand auth-brand">
+          <div className="brand-mark vn-glow-mark">⚔️</div>
+          <div>
+            <strong>AI VISUAL NOVEL</strong>
+            <span>ROLEPLAY & STORY ENGINE</span>
+          </div>
+        </div>
+        <div className="auth-badge-vn">
+          {mode === 'login' ? '✦ CARREGAR SAVE ✦' : mode === 'signup' ? '✦ NOVO JOGO ✦' : '✦ RECUPERAÇÃO ✦'}
+        </div>
         <h1>{title}</h1>
-        <p className="auth-sub">Crie mundos. Dê vida aos personagens. Viva a história.</p>
+        <p className="auth-sub">Entre no universo interativo. Tome decisões, molde relacionamentos e decida seu destino.</p>
         <form onSubmit={submit} className="auth-form">
-          {mode === 'signup' && !recovery && <label className="field"><span>Como devemos te chamar?</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" autoComplete="nickname" /></label>}
-          {!recovery && <label className="field"><span>E-mail</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" autoComplete="email" /></label>}
-          {mode !== 'forgot' && <label className="field"><span>{recovery ? 'Nova senha' : 'Senha'}</span><input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>}
+          {mode === 'signup' && !recovery && (
+            <label className="field vn-field">
+              <span>NOME DO PROTAGONISTA</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Como seu herói será chamado..." autoComplete="nickname" />
+            </label>
+          )}
+          {!recovery && (
+            <label className="field vn-field">
+              <span>E-MAIL DO JOGADOR</span>
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="aventureiro@reino.com" autoComplete="email" />
+            </label>
+          )}
+          {mode !== 'forgot' && (
+            <label className="field vn-field">
+              <span>{recovery ? 'NOVA SENHA' : 'SENHA SECRETA'}</span>
+              <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            </label>
+          )}
           {error && <div className="auth-msg auth-error" role="alert">{error}</div>}
           {info && <div className="auth-msg auth-info" role="status">{info}</div>}
-          <button className="primary-button auth-submit" disabled={busy}>
-            {busy ? 'Aguarde…' : recovery ? 'Salvar nova senha' : mode === 'login' ? 'Entrar' : mode === 'signup' ? 'Criar conta' : 'Enviar link'} <ArrowRight />
+          <button className="primary-button auth-submit vn-gold-button" disabled={busy}>
+            {busy ? 'Carregando…' : recovery ? 'Salvar Nova Senha' : mode === 'login' ? 'Iniciar Campanha' : mode === 'signup' ? 'Começar Aventura' : 'Enviar Link'} <ArrowRight size={16} />
           </button>
         </form>
         {!recovery && mode !== 'forgot' && (
           <>
-            <div className="auth-or"><span /> ou <span /></div>
-            <button className="outline-button auth-google" onClick={google} disabled={busy}>Continuar com Google</button>
+            <div className="auth-or"><span /> ✧ OU ENTRAR COM ✧ <span /></div>
+            <button className="outline-button auth-google vn-outline-button" onClick={google} disabled={busy}>Entrar com Google</button>
           </>
         )}
         {!recovery && (
-          <div className="auth-links">
-            {mode === 'login' && <><button onClick={() => setMode('signup')}>Criar uma conta</button><button onClick={() => setMode('forgot')}>Esqueci a senha</button></>}
-            {mode !== 'login' && <button onClick={() => { setMode('login'); setError(''); setInfo('') }}>Já tenho conta</button>}
+          <div className="auth-links vn-links">
+            {mode === 'login' && (
+              <>
+                <button onClick={() => setMode('signup')}>Novo Jogo (Criar Conta)</button>
+                <button onClick={() => setMode('forgot')}>Esqueci a Senha</button>
+              </>
+            )}
+            {mode !== 'login' && <button onClick={() => { setMode('login'); setError(''); setInfo('') }}>Já Possuo um Save (Entrar)</button>}
           </div>
         )}
+        <div className="vn-card-ornament bottom-ornament" />
       </div>
     </main>
   )

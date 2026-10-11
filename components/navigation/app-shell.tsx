@@ -50,17 +50,33 @@ export function AppShell() {
 
   return (
     <main className="app-shell">
-      <aside className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
-        <div className="brand"><div className="brand-mark">A</div><div><strong>AI NOVEL</strong><span>STORY STUDIO</span></div></div>
-        <nav className="side-nav" aria-label="Navegação principal">
-          <button className={mode.name === 'library' ? 'active' : ''} onClick={() => { setMode({ name: 'library' }); setMenuOpen(false) }}><LibraryIcon /> Minhas histórias</button>
-          <button onClick={create}><Plus /> Nova história</button>
+      <aside className={`sidebar vn-sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
+        <div className="brand vn-brand">
+          <div className="brand-mark vn-brand-mark">⚔️</div>
+          <div>
+            <strong>VISUAL NOVEL</strong>
+            <span>RPG STORY ENGINE</span>
+          </div>
+        </div>
+        <nav className="side-nav vn-side-nav" aria-label="Navegação principal">
+          <button className={mode.name === 'library' ? 'active' : ''} onClick={() => { setMode({ name: 'library' }); setMenuOpen(false) }}>
+            <LibraryIcon size={17} /> Minhas Aventuras
+          </button>
+          <button onClick={create}>
+            <Plus size={17} /> Criar Campanha
+          </button>
         </nav>
-        <div className="sidebar-bottom">
-          <button onClick={() => notify('Precisa de ajuda? Veja o arquivo README.md do projeto.')}><CircleHelp /> Ajuda</button>
-          <button onClick={() => notify('Configurações chegarão em breve.')}><Settings /> Configurações</button>
-          <button onClick={signOut}><LogOut /> Sair da conta</button>
-          <div className="profile"><div className="profile-avatar">{name[0]?.toUpperCase()}</div><div><strong>{name}</strong><span>{user?.email}</span></div></div>
+        <div className="sidebar-bottom vn-sidebar-bottom">
+          <button onClick={() => notify('Precisa de ajuda? Veja o guia no menu de criação.')}><CircleHelp size={16} /> Grimório de Ajuda</button>
+          <button onClick={() => notify('Configurações do jogador em breve.')}><Settings size={16} /> Ajustes</button>
+          <button onClick={signOut} className="vn-logout-btn"><LogOut size={16} /> Encerrar Sessão</button>
+          <div className="profile vn-profile">
+            <div className="profile-avatar vn-avatar">{name[0]?.toUpperCase()}</div>
+            <div>
+              <strong>{name}</strong>
+              <span>{user?.email}</span>
+            </div>
+          </div>
         </div>
       </aside>
       {menuOpen && <div className="sidebar-scrim" onClick={() => setMenuOpen(false)} />}

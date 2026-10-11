@@ -140,3 +140,507 @@
 .dialogue-panel { max-height:70dvh; overflow-y:auto; }
 @media (max-width:380px) { .novel-controls { gap:4px; } .dialogue-text { font-size:17px; } .novel-topbar { padding:14px; } .narration { font-size:21px; } }
 
+/* ==========================================================================
+   RPG & VISUAL NOVEL REDESIGN THEME (Aesthetics, Fonts, Borders & High-Res)
+   ========================================================================== */
+
+:root {
+  --vn-gold: #e5b869;
+  --vn-gold-glow: rgba(229, 184, 105, 0.4);
+  --vn-frame-border: #3b322a;
+  --vn-card-bg: rgba(22, 20, 26, 0.88);
+  --vn-panel-bg: rgba(14, 13, 17, 0.94);
+  --vn-parchment: #f0e6d2;
+  --font-fantasy: var(--font-cinzel), Georgia, serif;
+}
+
+body {
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif !important;
+  background-color: #0d0c0e !important;
+  color: #eae5dc !important;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
+  font-family: var(--font-fantasy) !important;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- 1. NOVO LOGIN / TELA DE ENTRADA VISUAL NOVEL ---------- */
+.vn-auth-experience {
+  position: relative;
+  background: radial-gradient(ellipse at 50% 20%, #2b1f35 0%, #15111b 50%, #08060a 100%) !important;
+  overflow: hidden;
+}
+
+.vn-auth-bg-fx {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(1.5px 1.5px at 20px 30px, #e5b869 50%, transparent 100%),
+    radial-gradient(1px 1px at 70px 90px, #fff 50%, transparent 100%),
+    radial-gradient(2px 2px at 150px 180px, #e5b869 50%, transparent 100%),
+    radial-gradient(1px 1px at 230px 40px, #fff 50%, transparent 100%);
+  background-size: 300px 300px;
+  opacity: 0.35;
+  animation: starFloat 40s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes starFloat {
+  from { transform: translateY(0); }
+  to { transform: translateY(-300px); }
+}
+
+.vn-crystal-card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(28, 24, 34, 0.94) 0%, rgba(18, 15, 23, 0.98) 100%) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.8), 0 0 30px rgba(229, 184, 105, 0.08) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(16px);
+  padding: 42px 36px !important;
+  max-width: 440px !important;
+}
+
+.vn-card-ornament {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #e5b869, transparent);
+}
+.top-ornament { top: 0; }
+.bottom-ornament { bottom: 0; }
+
+.vn-glow-mark {
+  background: linear-gradient(135deg, #e5b869, #b58032) !important;
+  color: #1a1309 !important;
+  box-shadow: 0 0 15px rgba(229, 184, 105, 0.5);
+  font-size: 16px !important;
+}
+
+.auth-badge-vn {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-fantasy);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: #e5b869;
+  background: rgba(229, 184, 105, 0.08);
+  border: 1px solid rgba(229, 184, 105, 0.25);
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+
+.vn-field span {
+  color: #cfc8be !important;
+  font-family: var(--font-fantasy);
+  font-size: 10px !important;
+  letter-spacing: 0.12em !important;
+}
+
+.vn-field input {
+  background: rgba(10, 8, 14, 0.85) !important;
+  border: 1px solid rgba(229, 184, 105, 0.2) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  padding: 12px 14px !important;
+  font-family: inherit !important;
+  transition: all 0.25s ease;
+}
+
+.vn-field input:focus {
+  border-color: #e5b869 !important;
+  box-shadow: 0 0 12px rgba(229, 184, 105, 0.3) !important;
+}
+
+.vn-gold-button {
+  background: linear-gradient(180deg, #f0c978 0%, #c9933e 100%) !important;
+  color: #17120a !important;
+  font-family: var(--font-fantasy) !important;
+  font-weight: bold !important;
+  letter-spacing: 0.1em !important;
+  border: 1px solid #ffd98a !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 16px rgba(201, 147, 62, 0.35) !important;
+  transition: all 0.2s ease !important;
+}
+
+.vn-gold-button:hover {
+  background: linear-gradient(180deg, #ffd98a 0%, #db9f44 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 22px rgba(201, 147, 62, 0.5) !important;
+}
+
+.vn-outline-button {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  color: #e2dbce !important;
+  border-radius: 6px !important;
+  font-family: var(--font-fantasy) !important;
+}
+
+.vn-outline-button:hover {
+  background: rgba(229, 184, 105, 0.1) !important;
+  border-color: #e5b869 !important;
+}
+
+.vn-links button {
+  color: #e5b869 !important;
+  font-size: 11px !important;
+}
+
+/* ---------- 2. APP SHELL & SIDEBAR RPG GUILD STYLING ---------- */
+.vn-sidebar {
+  background: #110f14 !important;
+  border-right: 1px solid rgba(229, 184, 105, 0.15) !important;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.vn-brand-mark {
+  background: linear-gradient(135deg, #e5b869, #9e6f28) !important;
+  color: #110e08 !important;
+  box-shadow: 0 0 10px rgba(229, 184, 105, 0.3);
+}
+
+.vn-side-nav button {
+  color: #b7b0a5 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.vn-side-nav button:hover, .vn-side-nav button.active {
+  background: rgba(229, 184, 105, 0.12) !important;
+  color: #f7e6c4 !important;
+  border-left: 3px solid #e5b869;
+}
+
+.topbar {
+  background: #110f14 !important;
+  border-bottom: 1px solid rgba(229, 184, 105, 0.15) !important;
+}
+
+/* ---------- 3. BIBLIOTECA (TELA PRINCIPAL) VISUAL NOVEL RPG ---------- */
+.vn-library-realm {
+  max-width: 1300px !important;
+}
+
+.vn-hero-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: radial-gradient(ellipse at 80% 50%, rgba(94, 46, 122, 0.35) 0%, rgba(20, 16, 26, 0.95) 70%), linear-gradient(135deg, #1c1724 0%, #120f18 100%);
+  border: 1px solid rgba(229, 184, 105, 0.25);
+  border-radius: 12px;
+  padding: 38px 46px;
+  margin-bottom: 40px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), inset 0 0 25px rgba(229, 184, 105, 0.05);
+}
+
+.vn-gold-eyebrow {
+  color: #e5b869 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.2em !important;
+}
+
+.vn-hero-content h1 {
+  font-size: 34px !important;
+  color: #fff !important;
+  margin: 10px 0 12px !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.vn-hero-content p {
+  color: #b8b0a2 !important;
+  max-width: 620px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.vn-hero-crest {
+  opacity: 0.18;
+  color: #e5b869;
+}
+
+.vn-rpg-divider {
+  border-color: rgba(229, 184, 105, 0.2) !important;
+  color: #e5b869 !important;
+  font-family: var(--font-fantasy);
+}
+.vn-rpg-divider .line {
+  background: linear-gradient(90deg, rgba(229, 184, 105, 0.3), transparent) !important;
+}
+
+.vn-story-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 28px !important;
+}
+
+.vn-story-card {
+  position: relative;
+  background: #17141d !important;
+  border: 1px solid rgba(229, 184, 105, 0.2) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.vn-story-card:hover {
+  transform: translateY(-5px) !important;
+  border-color: #e5b869 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 20px rgba(229, 184, 105, 0.25) !important;
+}
+
+.vn-story-cover {
+  aspect-ratio: 16/10 !important;
+  background: #0f0d12 !important;
+}
+
+.vn-story-cover img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  image-rendering: auto !important;
+}
+
+.vn-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(15, 13, 18, 0.85) 100%);
+}
+
+.vn-status-pill {
+  font-family: var(--font-fantasy) !important;
+  font-size: 8px !important;
+  letter-spacing: 0.15em !important;
+  background: rgba(14, 12, 17, 0.85) !important;
+  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  color: #e5b869 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  backdrop-filter: blur(4px);
+}
+
+.vn-story-info {
+  background: #17141d !important;
+  padding: 18px 20px !important;
+}
+
+.vn-story-info h3 {
+  font-size: 20px !important;
+  color: #fff !important;
+}
+
+.vn-tags-row {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.vn-genre-tag, .vn-tone-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(229, 184, 105, 0.1);
+  color: #e5b869;
+  border: 1px solid rgba(229, 184, 105, 0.2);
+}
+
+.vn-date-tag {
+  font-size: 11px;
+  color: #8c8479;
+}
+
+.vn-play-btn {
+  margin-top: 14px;
+  width: 100%;
+  background: linear-gradient(180deg, #f0c978 0%, #c9933e 100%) !important;
+  color: #17120a !important;
+  font-family: var(--font-fantasy) !important;
+  font-weight: bold !important;
+  border-radius: 6px !important;
+  padding: 10px !important;
+}
+
+/* ---------- 4. CAIXA DE DIÁLOGO VISUAL NOVEL & RPG MAKER (FIM DO CHAT) ---------- */
+.dialogue-panel {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(17, 14, 22, 0) 0%, rgba(13, 11, 18, 0.94) 22%, rgba(10, 8, 14, 0.98) 100%) !important;
+  border-top: 2px solid rgba(229, 184, 105, 0.4) !important;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(229, 184, 105, 0.08) !important;
+  padding: 24px 8vw 20px !important;
+  z-index: 20 !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.vn-dialogue-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vn-nameplate-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.vn-nameplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, rgba(42, 33, 22, 0.95) 0%, rgba(26, 21, 16, 0.8) 100%);
+  border: 1px solid #e5b869;
+  border-left: 4px solid #e5b869;
+  padding: 6px 18px;
+  border-radius: 4px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+}
+
+.vn-nameplate-crest {
+  color: #e5b869;
+  font-size: 10px;
+}
+
+.vn-nameplate-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.vn-nameplate-mood {
+  color: #e5b869;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.vn-dialogue-meta-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vn-turn-counter {
+  font-family: var(--font-fantasy);
+  font-size: 10px;
+  color: #8f8576;
+  letter-spacing: 0.15em;
+}
+
+.vn-meta-icon {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(229, 184, 105, 0.2) !important;
+  color: #cfc6b6 !important;
+  border-radius: 4px !important;
+}
+
+.vn-dialogue-body {
+  position: relative;
+  min-height: 85px;
+  max-height: 28vh;
+  overflow-y: auto;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.vn-dialogue-text {
+  font-family: var(--font-sans), Georgia, serif !important;
+  font-size: 21px !important;
+  line-height: 1.65 !important;
+  color: #f5f1eb !important;
+  margin: 0 !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+  letter-spacing: 0.015em;
+}
+
+.vn-dialogue-text.is-narration {
+  color: #dfd7cc !important;
+  font-style: italic !important;
+}
+
+.vn-blinking-cursor {
+  position: absolute;
+  bottom: 0px;
+  right: 10px;
+  color: #e5b869;
+  font-size: 12px;
+  animation: bounceCursor 1s infinite alternate;
+}
+
+@keyframes bounceCursor {
+  from { transform: translateY(0); opacity: 0.4; }
+  to { transform: translateY(4px); opacity: 1; }
+}
+
+/* Barra de ação do jogador estilo RPG Action Bar */
+.player-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.player-toolbar button, .player-toolbar select {
+  background: rgba(28, 23, 33, 0.85) !important;
+  border: 1px solid rgba(229, 184, 105, 0.25) !important;
+  color: #e8e1d5 !important;
+  border-radius: 6px !important;
+  font-family: var(--font-fantasy) !important;
+  font-size: 11px !important;
+  padding: 6px 12px !important;
+  transition: all 0.2s ease;
+}
+
+.player-toolbar button:hover {
+  background: rgba(229, 184, 105, 0.15) !important;
+  border-color: #e5b869 !important;
+  color: #fff !important;
+}
+
+.player-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(18, 15, 23, 0.9) !important;
+  border: 1px solid rgba(229, 184, 105, 0.35) !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.player-input input {
+  font-size: 15px !important;
+  color: #fff !important;
+  padding: 8px 4px !important;
+}
+
+.send-button {
+  background: linear-gradient(180deg, #f0c978 0%, #c9933e 100%) !important;
+  color: #17120a !important;
+  border-radius: 6px !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+
+/* Alta resolução de sprites e fundo */
+.novel-portrait img {
+  image-rendering: auto !important;
+  filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.75)) !important;
+}
+
+.novel-bg-img {
+  image-rendering: auto !important;
+}
