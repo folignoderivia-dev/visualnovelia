@@ -658,29 +658,34 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   display: flex !important;
 }
 
-/* ---------- HUD LATERAL ESQUERDO: BOTÕES E MENUS VERTICAIS (RPG / VN) ---------- */
+/* ---------- HUD LATERAL ESQUERDO: MENU COMPLETO DO JOGO (RPG / VN) ---------- */
 .vn-game-sidebar-left {
   position: absolute !important;
   top: 18px !important;
   left: 18px !important;
+  bottom: 18px !important;
   z-index: 40 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 8px !important;
   pointer-events: auto !important;
-  max-width: 170px !important;
+  width: 165px !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
 }
+.vn-game-sidebar-left::-webkit-scrollbar { display: none; }
 
 .vn-side-brand {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
   padding: 6px 12px !important;
-  background: rgba(14, 11, 18, 0.88) !important;
+  background: rgba(14, 11, 18, 0.9) !important;
   border: 1px solid rgba(229, 184, 105, 0.4) !important;
   border-radius: 6px !important;
   backdrop-filter: blur(10px) !important;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7) !important;
+  flex-shrink: 0 !important;
 }
 
 .vn-brand-crest {
@@ -698,13 +703,19 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  max-width: 120px !important;
 }
 
 .vn-side-actions {
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
+  gap: 5px !important;
+  position: relative !important;
+}
+
+.vn-side-divider {
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(229, 184, 105, 0.3), transparent) !important;
+  margin: 3px 0 !important;
 }
 
 .vn-side-btn {
@@ -712,20 +723,21 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   align-items: center !important;
   gap: 8px !important;
   width: 100% !important;
-  padding: 7px 12px !important;
-  background: linear-gradient(90deg, rgba(22, 18, 28, 0.9) 0%, rgba(32, 25, 42, 0.85) 100%) !important;
-  border: 1px solid rgba(229, 184, 105, 0.3) !important;
+  padding: 7px 11px !important;
+  background: linear-gradient(90deg, rgba(20, 16, 26, 0.92) 0%, rgba(28, 22, 36, 0.88) 100%) !important;
+  border: 1px solid rgba(229, 184, 105, 0.25) !important;
   border-left: 3px solid #e5b869 !important;
   border-radius: 4px !important;
   color: #ded6c9 !important;
   font-family: var(--font-fantasy) !important;
   font-size: 10px !important;
   font-weight: bold !important;
-  letter-spacing: 0.1em !important;
+  letter-spacing: 0.08em !important;
   cursor: pointer !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
   backdrop-filter: blur(8px) !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap !important;
 }
 
 .vn-side-btn:hover {
@@ -734,6 +746,11 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   color: #fff !important;
   transform: translateX(4px) !important;
   box-shadow: 0 4px 16px rgba(229, 184, 105, 0.3) !important;
+}
+
+.vn-side-btn.vn-side-rpg {
+  border-left-color: #f59e0b !important;
+  color: #fde68a !important;
 }
 
 .vn-side-btn.vn-side-accent {
@@ -761,6 +778,20 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   color: #c4b5fd !important;
 }
 
+.vn-side-btn.vn-side-exit {
+  border-left-color: #ef4444 !important;
+  color: #fca5a5 !important;
+}
+
+.vn-side-dropdown {
+  position: absolute !important;
+  top: 140px !important;
+  left: calc(100% + 10px) !important;
+  bottom: auto !important;
+  width: min(440px, 80vw) !important;
+  z-index: 60 !important;
+}
+
 /* PALCO DO JOGO */
 .novel-stage {
   position: absolute !important;
@@ -775,7 +806,7 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 .chapter-label {
   position: absolute !important;
   top: 18px !important;
-  left: 50% !important;
+  left: 55% !important;
   transform: translateX(-50%) !important;
   z-index: 20 !important;
   background: rgba(14, 11, 18, 0.75) !important;
@@ -790,137 +821,127 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   backdrop-filter: blur(8px) !important;
 }
 
-/* SPRITES: Personagem em pé no cenário (Proporcional, Alta Definição, Sem Cortar) */
-.novel-portrait {
+/* SPRITES: Moldura do Personagem elevada na tela, sem cortar e sem pixelizar */
+.novel-portrait-frame {
   position: absolute !important;
-  bottom: 190px !important;
-  right: 18% !important;
-  height: 58vh !important;
+  top: 48% !important;
+  left: 58% !important;
+  transform: translate(-50%, -50%) !important;
+  height: 54vh !important;
   max-height: 520px !important;
   max-width: 440px !important;
   width: auto !important;
   z-index: 10 !important;
   pointer-events: none !important;
   display: flex !important;
-  align-items: flex-end !important;
+  align-items: center !important;
   justify-content: center !important;
-  border-radius: 12px !important;
-  overflow: hidden !important;
 }
 
-.novel-portrait img {
+.novel-portrait-inner {
+  position: relative !important;
+  height: 100% !important;
+  width: auto !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: radial-gradient(circle at center, rgba(30, 24, 38, 0.8) 0%, rgba(10, 8, 14, 0.95) 100%) !important;
+  border: 2px solid rgba(229, 184, 105, 0.5) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.9), 0 0 25px rgba(229, 184, 105, 0.15) !important;
+}
+
+.novel-portrait-inner img {
   height: 100% !important;
   width: auto !important;
   max-width: 100% !important;
   object-fit: contain !important;
-  object-position: bottom center !important;
   image-rendering: -webkit-optimize-contrast !important;
   image-rendering: high-quality !important;
-  filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.85)) !important;
-  animation: spriteEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.85)) !important;
 }
 
 @media (max-width: 768px) {
   .vn-game-sidebar-left {
     position: fixed !important;
-    top: 10px !important;
-    left: 10px !important;
-    max-width: 140px !important;
+    top: 8px !important;
+    left: 8px !important;
+    bottom: auto !important;
+    max-height: 50vh !important;
+    width: 135px !important;
   }
-  .novel-portrait {
-    right: auto !important;
+  .novel-portrait-frame {
+    top: 40% !important;
     left: 50% !important;
-    transform: translateX(-50%) !important;
-    bottom: 230px !important;
-    height: 42vh !important;
-    max-width: 80vw !important;
+    height: 38vh !important;
+    max-width: 78vw !important;
   }
 }
 
-@keyframes spriteEntrance {
-  from { opacity: 0; transform: translateY(20px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* ESCOLHAS FLUTUANTES NO CENÁRIO (Idêntico às referências de Visual Novel - Imagens 2 e 3) */
-.vn-choices-overlay {
+/* BALÕES DE ESCOLHAS NO ESTILO DA IMAGEM 3 (Speech bubble choice buttons) */
+.vn-choices-balloon-row {
   position: absolute !important;
-  top: 36% !important;
-  left: 55% !important;
+  top: 56% !important;
+  left: 58% !important;
   transform: translate(-50%, -50%) !important;
   display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 12px !important;
-  width: min(540px, 86vw) !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 16px !important;
+  width: min(720px, 86vw) !important;
   z-index: 25 !important;
   pointer-events: auto !important;
-  animation: dropUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.vn-choices-header {
-  font-family: var(--font-fantasy) !important;
-  font-size: 11px !important;
-  letter-spacing: 0.2em !important;
-  color: #ffd98a !important;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9) !important;
-}
-
-.vn-choices-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 10px !important;
-  width: 100% !important;
-}
-
-.vn-choice-card {
-  display: flex !important;
+.vn-choice-bubble {
+  position: relative !important;
+  display: inline-flex !important;
   align-items: center !important;
-  gap: 14px !important;
-  padding: 14px 24px !important;
-  background: linear-gradient(90deg, rgba(22, 18, 28, 0.94) 0%, rgba(35, 27, 46, 0.94) 100%) !important;
-  border: 1.5px solid rgba(229, 184, 105, 0.6) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(229, 184, 105, 0.1) !important;
-  cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  backdrop-filter: blur(8px) !important;
-}
-
-.vn-choice-card:hover {
-  background: linear-gradient(90deg, rgba(229, 184, 105, 0.3) 0%, rgba(201, 147, 62, 0.4) 100%) !important;
-  border-color: #ffd98a !important;
-  transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: 0 12px 35px rgba(229, 184, 105, 0.35) !important;
-}
-
-.vn-choice-crest {
-  color: #e5b869 !important;
-  font-size: 15px !important;
-}
-
-.vn-choice-text {
+  justify-content: center !important;
+  padding: 12px 24px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #1a162b !important;
+  border: 2px solid #5b73e8 !important;
+  border-radius: 12px !important;
   font-family: var(--font-sans), system-ui !important;
-  font-size: 16px !important;
-  font-weight: 500 !important;
-  color: #fbf8f2 !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(91, 115, 232, 0.3) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* CAIXA DE DIÁLOGO VISUAL NOVEL (Fixa na parte inferior, elegante e imersiva) */
-.dialogue-panel.vn-dialogue-window {
+.vn-choice-bubble:hover {
+  background: #ffffff !important;
+  border-color: #3b52d4 !important;
+  transform: translateY(-3px) scale(1.05) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.75), 0 0 20px rgba(91, 115, 232, 0.5) !important;
+}
+
+.vn-bubble-pointer {
   position: absolute !important;
-  bottom: 16px !important;
+  bottom: -9px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: min(1080px, 94vw) !important;
-  min-height: 165px !important;
-  max-height: 35vh !important;
-  background: linear-gradient(180deg, rgba(16, 13, 22, 0.96) 0%, rgba(9, 7, 13, 0.98) 100%) !important;
-  border: 2px solid #e5b869 !important;
-  border-radius: 14px !important;
-  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(229, 184, 105, 0.08), 0 0 20px rgba(229, 184, 105, 0.18) !important;
-  padding: 16px 24px 14px !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-left: 9px solid transparent !important;
+  border-right: 9px solid transparent !important;
+  border-top: 9px solid #5b73e8 !important;
+}
+
+/* CAIXA DE DIÁLOGO DE VISUAL NOVEL (Idêntica à referência da Alisa - Imagem 2) */
+.dialogue-panel.vn-dialogue-window {
+  position: absolute !important;
+  bottom: 22px !important;
+  left: 58% !important;
+  transform: translateX(-50%) !important;
+  width: min(980px, 86vw) !important;
+  min-height: 140px !important;
+  max-height: 28vh !important;
+  background: linear-gradient(180deg, rgba(28, 12, 24, 0.94) 0%, rgba(14, 6, 12, 0.98) 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), inset 0 0 20px rgba(0, 0, 0, 0.8) !important;
+  padding: 18px 32px 16px !important;
   z-index: 30 !important;
   backdrop-filter: blur(14px) !important;
   display: flex !important;
@@ -934,326 +955,190 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   flex-direction: column !important;
   height: 100% !important;
   justify-content: space-between !important;
-  gap: 6px !important;
+  position: relative !important;
 }
 
-.vn-nameplate-bar {
+/* Nameplate com Brasão no topo esquerdo da moldura (exatamente como em "Alisa" - Imagem 2) */
+.vn-nameplate-alisa-wrap {
+  position: absolute !important;
+  top: -36px !important;
+  left: -12px !important;
   display: flex !important;
-  justify-content: space-between !important;
   align-items: center !important;
-  margin-bottom: 4px !important;
+  z-index: 5 !important;
 }
 
-/* Nameplate do Personagem com Avatar e Moldura */
-.vn-nameplate {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  background: linear-gradient(135deg, #e5b869 0%, #aa7a28 100%) !important;
-  border: 1px solid #ffd98a !important;
-  border-radius: 6px !important;
-  padding: 4px 14px !important;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6) !important;
-}
-
-.vn-nameplate-avatar {
-  width: 32px !important;
-  height: 32px !important;
+.vn-alisa-seal {
+  width: 44px !important;
+  height: 44px !important;
   border-radius: 50% !important;
+  background: #fbf7ee !important;
+  border: 2px solid #9e8a60 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  z-index: 2 !important;
+}
+
+.vn-alisa-seal img {
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover !important;
-  border: 1.5px solid #fff !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
 }
 
-.vn-nameplate-crest {
-  color: #171108 !important;
-  font-size: 11px !important;
+.vn-alisa-seal span {
+  color: #bfa15f !important;
+  font-size: 18px !important;
 }
 
-.vn-nameplate-title {
-  color: #171108 !important;
+.vn-alisa-ribbon {
+  background: linear-gradient(90deg, #d8d0c4 0%, #b8ada0 100%) !important;
+  color: #1f1a14 !important;
+  padding: 4px 22px 4px 16px !important;
+  margin-left: -10px !important;
+  border-radius: 0 4px 4px 0 !important;
+  border: 1px solid rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
   font-family: var(--font-fantasy) !important;
-  font-size: 15px !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.1em !important;
-  text-shadow: none !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
 }
 
-.vn-nameplate-mood {
-  color: #4b3410 !important;
+.vn-alisa-name {
+  color: #1a1612 !important;
+}
+
+.vn-alisa-mood {
   font-size: 11px !important;
+  color: #4f4335 !important;
   font-style: italic !important;
-  font-weight: bold !important;
   margin-left: 6px !important;
 }
 
-/* Controles Rápidos da Visual Novel no Topo da Caixa de Diálogo (estilo Imagem 2) */
-.vn-dialogue-quickmenu {
+.vn-dialogue-body {
+  flex: 1 !important;
+  padding-top: 10px !important;
+  position: relative !important;
+}
+
+.vn-dialogue-text {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  font-size: 20px !important;
+  line-height: 1.55 !important;
+  color: #f7eedb !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  margin: 0 !important;
+}
+
+.vn-dialogue-text.is-narration {
+  color: #d1c5b4 !important;
+  font-style: italic !important;
+}
+
+.vn-alisa-pointer {
+  position: absolute !important;
+  bottom: 0px !important;
+  right: -10px !important;
+  color: #e5b869 !important;
+  font-size: 14px !important;
+  animation: pulse 1s infinite alternate !important;
+}
+
+/* STRIP DE DECISÃO LIMPO DO JOGADOR NO RODAPÉ */
+.vn-decision-strip {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-top: 10px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 
-.vn-turn-counter {
-  font-family: var(--font-fantasy) !important;
-  font-size: 10px !important;
-  color: #a59b8a !important;
-  letter-spacing: 0.12em !important;
-  margin-right: 6px !important;
+.vn-decision-img-preview {
+  position: relative !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  border: 1px solid #e5b869 !important;
 }
 
-.vn-quick-btn {
+.vn-decision-img-preview img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.vn-decision-img-preview button {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: #ff6b6b !important;
+  border: none !important;
+  font-size: 8px !important;
+  cursor: pointer !important;
+}
+
+.vn-decision-attach {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 4px !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(229, 184, 105, 0.25) !important;
-  color: #ded6c9 !important;
-  padding: 4px 10px !important;
+  gap: 5px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #dfd8cb !important;
+  padding: 6px 12px !important;
   border-radius: 4px !important;
-  font-family: var(--font-fantasy) !important;
-  font-size: 9px !important;
-  letter-spacing: 0.08em !important;
+  font-size: 11px !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
 }
 
-.vn-quick-btn:hover {
+.vn-decision-attach:hover, .vn-decision-attach.active {
   background: rgba(229, 184, 105, 0.2) !important;
   border-color: #e5b869 !important;
   color: #fff !important;
 }
 
-.vn-dialogue-body {
+.vn-decision-input {
   flex: 1 !important;
-  min-height: 60px !important;
-  max-height: 18vh !important;
-  overflow-y: auto !important;
-  padding: 4px 6px !important;
-  position: relative !important;
-}
-
-.vn-dialogue-text {
-  font-size: 21px !important;
-  line-height: 1.6 !important;
-  color: #faf5ed !important;
-  font-family: var(--font-sans), Georgia, serif !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
-  margin: 0 !important;
-}
-
-.vn-dialogue-text.is-narration {
-  color: #dfd7cc !important;
-  font-style: italic !important;
-}
-
-.vn-blinking-cursor {
-  position: absolute !important;
-  bottom: 2px !important;
-  right: 8px !important;
-  color: #e5b869 !important;
-  font-size: 13px !important;
-  animation: bounceCursor 1s infinite alternate !important;
-}
-
-/* BARRA DE AÇÃO RPG INTEGRADA (Fim do visual de chat de IA!) */
-.vn-action-dock {
-  margin-top: 8px !important;
-  padding-top: 8px !important;
-  border-top: 1px solid rgba(229, 184, 105, 0.2) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-}
-
-.vn-attached-chip {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  background: rgba(229, 184, 105, 0.15) !important;
-  border: 1px solid #e5b869 !important;
-  border-radius: 6px !important;
-  padding: 3px 8px !important;
-  width: fit-content !important;
-  font-size: 10px !important;
-  color: #ffd98a !important;
-  font-family: var(--font-fantasy) !important;
-}
-
-.vn-attached-chip img {
-  width: 22px !important;
-  height: 22px !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   border-radius: 4px !important;
-  object-fit: cover !important;
-}
-
-.vn-attached-chip button {
-  background: transparent !important;
-  border: none !important;
-  color: #ff6b6b !important;
-  font-weight: bold !important;
-  cursor: pointer !important;
-}
-
-.vn-action-row {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: 100% !important;
-}
-
-.vn-dock-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  background: rgba(30, 24, 38, 0.9) !important;
-  border: 1px solid rgba(229, 184, 105, 0.35) !important;
-  color: #ecdcc3 !important;
-  padding: 8px 14px !important;
-  border-radius: 6px !important;
-  font-family: var(--font-fantasy) !important;
-  font-size: 11px !important;
-  font-weight: bold !important;
-  cursor: pointer !important;
-  white-space: nowrap !important;
-  transition: all 0.2s ease !important;
-}
-
-.vn-dock-btn:hover, .vn-dock-btn.active {
-  background: rgba(229, 184, 105, 0.25) !important;
-  border-color: #e5b869 !important;
   color: #fff !important;
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
 }
 
-.vn-command-container {
-  position: relative !important;
-}
-
-.vn-dock-input {
-  flex: 1 !important;
-  background: rgba(8, 6, 12, 0.8) !important;
-  border: 1px solid rgba(229, 184, 105, 0.3) !important;
-  border-radius: 6px !important;
-  color: #fff !important;
-  padding: 8px 12px !important;
-  font-size: 15px !important;
-  transition: border-color 0.2s ease !important;
-}
-
-.vn-dock-input:focus {
+.vn-decision-input:focus {
   border-color: #e5b869 !important;
-  box-shadow: 0 0 10px rgba(229, 184, 105, 0.25) !important;
   outline: none !important;
 }
 
-.vn-dock-send-btn {
+.vn-decision-submit {
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  background: linear-gradient(180deg, #f0c978 0%, #c9933e 100%) !important;
+  background: linear-gradient(180deg, #d8b066 0%, #a87e32 100%) !important;
   color: #171108 !important;
   border: 1px solid #ffd98a !important;
-  border-radius: 6px !important;
-  padding: 8px 18px !important;
+  border-radius: 4px !important;
+  padding: 6px 16px !important;
   font-family: var(--font-fantasy) !important;
-  font-size: 12px !important;
-  font-weight: 900 !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
   letter-spacing: 0.1em !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
-  box-shadow: 0 2px 10px rgba(201, 147, 62, 0.4) !important;
 }
 
-.vn-dock-send-btn:disabled {
-  opacity: 0.45 !important;
+.vn-decision-submit:disabled {
+  opacity: 0.4 !important;
   cursor: not-allowed !important;
-  filter: grayscale(0.5) !important;
-}
-
-/* NAVEGAÇÃO DE PÁGINAS DO DIÁLOGO */
-.vn-dialogue-bottom-nav {
-  margin-top: 6px !important;
-  display: flex !important;
-  justify-content: flex-end !important;
-  gap: 8px !important;
-}
-
-.vn-nav-step-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-  background: rgba(30, 24, 38, 0.8) !important;
-  border: 1px solid rgba(229, 184, 105, 0.3) !important;
-  color: #dcd3c3 !important;
-  padding: 5px 14px !important;
-  border-radius: 6px !important;
-  font-family: var(--font-fantasy) !important;
-  font-size: 11px !important;
-  cursor: pointer !important;
-}
-
-.vn-nav-step-btn.primary {
-  background: linear-gradient(180deg, #e5b869 0%, #b88530 100%) !important;
-  color: #171108 !important;
-  border-color: #ffd98a !important;
-  font-weight: bold !important;
-}
-
-.vn-command-dropdown {
-  position: absolute !important;
-  bottom: calc(100% + 12px) !important;
-  left: 0 !important;
-  width: min(520px, 92vw) !important;
-  background: #15111b !important;
-  border: 1px solid #e5b869 !important;
-  border-radius: 12px !important;
-  padding: 16px !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95), 0 0 25px rgba(229, 184, 105, 0.18) !important;
-  z-index: 50 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 14px !important;
-  max-height: 55vh !important;
-  overflow-y: auto !important;
-  animation: dropUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.vn-command-section {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-}
-
-.vn-command-header {
-  font-family: var(--font-fantasy) !important;
-  font-size: 10px !important;
-  letter-spacing: 0.15em !important;
-  color: #e5b869 !important;
-  font-weight: bold !important;
-}
-
-.vn-command-grid {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-}
-
-.vn-command-grid button {
-  background: rgba(36, 29, 44, 0.9) !important;
-  border: 1px solid rgba(229, 184, 105, 0.25) !important;
-  color: #e6dfd3 !important;
-  padding: 7px 12px !important;
-  border-radius: 6px !important;
-  font-size: 12px !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
-}
-
-.vn-command-grid button:hover {
-  background: rgba(229, 184, 105, 0.25) !important;
-  border-color: #e5b869 !important;
-  color: #fff !important;
-  transform: translateY(-1px) !important;
 }
 

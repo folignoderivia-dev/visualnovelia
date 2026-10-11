@@ -276,22 +276,85 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {!scenario?.image_url && <div className="backdrop-grid" />}
         {scenario?.image_url && <div className="novel-bg-shade" />}
       </div>
-      {/* HUD LATERAL ESQUERDO: MENU VERTICAL DO JOGO (RPG / VISUAL NOVEL) */}
-      <aside className="vn-game-sidebar-left">
+      {/* HUD LATERAL ESQUERDO: MENU COMPLETO DO JOGO (RPG / VISUAL NOVEL) */}
+      <aside className="vn-game-sidebar-left" onClick={(e) => e.stopPropagation()}>
         <div className="vn-side-brand">
           <span className="vn-brand-crest">❖</span>
           <span className="vn-brand-title">{title}</span>
         </div>
         <nav className="vn-side-actions">
-          <button className="vn-side-btn" onClick={onBack} title="Retornar à Biblioteca"><ArrowLeft size={16}/> <span>SAIR</span></button>
-          <button className="vn-side-btn" onClick={handleRestart} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
+          {/* Controles de Jogo & História */}
+          <button className="vn-side-btn" onClick={() => openPanel('history')} title="Histórico da História"><BookOpen size={15}/> <span>LOG / HISTÓRICO</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('cast')} title="Elenco de Personagens"><UsersRound size={15}/> <span>ELENCO</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('memory')} title="Memória do Mundo"><Sparkles size={15}/> <span>MEMÓRIA</span></button>
+          <button className="vn-side-btn" onClick={() => regenerateTurn()} title="Regerar Cena / Trocar Personagem"><RotateCcw size={15}/> <span>REGERAR</span></button>
+          {current && <button className="vn-side-btn" onClick={() => { setEditingMsg(current.id); setEditText(current.content); }} title="Editar fala"><Pencil size={15}/> <span>EDITAR FALA</span></button>}
+          
+          <div className="vn-side-divider" />
+
+          {/* Grimório / Ações RPG */}
+          <button className={`vn-side-btn vn-side-rpg ${showShortcuts ? 'active' : ''}`} onClick={() => setShowShortcuts(!showShortcuts)} title="Ações RPG, D20 e Contexto">
+            <span>⚔️ AÇÕES RPG</span> <small>{showShortcuts ? '▲' : '▼'}</small>
+          </button>
+
+          {showShortcuts && (
+            <div className="vn-command-dropdown vn-side-dropdown">
+              <div className="vn-command-section">
+                <span className="vn-command-header">MODOS NARRATIVOS</span>
+                <div className="vn-command-grid">
+                  <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false) }}>🎭 Imersivo</button>
+                  <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false) }}>⚔️ Combate</button>
+                  <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false) }}>❤️ Romance</button>
+                </div>
+              </div>
+              <div className="vn-command-section">
+                <span className="vn-command-header">TESTES & MUDANÇA DE CENA</span>
+                <div className="vn-command-grid">
+                  <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[D20: ${r}] `); setShowShortcuts(false) }}>🎲 Rolar D20</button>
+                  <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA] "); setShowShortcuts(false) }}>🔚 Fim da Cena</button>
+                  <button type="button" onClick={() => {
+                    if (characters.length > 0) {
+                      const randomNpc = characters[Math.floor(Math.random() * characters.length)];
+                      setInput(input + `[Trazer ${randomNpc.name}] `);
+                    }
+                    setShowShortcuts(false);
+                  }}>🎲 NPC Aleatório</button>
+                </div>
+              </div>
+              {tags.length > 0 && (
+                <div className="vn-command-section">
+                  <span className="vn-command-header">TAGS</span>
+                  <div className="vn-command-grid">
+                    {tags.map(t => (
+                      <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false) }}>🏷️ {t.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {characters.length > 0 && (
+                <div className="vn-command-section">
+                  <span className="vn-command-header">CHAMAR NPC</span>
+                  <div className="vn-command-grid">
+                    {characters.map(c => (
+                      <button key={c.id} type="button" onClick={() => { setInput(input + `[Chamar ${c.name}] `); setShowShortcuts(false) }}>👤 {c.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="vn-side-divider" />
+
+          {/* Sistema & Viagem */}
           <button className="vn-side-btn" onClick={() => notify('Progresso salvo automaticamente.')} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('memory')} title="Regras e Memórias"><Settings size={15}/> <span>REGRAS</span></button>
-          <button className="vn-side-btn" onClick={() => openPanel('tags')} title="Tags de Contexto"><Tag size={15}/> <span>TAGS</span></button>
+          <button className="vn-side-btn" onClick={() => openPanel('tags')} title="Gerenciar Tags"><Tag size={15}/> <span>TAGS</span></button>
           <button className="vn-side-btn" onClick={() => openPanel('map')} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
           <button className="vn-side-btn vn-side-accent" onClick={() => openPanel('tinder')} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
           <button className="vn-side-btn vn-side-whatsapp" onClick={() => openPanel('whatsapp')} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
           {onEdit && <button className="vn-side-btn vn-side-editor" onClick={onEdit} title="Editor do Criador"><Pencil size={15}/> <span>EDITOR</span></button>}
+          <button className="vn-side-btn" onClick={handleRestart} title="Reiniciar do zero"><RotateCcw size={15}/> <span>REINICIAR</span></button>
+          <button className="vn-side-btn vn-side-exit" onClick={onBack} title="Sair do Jogo"><ArrowLeft size={16}/> <span>SAIR</span></button>
         </nav>
       </aside>
 
@@ -308,14 +371,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </button>
         )}
 
-        {/* SPRITE DO PERSONAGEM EM PÉ NO CENÁRIO (Renderizado proporcionalmente em alta definição) */}
+        {/* SPRITE DO PERSONAGEM EM PÉ NO CENÁRIO (Com moldura sutil de VN, sem corte, proporcional e limpo) */}
         {speaker && speakerImg && (
-          <div key={speaker.id} className="novel-portrait">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={speakerImg} alt={speaker.name} />
-            <button className="icon-button edit-char-img" aria-label="Alterar Imagem do Personagem" title="Alterar imagem do personagem" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}>
-              <ImagePlus size={16} />
-            </button>
+          <div key={speaker.id} className="novel-portrait-frame">
+            <div className="novel-portrait-inner">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={speakerImg} alt={speaker.name} />
+              <button className="icon-button edit-char-img" aria-label="Alterar Imagem do Personagem" title="Alterar imagem do personagem" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}>
+                <ImagePlus size={16} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -324,34 +389,31 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
 
         {!speakerImg && speaker && (
-          <div className="novel-portrait missing-img">
+          <div className="novel-portrait-frame missing-img">
             <button className="outline-button light" onClick={(e) => { e.stopPropagation(); setUploadTarget('character'); fileInputRef.current?.click() }}>
               <ImagePlus size={18} /> Adicionar imagem
             </button>
           </div>
         )}
 
-        {/* ESCOLHAS FLUTUANTES NO CENÁRIO (Sistema de Escolhas e Diálogos de Visual Novel) */}
+        {/* BALÕES DE ESCOLHAS NO ESTILO DA IMAGEM 3 (Speech bubble choice buttons) */}
         {!loadingInit && !thinking && !error && atEnd && Array.isArray((state?.state_data as any)?.pending_choices) && ((state?.state_data as any)?.pending_choices.length > 0) && (
-          <div className="vn-choices-overlay" onClick={(e) => e.stopPropagation()}>
-            <div className="vn-choices-header">COMO VOCÊ REAGE?</div>
-            <div className="vn-choices-list">
-              {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
-                <button
-                  key={idx}
-                  className="vn-choice-card"
-                  onClick={() => run('turn', choice)}
-                >
-                  <span className="vn-choice-crest">◈</span>
-                  <span className="vn-choice-text">{choice}</span>
-                </button>
-              ))}
-            </div>
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
+              <button
+                key={idx}
+                className="vn-choice-bubble"
+                onClick={() => run('turn', choice)}
+              >
+                <span className="vn-bubble-pointer" />
+                <span className="vn-bubble-text">{choice}</span>
+              </button>
+            ))}
           </div>
         )}
       </section>
 
-      {/* CAIXA DE DIÁLOGO DE VISUAL NOVEL (Moldura de RPG Maker com Nameplate, Log e Opções) */}
+      {/* CAIXA DE DIÁLOGO DE VISUAL NOVEL (Idêntica à referência da Alisa - Imagem 2) */}
       <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
         <input type="file" ref={fileInputRef} className="sr-only" accept="image/*" onChange={handleFileChange} />
         
@@ -374,41 +436,21 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </div>
         ) : current ? (
           <div className="vn-dialogue-content">
-            {/* Topo da Caixa: Nameplate com Avatar do Personagem + Menu Rápido VN */}
-            <div className="vn-nameplate-bar">
-              <div className="vn-nameplate">
+            {/* Nameplate com Brasão no topo esquerdo da moldura (exatamente como em "Alisa" - Imagem 2) */}
+            <div className="vn-nameplate-alisa-wrap">
+              <div className="vn-alisa-seal">
                 {speakerImg ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={speakerImg} className="vn-nameplate-avatar" alt="" />
+                  <img src={speakerImg} alt="" />
                 ) : (
-                  <span className="vn-nameplate-crest">◆</span>
+                  <span>❖</span>
                 )}
-                <div className="vn-nameplate-details">
-                  <span className="vn-nameplate-title">{label.toUpperCase()}</span>
-                  {current.expression && current.expression !== 'neutral' && (
-                    <span className="vn-nameplate-mood">({current.expression})</span>
-                  )}
-                </div>
               </div>
-
-              {/* Botões Rápidos da VN: Log, Elenco, Memória, Regerar, Editar */}
-              <div className="vn-dialogue-quickmenu">
-                <span className="vn-turn-counter">CENA {cursor + 1}/{visible.length}</span>
-                <button className="vn-quick-btn" title="Histórico da História" onClick={(e) => { e.stopPropagation(); openPanel('history'); }}>
-                  <BookOpen size={13}/> <span>LOG</span>
-                </button>
-                <button className="vn-quick-btn" title="Elenco de Personagens" onClick={(e) => { e.stopPropagation(); openPanel('cast'); }}>
-                  <UsersRound size={13}/> <span>ELENCO</span>
-                </button>
-                <button className="vn-quick-btn" title="Memória do Mundo" onClick={(e) => { e.stopPropagation(); openPanel('memory'); }}>
-                  <Sparkles size={13}/> <span>MEMÓRIA</span>
-                </button>
-                <button className="vn-quick-btn" title="Trocar Personagem / Regerar Cena" onClick={(e) => { e.stopPropagation(); regenerateTurn(); }}>
-                  <RotateCcw size={13}/> <span>REGERAR</span>
-                </button>
-                <button className="vn-quick-btn" title="Editar fala" onClick={(e) => { e.stopPropagation(); setEditingMsg(current.id); setEditText(current.content); }}>
-                  <Pencil size={13}/> <span>EDITAR</span>
-                </button>
+              <div className="vn-alisa-ribbon">
+                <span className="vn-alisa-name">{label}</span>
+                {current.expression && current.expression !== 'neutral' && (
+                  <span className="vn-alisa-mood">({current.expression})</span>
+                )}
               </div>
             </div>
 
@@ -422,139 +464,62 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             ) : (
               <div className="vn-dialogue-body">
                 <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
-                  {current.message_type === 'dialogue' ? `“${current.content}”` : current.content}
+                  {current.content}
                 </p>
-                {!atEnd && <span className="vn-blinking-cursor">▼</span>}
+                {!atEnd && <span className="vn-alisa-pointer">▶</span>}
               </div>
             )}
 
-            {/* Rodapé da Caixa: Sistema de Ação e Interação do Jogador */}
-            {atEnd ? (
-              <div className="vn-action-dock" onClick={(e) => e.stopPropagation()}>
-                {/* Chip de Foto Anexada */}
+            {/* Se estiver no final da fala, exibe opção limpa de ação/resposta sem poluir como chat */}
+            {atEnd && (
+              <div className="vn-decision-strip" onClick={(e) => e.stopPropagation()}>
                 {actionImage && (
-                  <div className="vn-attached-chip">
+                  <div className="vn-decision-img-preview">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={actionImage} alt="" />
-                    <span>FOTO ANEXADA</span>
                     <button type="button" onClick={() => setActionImage(null)}>✕</button>
                   </div>
                 )}
-
-                <div className="vn-action-row">
-                  <input
-                    type="file"
-                    ref={actionImageRef}
-                    className="sr-only"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const f = (e.target as any)?.files?.[0];
-                      if (!f) return;
-                      const reader = new FileReader();
-                      reader.onload = (re) => setActionImage(re.target?.result as string);
-                      reader.readAsDataURL(f);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={`vn-dock-btn ${actionImage ? 'active' : ''}`}
-                    onClick={() => actionImageRef.current?.click()}
-                    title="Anexar Imagem para o Personagem Reagir"
-                  >
-                    <ImagePlus size={16} />
-                    <span>{actionImage ? 'FOTO CARREGADA' : 'ENVIAR FOTO'}</span>
-                  </button>
-
-                  <div className="vn-command-container">
-                    <button
-                      type="button"
-                      className={`vn-dock-btn ${showShortcuts ? 'active' : ''}`}
-                      onClick={() => setShowShortcuts(!showShortcuts)}
-                      title="Ações de RPG & Mudança de Cena"
-                    >
-                      <span>⚔️ AÇÕES RPG</span>
-                      <small>{showShortcuts ? '▲' : '▼'}</small>
-                    </button>
-
-                    {showShortcuts && (
-                      <div className="vn-command-dropdown">
-                        <div className="vn-command-section">
-                          <span className="vn-command-header">MODOS NARRATIVOS</span>
-                          <div className="vn-command-grid">
-                            <button type="button" onClick={() => { setInput(input + "[Roleplay Imersivo] "); setShowShortcuts(false) }}>🎭 Roleplay Imersivo</button>
-                            <button type="button" onClick={() => { setInput(input + "[Batalha] "); setShowShortcuts(false) }}>⚔️ Batalha / Combate</button>
-                            <button type="button" onClick={() => { setInput(input + "[Romance] "); setShowShortcuts(false) }}>❤️ Romance / Tensão</button>
-                          </div>
-                        </div>
-                        <div className="vn-command-section">
-                          <span className="vn-command-header">TESTES & MUDANÇA DE CENA</span>
-                          <div className="vn-command-grid">
-                            <button type="button" onClick={() => { const r = Math.floor(Math.random()*20)+1; setInput(input + `[O jogador rolou um D20 e tirou: ${r}] `); setShowShortcuts(false) }}>🎲 Rolar D20</button>
-                            <button type="button" onClick={() => { setInput(input + "[ENCERRAR CENA: Finalize a conversa atual e traga novos personagens.] "); setShowShortcuts(false) }}>🔚 Encerrar Cena</button>
-                            <button type="button" onClick={() => {
-                              if (characters.length > 0) {
-                                const randomNpc = characters[Math.floor(Math.random() * characters.length)];
-                                setInput(input + `[INCLUIR PERSONAGEM: Traga ${randomNpc.name} para a cena agora.] `);
-                              }
-                              setShowShortcuts(false);
-                            }}>🎲 Personagem Aleatório</button>
-                          </div>
-                        </div>
-                        {tags.length > 0 && (
-                          <div className="vn-command-section">
-                            <span className="vn-command-header">TAGS DE CONTEXTO</span>
-                            <div className="vn-command-grid">
-                              {tags.map(t => (
-                                <button key={t.id} type="button" onClick={() => { setInput(input + `[${t.name}] `); setShowShortcuts(false) }}>🏷️ {t.name}</button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {characters.length > 0 && (
-                          <div className="vn-command-section">
-                            <span className="vn-command-header">CONVOCAR PERSONAGEM</span>
-                            <div className="vn-command-grid">
-                              {characters.map(c => (
-                                <button key={c.id} type="button" onClick={() => { setInput(input + `[INCLUIR PERSONAGEM: Traga ${c.name} para a cena agora.] `); setShowShortcuts(false) }}>👤 Chamar {c.name}</button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <input
-                    className="vn-dock-input"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    maxLength={2000}
-                    placeholder={`Como ${player?.name || 'você'} reage, fala ou age nesta cena...?`}
-                    aria-label="Ação do protagonista"
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
-                  />
-
-                  <button
-                    type="button"
-                    className="vn-dock-send-btn"
-                    onClick={send}
-                    disabled={!input.trim() && !actionImage}
-                    title="Executar sua ação"
-                  >
-                    <span>DECIDIR</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="vn-dialogue-bottom-nav">
-                {cursor > 0 && (
-                  <button className="vn-nav-step-btn" onClick={(e) => { e.stopPropagation(); setCursor((c) => Math.max(0, c - 1)) }}>
-                    <ChevronRight style={{ transform: 'rotate(180deg)' }} size={15} /> <span>Voltar</span>
-                  </button>
-                )}
-                <button className="vn-nav-step-btn primary" onClick={(e) => { e.stopPropagation(); advance() }}>
-                  <span>Continuar</span> <ChevronRight size={15} />
+                <input
+                  type="file"
+                  ref={actionImageRef}
+                  className="sr-only"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = (e.target as any)?.files?.[0];
+                    if (!f) return;
+                    const reader = new FileReader();
+                    reader.onload = (re) => setActionImage(re.target?.result as string);
+                    reader.readAsDataURL(f);
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`vn-decision-attach ${actionImage ? 'active' : ''}`}
+                  onClick={() => actionImageRef.current?.click()}
+                  title="Anexar Imagem para o Personagem Ver"
+                >
+                  <ImagePlus size={15} />
+                  <span>{actionImage ? 'Foto Carregada' : 'Anexar Foto'}</span>
+                </button>
+                <input
+                  className="vn-decision-input"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  maxLength={2000}
+                  placeholder={`Responder ou agir livremente como ${player?.name || 'você'}...`}
+                  aria-label="Resposta do protagonista"
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
+                />
+                <button
+                  type="button"
+                  className="vn-decision-submit"
+                  onClick={send}
+                  disabled={!input.trim() && !actionImage}
+                  title="Confirmar sua ação"
+                >
+                  <span>AGIR</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
             )}
