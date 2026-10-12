@@ -448,8 +448,71 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             </button>
           </div>
         )}
+      </section>
 
-        {/* BALÕES DE ESCOLHAS NO ESTILO DA IMAGEM 3 (Speech bubble choice buttons) */}
+      {/* ÁREA INFERIOR DE INTERAÇÃO (DIÁLOGO ACIMA DAS OPÇÕES, OPÇÕES ACIMA DA RESPOSTA) */}
+      <div className="vn-bottom-interaction-stack">
+        {/* 1. CAIXA DE DIÁLOGO PURA DA PERSONAGEM (Abaixo da foto do personagem e acima das opções) */}
+        <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
+          <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleFileChange} />
+          
+          {loadingInit ? (
+            <div className="vn-dialogue-loading"><Sparkles className="pulse" /> Carregando crônicas...</div>
+          ) : thinking ? (
+            <div className="vn-dialogue-loading">
+              <div className="vn-thinking-badge"><Sparkles size={14} className="pulse"/> O NARRADOR ESTÁ RESPONDENDO...</div>
+              <div className="dots"><i>.</i><i>.</i><i>.</i></div>
+            </div>
+          ) : error ? (
+            <div className="vn-dialogue-error">
+              <div className="vn-error-title">⚠️ AVISO</div>
+              <p>{error}</p>
+              <div className="novel-retry">
+                {retry.current && <button className="outline-button light" onClick={() => retry.current?.()}>Tentar de novo</button>}
+                {current && <button className="ghost-button light" onClick={() => setError('')}>Continuar</button>}
+                <button className="ghost-button light" onClick={onBack}>Voltar</button>
+              </div>
+            </div>
+          ) : current ? (
+            <div className="vn-dialogue-content">
+              {/* Nameplate com Brasão no topo esquerdo da moldura (exatamente como em "Alisa" - Imagem 2) */}
+              <div className="vn-nameplate-alisa-wrap">
+                <div className="vn-alisa-seal">
+                  {speakerImg ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={speakerImg} alt="" />
+                  ) : (
+                    <span>❖</span>
+                  )}
+                </div>
+                <div className="vn-alisa-ribbon">
+                  <span className="vn-alisa-name">{label}</span>
+                  {current.expression && current.expression !== 'neutral' && (
+                    <span className="vn-alisa-mood">({current.expression})</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Conteúdo da Mensagem ou Caixa de Edição */}
+              {editingMsg === current.id ? (
+                <div className="edit-message-box vn-edit-message-box" onClick={(e) => e.stopPropagation()}>
+                  <textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input vn-dialogue-edit-input" />
+                  <button className="icon-button light" onClick={saveEdit}><Check size={18} /></button>
+                  <button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button>
+                </div>
+              ) : (
+                <div className="vn-dialogue-body">
+                  <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
+                    {current.content}
+                  </p>
+                  {!atEnd && <span className="vn-alisa-pointer">▶</span>}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </section>
+
+        {/* 2. BALÕES / BOTÕES DE ESCOLHAS (Abaixo do diálogo e acima da caixa de resposta) */}
         {!loadingInit && !thinking && !error && atEnd && Array.isArray((state?.state_data as any)?.pending_choices) && ((state?.state_data as any)?.pending_choices.length > 0) && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
             {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
@@ -464,81 +527,20 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             ))}
           </div>
         )}
-      </section>
 
-      {/* CAIXA DE DIÁLOGO PURA DA PERSONAGEM (Exatamente igual à Alisa - Imagem 2) */}
-      <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
-        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleFileChange} />
-        
-        {loadingInit ? (
-          <div className="vn-dialogue-loading"><Sparkles className="pulse" /> Carregando crônicas...</div>
-        ) : thinking ? (
-          <div className="vn-dialogue-loading">
-            <div className="vn-thinking-badge"><Sparkles size={14} className="pulse"/> O NARRADOR ESTÁ RESPONDENDO...</div>
-            <div className="dots"><i>.</i><i>.</i><i>.</i></div>
-          </div>
-        ) : error ? (
-          <div className="vn-dialogue-error">
-            <div className="vn-error-title">⚠️ AVISO</div>
-            <p>{error}</p>
-            <div className="novel-retry">
-              {retry.current && <button className="outline-button light" onClick={() => retry.current?.()}>Tentar de novo</button>}
-              {current && <button className="ghost-button light" onClick={() => setError('')}>Continuar</button>}
-              <button className="ghost-button light" onClick={onBack}>Voltar</button>
-            </div>
-          </div>
-        ) : current ? (
-          <div className="vn-dialogue-content">
-            {/* Nameplate com Brasão no topo esquerdo da moldura (exatamente como em "Alisa" - Imagem 2) */}
-            <div className="vn-nameplate-alisa-wrap">
-              <div className="vn-alisa-seal">
-                {speakerImg ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={speakerImg} alt="" />
-                ) : (
-                  <span>❖</span>
+        {/* 3. PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
+        {!loadingInit && !thinking && !error && current && atEnd && (
+          <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
+            <div className="vn-action-console-inner">
+              <span className="vn-action-console-badge">SUA RESPOSTA</span>
+              <div className="vn-action-input-cluster">
+                {actionImage && (
+                  <div className="vn-decision-img-preview">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={actionImage} alt="" />
+                    <button type="button" onClick={() => setActionImage(null)}>✕</button>
+                  </div>
                 )}
-              </div>
-              <div className="vn-alisa-ribbon">
-                <span className="vn-alisa-name">{label}</span>
-                {current.expression && current.expression !== 'neutral' && (
-                  <span className="vn-alisa-mood">({current.expression})</span>
-                )}
-              </div>
-            </div>
-
-            {/* Conteúdo da Mensagem ou Caixa de Edição */}
-            {editingMsg === current.id ? (
-              <div className="edit-message-box vn-edit-message-box" onClick={(e) => e.stopPropagation()}>
-                <textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="dialogue-edit-input vn-dialogue-edit-input" />
-                <button className="icon-button light" onClick={saveEdit}><Check size={18} /></button>
-                <button className="icon-button light" onClick={() => setEditingMsg(null)}><X size={18} /></button>
-              </div>
-            ) : (
-              <div className="vn-dialogue-body">
-                <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
-                  {current.content}
-                </p>
-                {!atEnd && <span className="vn-alisa-pointer">▶</span>}
-              </div>
-            )}
-          </div>
-        ) : null}
-      </section>
-
-      {/* PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
-      {!loadingInit && !thinking && !error && current && atEnd && (
-        <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
-          <div className="vn-action-console-inner">
-            <span className="vn-action-console-badge">SUA RESPOSTA</span>
-            <div className="vn-action-input-cluster">
-              {actionImage && (
-                <div className="vn-decision-img-preview">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={actionImage} alt="" />
-                  <button type="button" onClick={() => setActionImage(null)}>✕</button>
-                </div>
-              )}
               <input
                 type="file"
                 ref={actionImageRef}
@@ -594,6 +596,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </div>
         </section>
       )}
+      </div>
 
       {/* MODAL / GRIMÓRIO DE AÇÕES RPG & TAGS CLICÁVEIS */}
       {showShortcuts && (

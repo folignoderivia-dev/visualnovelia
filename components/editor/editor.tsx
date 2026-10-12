@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { Character, MasterSettings, PlayerCharacter, Scenario, Story, StoryBundle, World } from '@/lib/types'
 import * as svc from '@/lib/story/service'
+import { generateCreationAssist } from '@/lib/gemini/client'
 import { removeImage, uploadImage } from '@/lib/story/storage'
 import { friendlyError } from '@/lib/errors'
 import { ChipPicker, Field, ImageUpload } from '@/components/ui/form'
@@ -36,6 +37,8 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
   const [step, setStep] = useState(0)
   const [editing, setEditing] = useState<Character | null>(null)
   const [savingChar, setSavingChar] = useState(false)
+  const [aiTheme, setAiTheme] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
 
   const ref = useRef<StoryBundle | null>(null)
   const dirty = useRef(new Set<Section>())
@@ -181,6 +184,126 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
     onExit()
   }
 
+  async function handleAiAssist(targetStep: number) {
+    const query = aiTheme.trim() || story.title.trim() || 'Fantasia Medieval'
+    setAiLoading(true)
+    notify(`Consultando Gemini para criar conteúdo sobre "${query}"...`)
+    try {
+      const { result } = await generateCreationAssist(storyId, targetStep, query, story.title)
+      if (!result) throw new Error('Não foi possível obter resposta da IA.')
+
+      if (targetStep === 0) {
+        setStory({
+          title: result.title || story.title,
+          description: result.description || story.description,
+          genre: result.genre || story.genre,
+          tone: result.tone || story.tone,
+        })
+        notify('Etapa 01 (História) preenchida com IA!', 'ok')
+      } else if (targetStep === 1) {
+        setWorld({
+          world_name: result.world_name || world.world_name,
+          description: result.description || world.description,
+          era: result.era || world.era,
+          starting_location: result.starting_location || world.starting_location,
+          world_rules: result.world_rules || world.world_rules,
+          atmosphere: result.atmosphere || world.atmosphere,
+          important_information: result.important_information || world.important_information,
+        })
+        if (result.starting_scenario_name) {
+          setScenario({
+            name: result.starting_scenario_name,
+            description: result.starting_scenario_description || startScenario?.description || '',
+          })
+        }
+        notify('Etapa 02 (Mundo & Cenário) preenchida com IA!', 'ok')
+      } else if (targetStep === 2) {
+        setMaster({
+          master_prompt: result.master_prompt || master.master_prompt,
+          narrative_style: result.narrative_style || master.narrative_style,
+          narrator_personality: result.narrator_personality || master.narrator_personality,
+          continuity_rules: result.continuity_rules || master.continuity_rules,
+          additional_rules: result.additional_rules || master.additional_rules,
+        })
+        notify('Etapa 03 (Instruções do Mestre) preenchida com IA!', 'ok')
+      } else if (targetStep === 3) {
+        if (Array.isArray(result.characters) && result.characters.length > 0) {
+          const created: Character[] = []
+          for (const item of result.characters) {
+            const { supabase } = await import('@/lib/supabase/client')
+            const { data: nc } = await supabase.from('characters').insert({
+              story_id: storyId,
+              name: item.name || 'Personagem',
+              nickname: item.nickname || '',
+              age: item.age || '',
+              appearance: item.appearance || '',
+              personality: item.personality || '',
+              history: item.history || '',
+              goals: item.goals || '',
+              fears: item.fears || '',
+              secrets: item.secrets || '',
+              speech_style: item.speech_style || '',
+              relationship_to_protagonist: item.relationship_to_protagonist || '',
+              extra_information: item.extra_information || '',
+            }).select().single()
+            if (nc) created.push(nc)
+          }
+          if (created.length > 0) {
+            update((b) => ({ ...b, characters: [...b.characters, ...created] }), 'story')
+            notify(`${created.length} personagens do universo "${query}" adicionados ao elenco!`, 'ok')
+          }
+        }
+      } else if (targetStep === 4) {
+        setPlayer({
+          name: result.name || player.name,
+          nickname: result.nickname || player.nickname,
+          age: result.age || player.age,
+          appearance: result.appearance || player.appearance,
+          personality: result.personality || player.personality,
+          history: result.history || player.history,
+          goals: result.goals || player.goals,
+          fears: result.fears || player.fears,
+        })
+        notify('Etapa 05 (Protagonista) preenchida com IA!', 'ok')
+      }
+    } catch (err: any) {
+      notify(friendlyError(err, 'Erro ao gerar conteúdo com IA. Tente novamente.'), 'error')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const renderAiAssist = (targetStep: number, labelName: string) => (
+    <div className="vn-ai-assist-box">
+      <div className="vn-ai-assist-header">
+        <div className="vn-ai-assist-title">
+          <Sparkles size={16} className="pulse" color="#e5b869" />
+          <span>Preencher {labelName} com IA (Gemini)</span>
+        </div>
+        <span className="vn-ai-assist-badge">ETAPA {steps[targetStep].number}</span>
+      </div>
+      <div className="vn-ai-assist-inputs">
+        <input
+          type="text"
+          className="vn-ai-assist-input"
+          value={aiTheme}
+          onChange={(e) => setAiTheme(e.target.value)}
+          placeholder="Digite o tema (ex.: Hogwarts, Cyberpunk 2077, Castelobruxo, Vampiro...)"
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAiAssist(targetStep) }}
+        />
+        <button
+          type="button"
+          className="primary-button vn-gold-button vn-ai-generate-btn"
+          disabled={aiLoading}
+          onClick={() => handleAiAssist(targetStep)}
+        >
+          <Sparkles size={14} />
+          <span>{aiLoading ? 'Criando com Gemini...' : 'Gerar com IA'}</span>
+        </button>
+      </div>
+    </div>
+  )
+
   const ch = (k: keyof Character) => (v: string) => editing && setEditing({ ...editing, [k]: v })
 
   return (
@@ -192,6 +315,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
 
         {step === 0 && <>
           <div className="section-intro"><span className="section-number">01</span><div><h2>Comece pela ideia</h2><p>Que história você quer criar?</p></div></div>
+          {renderAiAssist(0, 'História')}
           <div className="form-card">
             <Field label="Nome da história" placeholder="Digite o nome da sua história..." value={story.title} onChange={(v) => setStory({ title: v })} />
             <Field label="Descrição" placeholder="Conte brevemente qual é a ideia desta história." multiline value={story.description} onChange={(v) => setStory({ description: v })} />
@@ -201,6 +325,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
 
         {step === 1 && <>
           <div className="section-intro"><span className="section-number">02</span><div><h2>Construa o seu mundo</h2><p>Aqui você define onde sua história existe.</p></div></div>
+          {renderAiAssist(1, 'Mundo & Cenário')}
           <div className="form-card">
             <Field label="Nome do mundo" placeholder="Como este mundo é chamado?" value={world.world_name} onChange={(v) => setWorld({ world_name: v })} />
             <Field label="Descrição do mundo" placeholder="Descreva o que torna este lugar único..." multiline value={world.description} onChange={(v) => setWorld({ description: v })} />
@@ -218,6 +343,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
 
         {step === 2 && <>
           <div className="section-intro"><span className="section-number">03</span><div><h2>Defina como a IA deve narrar</h2><p>Você cria as regras. O narrador dá vida ao mundo.</p></div></div>
+          {renderAiAssist(2, 'Instruções do Mestre')}
           <div className="form-card">
             <Field label="Instruções do mestre" placeholder="Você é o narrador da minha história..." multiline rows={6} value={master.master_prompt} onChange={(v) => setMaster({ master_prompt: v })} />
             <div className="two-col"><Field label="Estilo de narrativa" placeholder="Ex.: cinematográfico" value={master.narrative_style} onChange={(v) => setMaster({ narrative_style: v })} /><Field label="Personalidade" placeholder="Ex.: observador e sutil" value={master.narrator_personality} onChange={(v) => setMaster({ narrator_personality: v })} /></div>
@@ -228,6 +354,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
 
         {step === 3 && <>
           <div className="section-intro"><span className="section-number">04</span><div><h2>Crie o elenco da sua história</h2><p>Cada personagem possui sua própria identidade.</p></div></div>
+          {!editing && renderAiAssist(3, 'Elenco de Personagens')}
           {editing ? (
             <div className="form-card character-editor">
               <div className="protagonist-grid">
@@ -337,6 +464,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
 
         {step === 4 && <>
           <div className="section-intro"><span className="section-number">05</span><div><h2>Crie seu protagonista</h2><p>Este é o personagem que você controla.</p></div></div>
+          {renderAiAssist(4, 'Protagonista')}
           <div className="form-card protagonist-card"><div className="control-badge"><UserRound /> VOCÊ CONTROLA ESTE PERSONAGEM</div>
             <div className="protagonist-grid"><div><ImageUpload url={player.image_url} placeholder="Seu protagonista" onFile={uploadPlayer} /></div>
               <div className="form-stack"><Field label="Nome" placeholder="Como seu protagonista se chama?" value={player.name} onChange={(v) => setPlayer({ name: v })} /><Field label="Apelido" placeholder="Como é chamado?" value={player.nickname} onChange={(v) => setPlayer({ nickname: v })} />

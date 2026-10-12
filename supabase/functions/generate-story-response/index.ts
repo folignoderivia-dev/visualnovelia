@@ -108,6 +108,112 @@ Deno.serve(async (req) => {
           `Você atingiu o limite de ${DAILY_LIMIT} mensagens diárias como convidado! Seu limite é renovado a cada 24 horas.`
         )
       }
+    if (body.mode === 'creation_assist') {
+      const step = Number(body.step ?? 0)
+      const theme = s(body.theme, 400) || 'Fantasia Medieval'
+      const existingTitle = s(body.existing_title, 200)
+
+      const systemPrompt = 'Você é um diretor criativo e roteirista mestre de RPGs e Visual Novels. Responda em Português do Brasil com qualidade cinematográfica, alta riqueza de detalhes e fidelidade temática ao universo pedido.'
+      let userPrompt = ''
+      let schema: Record<string, unknown> = {}
+
+      if (step === 0) {
+        userPrompt = `Gere os dados iniciais de uma história interativa no universo ou tema: "${theme}". Crie um título imersivo, uma sinopse empolgante (2 a 3 parágrafos apresentando o conflito central), o gênero e o tom.`
+        schema = {
+          type: 'OBJECT',
+          properties: {
+            title: { type: 'STRING' },
+            description: { type: 'STRING' },
+            genre: { type: 'STRING' },
+            tone: { type: 'STRING' },
+          },
+          required: ['title', 'description', 'genre', 'tone'],
+        }
+      } else if (step === 1) {
+        userPrompt = `Gere a ambientação detalhada de mundo para uma história sobre "${theme}" ${existingTitle ? `(História: ${existingTitle})` : ''}. Defina o nome do mundo/cenário, descrição rica, época, local inicial de partida, regras fundamentais (magia, leis, perigos), atmosfera sensorial, informações importantes/segredos do mundo e os dados de um cenário inicial icônico.`
+        schema = {
+          type: 'OBJECT',
+          properties: {
+            world_name: { type: 'STRING' },
+            description: { type: 'STRING' },
+            era: { type: 'STRING' },
+            starting_location: { type: 'STRING' },
+            world_rules: { type: 'STRING' },
+            atmosphere: { type: 'STRING' },
+            important_information: { type: 'STRING' },
+            starting_scenario_name: { type: 'STRING' },
+            starting_scenario_description: { type: 'STRING' },
+          },
+          required: ['world_name', 'description', 'era', 'starting_location', 'world_rules', 'atmosphere', 'important_information', 'starting_scenario_name', 'starting_scenario_description'],
+        }
+      } else if (step === 2) {
+        userPrompt = `Gere as instruções do mestre/narrador de IA para uma história sobre "${theme}". Escreva instruções ricas para guiar a narração, o estilo narrativo, a personalidade do narrador, regras de continuidade e regras adicionais de ritmo, romance e escolhas.`
+        schema = {
+          type: 'OBJECT',
+          properties: {
+            master_prompt: { type: 'STRING' },
+            narrative_style: { type: 'STRING' },
+            narrator_personality: { type: 'STRING' },
+            continuity_rules: { type: 'STRING' },
+            additional_rules: { type: 'STRING' },
+          },
+          required: ['master_prompt', 'narrative_style', 'narrator_personality', 'continuity_rules', 'additional_rules'],
+        }
+      } else if (step === 3) {
+        userPrompt = `Crie um elenco de 3 personagens marcantes do universo de "${theme}". Para cada um defina: nome, apelido, idade, aparência física detalhada, personalidade, passado/história, objetivos, medos, segredos, estilo de fala e o campo CRÍTICO "relationship_to_protagonist" (o que o personagem pensa atualmente em segredo sobre o protagonista, pois isso é a regra de ouro da IA).`
+        schema = {
+          type: 'OBJECT',
+          properties: {
+            characters: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  name: { type: 'STRING' },
+                  nickname: { type: 'STRING' },
+                  age: { type: 'STRING' },
+                  appearance: { type: 'STRING' },
+                  personality: { type: 'STRING' },
+                  history: { type: 'STRING' },
+                  goals: { type: 'STRING' },
+                  fears: { type: 'STRING' },
+                  secrets: { type: 'STRING' },
+                  speech_style: { type: 'STRING' },
+                  relationship_to_protagonist: { type: 'STRING' },
+                  extra_information: { type: 'STRING' },
+                },
+                required: ['name', 'appearance', 'personality', 'relationship_to_protagonist'],
+              },
+            },
+          },
+          required: ['characters'],
+        }
+      } else if (step === 4) {
+        userPrompt = `Crie o protagonista controlado pelo jogador no universo de "${theme}". Crie um personagem fascinante com nome, apelido, idade, aparência marcante, personalidade, passado intrigante, objetivos e medos.`
+        schema = {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING' },
+            nickname: { type: 'STRING' },
+            age: { type: 'STRING' },
+            appearance: { type: 'STRING' },
+            personality: { type: 'STRING' },
+            history: { type: 'STRING' },
+            goals: { type: 'STRING' },
+            fears: { type: 'STRING' },
+          },
+          required: ['name', 'appearance', 'personality', 'history', 'goals'],
+        }
+      }
+
+      const rawAi = await callGemini({
+        system: systemPrompt,
+        prompt: userPrompt,
+        schema,
+        temperature: 0.85,
+      })
+      const parsed = parseJson(rawAi)
+      return json({ step, result: parsed })
     }
 
     const mode: 'start' | 'turn' = body.mode === 'start' ? 'start' : 'turn'

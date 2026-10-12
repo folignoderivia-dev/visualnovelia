@@ -39,3 +39,13 @@ export const sendPlayerAction = (storyId: string, action: string, image?: string
 
 export const requestSummary = (storyId: string) =>
   invoke<{ summary: unknown }>('create-story-summary', { story_id: storyId, force: true })
+
+export const generateCreationAssist = (storyId: string, step: number, theme: string, existingTitle?: string) =>
+  invoke<{ step: number; result: any }>('generate-story-response', {
+    story_id: storyId,
+    mode: 'creation_assist',
+    step,
+    theme,
+    existing_title: existingTitle
+  })
+
