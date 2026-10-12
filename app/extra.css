@@ -1020,6 +1020,8 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   flex-direction: column !important;
   justify-content: space-between !important;
   box-sizing: border-box !important;
+  cursor: pointer !important;
+  user-select: none !important;
 }
 
 .vn-dialogue-content {

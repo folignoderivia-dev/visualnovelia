@@ -160,6 +160,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     run('turn', oldAction + '\n\n[SISTEMA: REFAÇA A CENA. DESTA VEZ OBRIGATORIAMENTE DESTAQUE E TRAGA UM PERSONAGEM DIFERENTE PARA A CENA. TENTE USAR O MÁXIMO DE PERSONAGENS DO ELENCO.]');
   }
 
+  const runRef = useRef(run)
+  runRef.current = run
+
   // ---------- carga inicial / continuar ----------
   useEffect(() => {
     let alive = true
@@ -178,13 +181,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         const vis = msgs.filter((m) => !HIDDEN.includes(m.message_type))
         setCursor(Math.max(0, vis.length - 1))
         setLoadingInit(false)
-        if (msgs.length === 0 && !startedRef.current) { startedRef.current = true; run('start') }
+        if (msgs.length === 0 && !startedRef.current) {
+          startedRef.current = true
+          runRef.current('start')
+        }
       } catch (e) {
         if (alive) { setError(friendlyError(e, 'Não foi possível abrir a história.')); setLoadingInit(false) }
       }
     })()
     return () => { alive = false }
-  }, [storyId, run])
+  }, [storyId])
 
   function send() {
     const hasText = input.trim().length > 0
@@ -199,7 +205,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     run('turn', action, imgToSend)
   }
 
-  const advance = () => { if (!atEnd) setCursor((c) => c + 1) }
+  const advance = useCallback(() => {
+    if (thinking || loadingInit) return
+    setCursor((c) => (c < visible.length - 1 ? c + 1 : c))
+  }, [thinking, loadingInit, visible.length])
 
   async function openPanel(p: Panel) {
     setPanel(p)
@@ -310,18 +319,33 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   // ---------- teclas ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (panel || (e.target as HTMLElement)?.tagName === 'INPUT') return
-      if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); advance() }
+      if (panel || (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return
+      if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
+        e.preventDefault()
+        advance()
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setCursor((c) => Math.max(0, c - 1))
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  })
+  }, [panel, advance])
 
   const title = story?.title || 'Minha história'
-  const label = current?.sender_type === 'npc' ? (speaker?.name ?? 'NPC') : 'NARRADOR'
+  const label = current?.sender_type === 'npc'
+    ? (speaker?.name ?? 'NPC')
+    : current?.sender_type === 'player'
+      ? (player?.name || 'VOCÊ')
+      : 'NARRADOR'
 
   return (
-    <main className="novel-mode">
+    <main
+      className="novel-mode"
+      onClick={() => {
+        if (!atEnd && !thinking && !loadingInit) advance()
+      }}
+    >
       <div className="novel-backdrop">
         {scenario?.image_url && /* eslint-disable-next-line @next/next/no-img-element */ <img key={scenario.id} className="novel-bg-img" src={scenario.image_url} alt="" />}
         {!scenario?.image_url && <div className="backdrop-grid" />}
