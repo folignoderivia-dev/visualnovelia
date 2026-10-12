@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload, Phone, Video, Send, Flame, CheckCheck, Swords, Camera, Smile } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload, Phone, Video, Send, Flame, CheckCheck, Swords, Camera, Smile, Plus } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
@@ -725,6 +725,23 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
               </>}
               {panel === 'cast' && !editingChar && <>
+                <button
+                  className="primary-button vn-gold-button"
+                  style={{ width: '100%', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 14px' }}
+                  onClick={async () => {
+                    try {
+                      notify('Criando novo personagem no elenco...')
+                      const newChar = await svc.createCharacter(storyId)
+                      setCharacters((prev) => [...prev, newChar])
+                      setEditingChar(newChar)
+                      notify('Novo personagem criado! Edite os detalhes dele abaixo.', 'ok')
+                    } catch (err: any) {
+                      notify(friendlyError(err, 'Erro ao criar personagem.'), 'error')
+                    }
+                  }}
+                >
+                  <Plus size={16} /> + Criar Novo Personagem
+                </button>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
                   <button
                     className="outline-button light"
@@ -840,13 +857,42 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       })}
                     </div>
                   </div>
-                  <button className="primary-button" style={{ marginTop: '20px', width: '100%' }} onClick={async () => {
-                    try {
-                      await svc.saveCharacter(editingChar)
-                      setCharacters(ch => ch.map(c => c.id === editingChar.id ? editingChar : c))
-                      setEditingChar(null)
-                    } catch (e) { notify(friendlyError(e), 'error') }
-                  }}>Salvar Alterações</button>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+                    <button
+                      className="outline-button light"
+                      style={{ color: '#ff6b6b', borderColor: 'rgba(255, 107, 107, 0.4)', padding: '0 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={async () => {
+                        if (!confirm(`Tem certeza que deseja excluir "${editingChar.name || 'este personagem'}"?`)) return
+                        try {
+                          await svc.deleteCharacter(editingChar.id)
+                          setCharacters((prev) => prev.filter((c) => c.id !== editingChar.id))
+                          setEditingChar(null)
+                          notify('Personagem excluído do elenco.')
+                        } catch (e) {
+                          notify(friendlyError(e, 'Erro ao excluir personagem.'), 'error')
+                        }
+                      }}
+                      title="Excluir este personagem do elenco"
+                    >
+                      <Trash2 size={16} /> Excluir
+                    </button>
+                    <button
+                      className="primary-button"
+                      style={{ flex: 1 }}
+                      onClick={async () => {
+                        try {
+                          await svc.saveCharacter(editingChar)
+                          setCharacters((ch) => ch.map((c) => c.id === editingChar.id ? editingChar : c))
+                          setEditingChar(null)
+                          notify('Personagem salvo com sucesso!', 'ok')
+                        } catch (e) {
+                          notify(friendlyError(e), 'error')
+                        }
+                      }}
+                    >
+                      Salvar Alterações
+                    </button>
+                  </div>
                 </div>
               )}
               {panel === 'memory' && <>
