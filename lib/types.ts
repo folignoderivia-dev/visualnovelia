@@ -82,6 +82,8 @@ export interface Character {
   secrets: string
   relationship_to_protagonist: string
   extra_information: string
+  /** Nome de uma voz pré-pronta do Gemini TTS. Vazio = sem voz. */
+  voice: string | null
   image_url: string | null
   image_path: string | null
 }

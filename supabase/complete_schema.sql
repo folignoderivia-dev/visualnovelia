@@ -150,6 +150,7 @@ create table if not exists public.characters (
   secrets                     text not null default '',
   relationship_to_protagonist text not null default '',
   extra_information           text not null default '',
+  voice                       text,
   image_url                   text,
   image_path                  text,
   created_at                  timestamptz not null default now(),

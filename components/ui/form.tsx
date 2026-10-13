@@ -4,6 +4,8 @@ import { useRef, useState } from 'react'
 import { ImagePlus, Upload } from 'lucide-react'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
+import { GEMINI_VOICES } from '@/lib/gemini/voices'
+import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 
 /** Campo de texto — mesmo markup/estilo criado no V0. */
 export function Field({ label, placeholder, multiline = false, value, onChange, rows = 4 }: {
@@ -14,6 +16,37 @@ export function Field({ label, placeholder, multiline = false, value, onChange, 
     <label className="field">
       <span>{label}</span>
       {multiline ? <textarea {...shared} rows={rows} /> : <input {...shared} />}
+    </label>
+  )
+}
+
+/** Voz pré-pronta da biblioteca gratuita do Gemini TTS. */
+export function VoiceField({ value, onChange, light = false }: {
+  value: string; onChange: (v: string) => void; light?: boolean
+}) {
+  const { notify } = useToast()
+  const [busy, setBusy] = useState(false)
+  async function preview() {
+    if (!value) return
+    setBusy(true)
+    try {
+      await playSpeech({ text: 'Olá. Esta é a minha voz nesta história.', voice: value })
+    } catch (err) {
+      notify(friendlyError(err, 'Não foi possível reproduzir a voz. Publique a função speak-line e confira a chave do Gemini.'), 'error')
+    } finally { setBusy(false) }
+  }
+  return (
+    <label className="field">
+      <span>Voz <em>biblioteca gratuita do Gemini</em></span>
+      <div className="voice-row">
+        <select value={value} aria-label="Voz do personagem" onChange={(e) => { stopSpeech(); onChange(e.target.value) }}>
+          <option value="">Sem voz</option>
+          {GEMINI_VOICES.map((v) => <option key={v.id} value={v.id}>{v.id} — {v.tone}</option>)}
+        </select>
+        <button type="button" className={`outline-button ${light ? 'light' : ''}`} disabled={busy || !value} onClick={preview}>
+          {busy ? 'Gerando…' : 'Ouvir amostra'}
+        </button>
+      </div>
     </label>
   )
 }

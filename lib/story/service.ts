@@ -276,6 +276,7 @@ export async function exportFullCampaign(storyId: string): Promise<FullCampaignD
       secrets: c.secrets,
       relationship_to_protagonist: c.relationship_to_protagonist,
       extra_information: c.extra_information,
+      voice: c.voice || null,
       image_url: c.image_url,
       expressions: c.expressions || {},
       relationship: c.relationship ? { relationship_value: c.relationship.relationship_value } : undefined,
@@ -378,6 +379,7 @@ export async function importFullCampaign(data: any): Promise<Story> {
         secrets: c.secrets || '',
         relationship_to_protagonist: c.relationship_to_protagonist || '',
         extra_information: c.extra_information || '',
+        ...(c.voice ? { voice: c.voice } : {}),
         image_url: c.image_url || null,
       }).select().single()
 

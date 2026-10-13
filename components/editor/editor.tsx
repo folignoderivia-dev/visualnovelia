@@ -10,7 +10,7 @@ import * as svc from '@/lib/story/service'
 import { generateCreationAssist } from '@/lib/gemini/client'
 import { removeImage, uploadImage } from '@/lib/story/storage'
 import { friendlyError } from '@/lib/errors'
-import { ChipPicker, Field, ImageUpload } from '@/components/ui/form'
+import { ChipPicker, Field, ImageUpload, VoiceField } from '@/components/ui/form'
 import { useToast } from '@/components/ui/toast'
 
 export type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
@@ -367,6 +367,9 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
               </div>
               <Field label="Aparência" placeholder="Como ele/ela é fisicamente?" multiline rows={3} value={editing.appearance} onChange={ch('appearance')} />
               <Field label="Personalidade" placeholder="Como pensa e age?" multiline rows={3} value={editing.personality} onChange={ch('personality')} />
+              <Field label="Passado" placeholder="De onde veio? O que já viveu?" multiline rows={3} value={editing.history} onChange={ch('history')} />
+              <Field label="Estilo de fala" placeholder="Como fala? Gírias, tom, tiques de linguagem." multiline rows={3} value={editing.speech_style} onChange={ch('speech_style')} />
+              <VoiceField value={editing.voice ?? ''} onChange={ch('voice')} />
               <div style={{ border: '1.5px solid #e5b869', borderRadius: '8px', padding: '14px', background: 'rgba(229, 184, 105, 0.08)', margin: '10px 0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#e5b869', fontWeight: 'bold', fontSize: '12px', marginBottom: '4px' }}>
                   <Sparkles size={14} /> ⭐ O QUE PENSA ATUALMENTE SOBRE VOCÊ (REGRA DE OURO DA IA)
@@ -421,6 +424,7 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
                             speech_style: item.speech_style || '',
                             relationship_to_protagonist: item.relationship_to_protagonist || '',
                             extra_information: item.extra_information || '',
+                            ...(item.voice ? { voice: item.voice } : {}),
                             image_url: item.image_url || null,
                             expressions: item.expressions || {}
                           }).select().single()

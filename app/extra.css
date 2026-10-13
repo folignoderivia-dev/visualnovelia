@@ -1093,6 +1093,92 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   margin-left: 6px !important;
 }
 
+.vn-speak-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+  margin-left: 8px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: rgba(28, 23, 18, 0.12) !important;
+  color: #1a1612 !important;
+  cursor: pointer !important;
+  vertical-align: middle !important;
+}
+
+.vn-speak-btn.is-on {
+  background: #1a1612 !important;
+  color: #f3e6c8 !important;
+}
+
+.vn-speak-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(26, 22, 18, 0.25);
+  border-top-color: #1a1612;
+  border-radius: 50%;
+  animation: vn-spin .7s linear infinite;
+}
+
+.vn-speak-btn.is-on .vn-speak-spin {
+  border-color: rgba(243, 230, 200, 0.3);
+  border-top-color: #f3e6c8;
+}
+
+@keyframes vn-spin { to { transform: rotate(360deg); } }
+
+.chapter-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  max-width: calc(100vw - 32px) !important;
+}
+
+.vn-autospeak {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  border: 1px solid rgba(229, 184, 105, 0.45) !important;
+  background: transparent !important;
+  color: #e5b869 !important;
+  border-radius: 99px !important;
+  padding: 2px 8px !important;
+  font: bold 9px var(--font-fantasy) !important;
+  letter-spacing: 0.12em !important;
+  cursor: pointer !important;
+}
+
+.vn-autospeak.on {
+  background: #e5b869 !important;
+  color: #1a1612 !important;
+}
+
+.voice-row { display: flex; gap: 8px; align-items: center; }
+.voice-row select {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #d9d7d0;
+  background: #fffdfa;
+  border-radius: 3px;
+  padding: 13px 14px;
+  color: var(--ink);
+  font-size: 12px;
+}
+.voice-row .outline-button { flex-shrink: 0; white-space: nowrap; }
+.char-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.drawer .field input,
+.drawer .field textarea,
+.drawer .voice-row select {
+  background: rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  border-color: #444 !important;
+}
+.drawer .field > span { color: #eee; }
+
 .vn-dialogue-body {
   flex: 1 !important;
   padding-top: 6px !important;

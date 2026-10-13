@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload, Phone, Video, Send, Flame, CheckCheck, Swords, Camera, Smile, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Save, Settings, Sparkles, Trash2, UserRound, UsersRound, X, Pencil, ImagePlus, Check, RotateCcw, Tag, Map as MapIcon, Smartphone, Heart, MessageCircle, Download, Upload, Phone, Video, Send, Flame, CheckCheck, Swords, Camera, Smile, Plus, Volume2, VolumeX } from 'lucide-react'
 import type { Character, PlayerCharacter, Scenario, Story, StoryMemory, StoryMessage, StoryState } from '@/lib/types'
 import * as svc from '@/lib/story/service'
 import { sendPlayerAction, startStory } from '@/lib/gemini/client'
+import { spokenText } from '@/lib/gemini/voices'
+import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
+import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
 
@@ -50,6 +53,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTarget, setUploadTarget] = useState<'scenario' | 'character' | string>(null as any)
   const [editingChar, setEditingChar] = useState<Character | null>(null)
+  const [speakingId, setSpeakingId] = useState<string | null>(null)
+  const [speakBusy, setSpeakBusy] = useState(false)
+  const [autoSpeak, setAutoSpeak] = useState(false)
   const retry = useRef<null | (() => void)>(null)
   const startedRef = useRef(false)
   const wppEndRef = useRef<HTMLDivElement>(null)
@@ -82,6 +88,66 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : current?.sender_type === 'player' ? player : undefined
   const currentExpr = current?.expression || 'neutral'
   const speakerImg = speaker ? ((speaker as any).expressions?.[currentExpr] || speaker.image_url) : null
+  const speakerVoice = current?.sender_type === 'npc' && speaker && 'voice' in speaker ? (speaker.voice || '') : ''
+
+  const hearLine = useCallback(async (msg: StoryMessage, voice: string) => {
+    const text = spokenText(msg.content)
+    if (!text) { notify('Essa fala não tem texto para ouvir.', 'error'); return }
+    setSpeakingId(msg.id)
+    setSpeakBusy(true)
+    try {
+      const result = await playSpeech({
+        text,
+        voice,
+        cacheKey: `${msg.id}:${voice}`,
+        onEnded: () => setSpeakingId((id) => (id === msg.id ? null : id)),
+      })
+      if (result === 'cancelled') setSpeakingId((id) => (id === msg.id ? null : id))
+    } catch (e) {
+      setSpeakingId((id) => (id === msg.id ? null : id))
+      notify(friendlyError(e, 'Não foi possível ouvir esta fala. Publique a função speak-line.'), 'error')
+    } finally { setSpeakBusy(false) }
+  }, [notify])
+
+  function toggleSpeak() {
+    if (!current || current.sender_type !== 'npc') return
+    if (!speakerVoice) {
+      notify('Escolha a voz deste personagem no elenco.', 'error')
+      setPanel('cast')
+      const npc = current.character_id ? npcById.get(current.character_id) : undefined
+      if (npc) setEditingChar(npc)
+      return
+    }
+    if (speakingId === current.id) {
+      stopSpeech()
+      setSpeakingId(null)
+      setSpeakBusy(false)
+      return
+    }
+    void hearLine(current, speakerVoice)
+  }
+
+  useEffect(() => {
+    const saved = localStorage.getItem('vn-auto-speak')
+    if (saved === '1') setAutoSpeak(true)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      stopSpeech()
+      setSpeakingId(null)
+    }
+  }, [current?.id])
+
+  const hearRef = useRef(hearLine)
+  hearRef.current = hearLine
+
+  useEffect(() => {
+    if (loadingInit || !autoSpeak || !current || current.sender_type !== 'npc' || !speakerVoice) return
+    void hearRef.current(current, speakerVoice)
+  }, [loadingInit, autoSpeak, current, speakerVoice])
+
+  useEffect(() => () => { stopSpeech() }, [])
 
   const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState) => {
     setMessages((prev) => {
@@ -440,6 +506,22 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               </span>
             </>
           )}
+          <button
+            type="button"
+            className={`vn-autospeak ${autoSpeak ? 'on' : ''}`}
+            title={autoSpeak ? 'Voz automática ligada' : 'Ouvir as falas dos personagens automaticamente'}
+            onClick={(e) => {
+              e.stopPropagation()
+              setAutoSpeak((v) => {
+                const next = !v
+                localStorage.setItem('vn-auto-speak', next ? '1' : '0')
+                if (!next) { stopSpeech(); setSpeakingId(null); setSpeakBusy(false) }
+                return next
+              })
+            }}
+          >
+            <Volume2 size={12} /> {autoSpeak ? 'VOZ ON' : 'VOZ'}
+          </button>
         </div>
 
         {scenario && (
@@ -513,6 +595,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <span className="vn-alisa-name">{label}</span>
                   {current.expression && current.expression !== 'neutral' && (
                     <span className="vn-alisa-mood">({current.expression})</span>
+                  )}
+                  {current.sender_type === 'npc' && (
+                    <button
+                      type="button"
+                      className={`vn-speak-btn ${speakingId === current.id ? 'is-on' : ''}`}
+                      title={speakerVoice ? `Ouvir com a voz ${speakerVoice}` : 'Escolher voz no elenco'}
+                      onClick={(e) => { e.stopPropagation(); toggleSpeak() }}
+                    >
+                      {speakBusy && speakingId === current.id ? <span className="vn-speak-spin" /> : speakingId === current.id ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                    </button>
                   )}
                 </div>
               </div>
@@ -798,6 +890,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                               speech_style: item.speech_style,
                               relationship_to_protagonist: item.relationship_to_protagonist,
                               extra_information: item.extra_information,
+                              ...(item.voice ? { voice: item.voice } : {}),
                               image_url: item.image_url,
                               expressions: item.expressions || {}
                             }).select().single()
@@ -843,20 +936,28 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 {characters.map((c) => (
                   <div key={c.id} className="cast-item">
                     <div className="cast-avatar">{c.image_url ? <img src={c.image_url} alt="" /> : <UserRound />}</div>
-                    <div style={{ flex: 1 }}><strong>{c.name || "Sem nome"}</strong><span>{c.nickname || c.relationship_to_protagonist || "NPC"}</span>{c.relationship && typeof c.relationship.relationship_value === "number" && (<div className="rel-bar-wrap" title={c.relationship.description}><div className="rel-bar"><div className="rel-fill" style={{ width: `${Math.max(0, Math.min(100, c.relationship.relationship_value))}%` }} /></div><span className="rel-val">{c.relationship.relationship_value}/100</span></div>)}</div>
+                    <div style={{ flex: 1 }}><strong>{c.name || "Sem nome"}</strong><span>{[c.nickname || c.relationship_to_protagonist || "NPC", c.voice ? `Voz ${c.voice}` : ''].filter(Boolean).join(' · ')}</span>{c.relationship && typeof c.relationship.relationship_value === "number" && (<div className="rel-bar-wrap" title={c.relationship.description}><div className="rel-bar"><div className="rel-fill" style={{ width: `${Math.max(0, Math.min(100, c.relationship.relationship_value))}%` }} /></div><span className="rel-val">{c.relationship.relationship_value}/100</span></div>)}</div>
                     <button className="icon-button light" onClick={() => setEditingChar(c)} aria-label="Editar Personagem"><Pencil size={15} /></button>
                   </div>
                 ))}
                 {characters.length === 0 && <p className="drawer-empty">Nenhum personagem criado.</p>}
               </>}
               {panel === 'cast' && editingChar && (
-                <div className="char-editor-panel" style={{ overflowY: "auto", maxHeight: "75vh", paddingRight: "8px" }}>
-                  <div className="drawer-head" style={{ padding: 0, marginBottom: '20px', background: 'none' }}>
+                <div className="char-editor-panel">
+                  <div className="drawer-head" style={{ padding: 0, marginBottom: '12px', background: 'none' }}>
                     <button className="outline-button light" onClick={() => setEditingChar(null)}><ArrowLeft size={16} /> Voltar</button><button className="icon-button light" title="Exportar JSON" onClick={() => { const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(editingChar, null, 2)); const el = document.createElement('a'); el.setAttribute('href', dataStr); el.setAttribute('download', editingChar.name + '.json'); document.body.appendChild(el); el.click(); el.remove(); notify('Exportado!'); }}><Download size={16} /></button>
-                    <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name}</strong>
+                    <strong style={{ flex: 1, textAlign: 'right' }}>{editingChar.name || 'Personagem'}</strong>
                   </div>
                   <div className="field"><span>Nome</span><input value={editingChar.name} onChange={(e) => setEditingChar({ ...editingChar, name: e.target.value })} /></div>
+                  <div className="char-form-grid">
+                    <div className="field"><span>Apelido</span><input value={editingChar.nickname} onChange={(e) => setEditingChar({ ...editingChar, nickname: e.target.value })} /></div>
+                    <div className="field"><span>Idade</span><input value={editingChar.age} onChange={(e) => setEditingChar({ ...editingChar, age: e.target.value })} /></div>
+                  </div>
+                  <div className="field"><span>Aparência</span><textarea value={editingChar.appearance} onChange={(e) => setEditingChar({ ...editingChar, appearance: e.target.value })} rows={3} placeholder="Como é fisicamente?" /></div>
+                  <div className="field"><span>Personalidade</span><textarea value={editingChar.personality} onChange={(e) => setEditingChar({ ...editingChar, personality: e.target.value })} rows={3} placeholder="Como pensa e age?" /></div>
                   <div className="field"><span>Passado / História</span><textarea value={editingChar.history} onChange={(e) => setEditingChar({ ...editingChar, history: e.target.value })} rows={3} /></div>
+                  <div className="field"><span>Estilo de fala</span><textarea value={editingChar.speech_style} onChange={(e) => setEditingChar({ ...editingChar, speech_style: e.target.value })} rows={2} placeholder="Gírias, tom, tiques de linguagem" /></div>
+                  <VoiceField light value={editingChar.voice ?? ''} onChange={(v) => setEditingChar({ ...editingChar, voice: v || null })} />
                   <div style={{ border: '1.5px solid #e5b869', borderRadius: '8px', padding: '12px', background: 'rgba(229, 184, 105, 0.08)', margin: '10px 0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#e5b869', fontWeight: 'bold', fontSize: '11px', marginBottom: '4px' }}>
                       <Sparkles size={13} /> ⭐ O QUE PENSA ATUALMENTE SOBRE VOCÊ (REGRA DE OURO DA IA)
@@ -865,7 +966,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       Regra de ouro inegociável: O Gemini seguirá à risca este campo para ditar o comportamento e as intenções reais deste personagem.
                     </p>
                     <textarea value={editingChar.relationship_to_protagonist} onChange={(e) => setEditingChar({ ...editingChar, relationship_to_protagonist: e.target.value })} rows={3} placeholder="O que este personagem pensa secretamente sobre você agora..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(229,184,105,0.3)', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '12px' }} />
-                  </div><div className="field"><span>Estilo de Fala</span><textarea value={editingChar.speech_style} onChange={(e) => setEditingChar({ ...editingChar, speech_style: e.target.value })} rows={2} /></div><div className="field"><span>Objetivos e Medos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>{editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
+                  </div>
+                  <div className="field"><span>Objetivos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Medos</span><textarea value={editingChar.fears} onChange={(e) => setEditingChar({ ...editingChar, fears: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Segredos</span><textarea value={editingChar.secrets} onChange={(e) => setEditingChar({ ...editingChar, secrets: e.target.value })} rows={2} placeholder="O narrador sabe, mas não revela sem motivo." /></div>
+                  <div className="field"><span>Informações extras</span><textarea value={editingChar.extra_information} onChange={(e) => setEditingChar({ ...editingChar, extra_information: e.target.value })} rows={2} /></div>
+                  {editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
                   
                   <div className="expressions-grid">
                     <span>Expressões Visuais</span>
