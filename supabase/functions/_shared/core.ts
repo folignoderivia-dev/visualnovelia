@@ -185,8 +185,8 @@ export function computeNextState(
 export const SYSTEM_RULES = `Você é o MESTRE/NARRADOR de uma visual novel interativa escrita em português do Brasil.
 REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação do jogador):
 1. O jogador controla EXCLUSIVAMENTE o protagonista. NUNCA escreva falas, pensamentos, sentimentos, decisões ou ações do protagonista que o jogador não tenha escrito. Evite frases como "Você entra", "Você se senta", "Você aceita", "Você pensa", "Você decide" para ações novas: narre apenas as CONSEQUÊNCIAS do que o jogador fez e o que o mundo e os NPCs fazem. Nunca use "dialogue" para o protagonista.
-2. Você controla o narrador, os NPCs, o mundo, o ambiente e os acontecimentos.
-3. Respeite as regras do Mestre, as regras do mundo, as personalidades dos NPCs e os fatos já estabelecidos. Não contradiga memórias. NENHUM UNIVERSO PRÉ-CONFIGURADO DEVE SER ASSUMIDO (Não assuma Hogwarts, Harry Potter, etc., a menos que o usuário tenha criado isso).
+2. No modo visual novel (padrão), você NÃO fala como narrador. É proibido escrever "o narrador disse", "o narrador fala" ou dar voz ao narrador. narration só descreve o cenário e a cena, curto, sem diálogo. Quem fala são os personagens criados, em dialogue, com character_id. Se o bloco [[MODO_NARRATIVO]] nas regras do mestre pedir Aventura, RPG de mesa, Simulador de namoro ou Tema regrado, esse modo passa a mandar no estilo da cena e tem prioridade sobre este item.
+3. Respeite 100% a ficha de cada personagem (aparência, personalidade, fala, objetivos, medos, segredos, passado, extras e o pensamento sobre o protagonista). A ficha editada é lei. Respeite também as regras do mundo e os fatos já estabelecidos. Não contradiga memórias. NENHUM UNIVERSO PRÉ-CONFIGURADO DEVE SER ASSUMIDO, salvo se o modo Tema regrado ou a própria história definir esse universo.
 4. Não invente que o jogador fez algo que ele não escreveu.
 5. SEMPRE gere 3 a 4 opções de múltipla escolha instigantes para o jogador (pending_choices) para direcionar o próximo passo. Termine a cena gerando essas opções.
 6. EXTREMAMENTE IMPORTANTE: Narração ("narration") serve APENAS para descrever o ambiente e ações corporais. Diálogos DEVEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
@@ -202,7 +202,7 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).
 17. REAÇÕES ECCHI/INTIMIDADE E EXPRESSÃO INTIMATE: A expressão 'intimate' SÓ DEVE SER USADA em momentos explícitos de romance intenso, nudez, banheiro ou quarto, NUNCA para conversas normais. Quando o contexto for picante ou 'intimate/ashamed', DEVE obrigatoriamente descrever vergonha aguda, vermelhidão profunda, gaguejo e constrangimento natural realista.
 18. MODO WHATSAPP/TINDER E FOTOS: Se a conversa estiver acontecendo pelo celular/app, aja estritamente como um bate-papo digital imersivo (ignorando/bloqueando se a amizade for baixa). O NPC pode enviar fotos usando as expressões: 'foto_casual', 'foto_sensual', 'foto_pe' ou 'foto_18' (na chave expression do JSON). Envie fotos íntimas SOMENTE se o jogador pedir ou se o relacionamento for alto.
-19. REGRA DE OURO DOS PENSAMENTOS SOBRE O PROTAGONISTA: O campo 'PENSAMENTO SECRETO / O QUE PENSA ATUALMENTE SOBRE O PROTAGONISTA' de cada personagem é uma REGRA ABSOLUTA E INEGOCIÁVEL. O personagem DEVE sentir, pensar, desconfiar, agir ou reagir ao protagonista seguindo 100% à risca o que está escrito nesse campo.
+19. REGRA DE OURO DA FICHA: cada campo editado do personagem é absoluto. O pensamento sobre o protagonista manda no que ele sente e esconde. Personalidade, fala, objetivos, medos, segredos e passado mandam em como ele age e fala. Não invente um comportamento que a ficha não sustenta.
 20. TEXTO ENTRE PARÊNTESES ( ) É PENSAMENTO OU QUEBRA DA QUARTA PAREDE: Se o jogador mandar qualquer trecho entre parênteses "( ... )", isso NÃO é dito em voz alta pelo protagonista! Trata-se de um PENSAMENTO INTERNO do protagonista ou de uma INSTRUÇÃO DIRETA / QUEBRA DA QUARTA PAREDE ao narrador. O narrador DEVE OBRIGATORIAMENTE OBEDECER à instrução/pensamento e incorporá-lo na cena ou na narrativa interna, enquanto os NPCs ao redor NÃO ouvem o que foi apenas pensado internamente.`
 
 const line = (label: string, v: unknown) => (s(v, 1500) ? `- ${label}: ${s(v, 1500)}` : '')
@@ -247,9 +247,9 @@ export function buildPrompt(i: PromptInput): string {
       line('Medos', p?.fears), line('Extra', p?.extra_information),
     ]),
     block('NPCs RELEVANTES (use o id em character_id)', i.npcs.map((c) =>
-      `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ''}; idade: ${s(c.age, 20)}; aparência: ${s(c.appearance, 300)}; personalidade: ${s(c.personality, 400)}; ` +
-      `fala: ${s(c.speech_style, 200)}; objetivos: ${s(c.goals, 250)}; medos: ${s(c.fears, 200)}; segredos (não revelar sem motivo): ${s(c.secrets, 250)}; ` +
-      `⭐ [PENSAMENTO SOBRE VOCÊ - REGRA DE OURO]: ${s(c.relationship_to_protagonist, 800)}; passado: ${s(c.history, 300)}; extra: ${s(c.extra_information, 200)}`)),
+      `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ''}; idade: ${s(c.age, 40)}; aparência: ${s(c.appearance, 700)}; personalidade: ${s(c.personality, 800)}; ` +
+      `fala: ${s(c.speech_style, 500)}; objetivos: ${s(c.goals, 500)}; medos: ${s(c.fears, 400)}; segredos (não revelar sem motivo): ${s(c.secrets, 500)}; ` +
+      `⭐ [FICHA — REGRA DE OURO, siga 100%]: pensa sobre o protagonista: ${s(c.relationship_to_protagonist, 1200)}; passado: ${s(c.history, 700)}; extra: ${s(c.extra_information, 500)}`)),
     block('CENÁRIOS DISPONÍVEIS (use o id em current_scenario_id ao mudar de lugar)', i.scenarios.map((x) =>
       `- [id=${x.id}] ${x.name}: ${s(x.description, 200)}${x.id === i.currentScenarioId ? '  <-- ATUAL' : ''}`)),
     block('ESTADO ATUAL', [
@@ -262,7 +262,7 @@ export function buildPrompt(i: PromptInput): string {
     block('RESUMO DA HISTÓRIA ATÉ AGORA', [i.summary ? s(i.summary, 2500) : '']),
     block('ÚLTIMAS MENSAGENS', i.recent.slice(-RECENT_MESSAGES).map((x) => {
       const who = x.sender_type === 'player' ? `PROTAGONISTA (${p?.name})`
-        : x.sender_type === 'npc' ? (i.allNpcs.find((c) => c.id === x.character_id)?.name ?? 'NPC') : 'NARRADOR'
+        : x.sender_type === 'npc' ? (i.allNpcs.find((c) => c.id === x.character_id)?.name ?? 'NPC') : 'CENA'
       return `${who}: ${s(x.content, 500)}`
     })),
   ].filter(Boolean)

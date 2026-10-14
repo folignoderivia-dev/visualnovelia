@@ -111,6 +111,11 @@ export async function saveWorld(w: World): Promise<void> {
 export async function saveMaster(m: MasterSettings): Promise<void> {
   check(await supabase.from('story_master_settings').upsert(strip(m), { onConflict: 'story_id' }).select())
 }
+
+/** Grava o tema da campanha nas regras do mestre, que o narrador já lê a cada turno. */
+export async function saveNarrativeMode(storyId: string, additionalRules: string): Promise<void> {
+  check(await supabase.from('story_master_settings').update({ additional_rules: additionalRules }).eq('story_id', storyId).select())
+}
 export async function savePlayer(p: PlayerCharacter): Promise<void> {
   const userId = await getUserId()
   check(await supabase.from('player_characters').upsert({ ...strip(p), user_id: userId }, { onConflict: 'story_id' }).select())

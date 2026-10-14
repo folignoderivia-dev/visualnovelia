@@ -10,8 +10,9 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
+import { NARRATIVE_MODES, parseNarrativeMode, withNarrativeMode, type NarrativeMode } from '@/lib/story/narrative-mode'
 
-type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp'
+type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
 
 export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBack: () => void; onEdit?: () => void }) {
@@ -56,6 +57,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [speakBusy, setSpeakBusy] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
+  const [narrativeMode, setNarrativeMode] = useState<NarrativeMode>('visual')
+  const [themeDraft, setThemeDraft] = useState('')
+  const [savingTheme, setSavingTheme] = useState(false)
+  const masterRules = useRef('')
   const retry = useRef<null | (() => void)>(null)
   const startedRef = useRef(false)
   const wppEndRef = useRef<HTMLDivElement>(null)
@@ -242,6 +247,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         ])
         if (!alive) return
         setStory(b.story); setScenarios(b.scenarios); setCharacters(b.characters); setPlayer(b.player); setState(st); setTags(b.tags || [])
+        masterRules.current = b.master?.additional_rules || ''
+        const savedMode = parseNarrativeMode(masterRules.current)
+        setNarrativeMode(savedMode.mode)
+        setThemeDraft(savedMode.theme)
+        if (!masterRules.current.includes('[[MODO_NARRATIVO]]')) {
+          const next = withNarrativeMode(masterRules.current, 'visual')
+          masterRules.current = next
+          svc.saveNarrativeMode(storyId, next).catch(() => {})
+        }
         setMessages(msgs); setHasMore(msgs.length >= 40)
         setDailyLimit(limit)
         const vis = msgs.filter((m) => !HIDDEN.includes(m.message_type))
@@ -403,7 +417,29 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     ? (speaker?.name ?? 'NPC')
     : current?.sender_type === 'player'
       ? (player?.name || 'VOCÊ')
-      : 'NARRADOR'
+      : (state?.current_location || scenario?.name || 'Cena')
+  const shownText = current?.sender_type === 'narrator'
+    ? current.content.replace(/^\s*(o narrador\s+(disse|fala|falou|narra|narrou|conta|contou)\s*[:,\-–]?\s*)/i, '')
+    : current?.content
+
+  async function applyTheme(mode: NarrativeMode, theme = themeDraft) {
+    if (mode === 'tema' && !theme.trim()) {
+      notify('Escreva o filme, jogo ou campanha que a história deve seguir.', 'error')
+      return
+    }
+    setSavingTheme(true)
+    try {
+      const next = withNarrativeMode(masterRules.current, mode, theme)
+      await svc.saveNarrativeMode(storyId, next)
+      masterRules.current = next
+      setNarrativeMode(mode)
+      setThemeDraft(theme)
+      notify('Tema salvo. A próxima resposta já segue esse modo.', 'ok')
+      setPanel(null)
+    } catch (e) {
+      notify(friendlyError(e, 'Não foi possível salvar o tema.'), 'error')
+    } finally { setSavingTheme(false) }
+  }
 
   return (
     <main
@@ -460,6 +496,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         <nav className="vn-side-actions">
           <button className="vn-side-btn" onClick={() => { notify('Progresso salvo automaticamente.'); setShowMobileRight(false); }} title="Salvar progresso"><Save size={15}/> <span>SALVAR</span></button>
           <button className="vn-side-btn" onClick={() => { openPanel('tags'); setShowMobileRight(false); }} title="Gerenciar Tags"><Tag size={15}/> <span>TAGS</span></button>
+          <button className="vn-side-btn" onClick={() => { openPanel('theme'); setShowMobileRight(false); }} title="Mudar o tema da narrativa"><Settings size={15}/> <span>TEMA</span></button>
           <button className="vn-side-btn" onClick={() => { openPanel('map'); setShowMobileRight(false); }} title="Mapa Mundi"><MapIcon size={15}/> <span>MAPA</span></button>
           <button className="vn-side-btn vn-side-accent" onClick={() => { openPanel('tinder'); setShowMobileRight(false); }} title="App de Encontros"><Smartphone size={15}/> <span>TINDER</span></button>
           <button className="vn-side-btn vn-side-whatsapp" onClick={() => { openPanel('whatsapp'); setShowMobileRight(false); }} title="Chat Celular"><MessageCircle size={15}/> <span>WHATSAPP</span></button>
@@ -619,7 +656,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               ) : (
                 <div className="vn-dialogue-body">
                   <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
-                    {current.content}
+                    {shownText}
                   </p>
                   {!atEnd && <span className="vn-alisa-pointer">▶</span>}
                 </div>
@@ -828,13 +865,38 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       {panel && (
         <div className="drawer-backdrop" onClick={() => setPanel(null)}>
           <aside className="drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : panel === 'tags' ? 'Tags Customizadas' : panel === 'map' ? 'Viagem Rápida' : panel === 'tinder' ? 'App de Namoro' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
+            <div className="drawer-head"><strong>{panel === 'history' ? 'Histórico' : panel === 'cast' ? 'Elenco' : panel === 'tags' ? 'Tags Customizadas' : panel === 'theme' ? 'Tema da narrativa' : panel === 'map' ? 'Viagem Rápida' : panel === 'tinder' ? 'App de Namoro' : 'Memória do narrador'}</strong><button className="icon-button light" onClick={() => setPanel(null)} aria-label="Fechar"><X /></button></div>
             <div className="drawer-body">
+              {panel === 'theme' && <>
+                <p className="drawer-note">O tema vale na próxima resposta. A ficha de cada personagem continua sendo a regra de ouro.</p>
+                {NARRATIVE_MODES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="outline-button light"
+                    style={{ textAlign: 'left', borderColor: narrativeMode === item.id ? '#e5b869' : undefined }}
+                    disabled={savingTheme}
+                    onClick={() => { if (item.id === 'tema') setNarrativeMode('tema'); else void applyTheme(item.id) }}
+                  >
+                    <strong>{item.label}</strong>
+                    <span style={{ display: 'block', marginTop: 4, fontSize: 11, opacity: 0.8 }}>{item.hint}</span>
+                  </button>
+                ))}
+                {narrativeMode === 'tema' && (
+                  <div className="field">
+                    <span>Filme, jogo ou campanha</span>
+                    <textarea value={themeDraft} rows={4} placeholder="Ex.: Final Fantasy VII, ou a campanha Curse of Strahd" onChange={(e) => setThemeDraft(e.target.value)} />
+                    <button className="primary-button" disabled={savingTheme} onClick={() => void applyTheme('tema', themeDraft)}>
+                      {savingTheme ? 'Salvando…' : 'Usar este tema'}
+                    </button>
+                  </div>
+                )}
+              </>}
               {panel === 'history' && <>
                 {hasMore && <button className="outline-button light drawer-more" onClick={olderMessages}>Carregar mensagens anteriores</button>}
                 {messages.map((m, i) => {
                   const idx = visible.findIndex((v) => v.id === m.id)
-                  const who = m.sender_type === 'player' ? player?.name || 'Você' : m.sender_type === 'npc' ? npcById.get(m.character_id ?? '')?.name ?? 'NPC' : m.sender_type === 'system' ? 'CENA' : 'Narrador'
+                  const who = m.sender_type === 'player' ? player?.name || 'Você' : m.sender_type === 'npc' ? npcById.get(m.character_id ?? '')?.name ?? 'NPC' : m.sender_type === 'system' ? 'CENA' : 'Cena'
                   return <button key={m.id} className={`hist-item hist-${m.sender_type}`} disabled={idx < 0} onClick={() => { if (idx >= 0) { setCursor(idx); setPanel(null) } }} data-i={i}><span>{who}</span><p>{m.content}</p></button>
                 })}
                 {messages.length === 0 && <p className="drawer-empty">Nada aqui ainda.</p>}
