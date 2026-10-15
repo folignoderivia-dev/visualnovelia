@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, collectSignals, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, stripStageDirections, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityOut, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, collectSignals, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, stripStageDirections, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityOut, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -58,6 +58,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [speakBusy, setSpeakBusy] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
   const [narrativeMode, setNarrativeMode] = useState<NarrativeMode>('visual')
+  const [pickedIds, setPickedIds] = useState<string[]>([])
   const [reactions, setReactions] = useState<{ id: string; name: string; delta: number }[]>([])
   const narrativeModeRef = useRef<NarrativeMode>('visual')
   narrativeModeRef.current = narrativeMode
@@ -472,14 +473,24 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     run('turn', `[D20: ${roll}]\n[O jogador rolou um D20 e tirou: ${roll}. Este é o voto do público.]`)
   }
 
-  async function applyTheme(mode: NarrativeMode, theme = themeDraft) {
+  async function applyTheme(mode: NarrativeMode, theme = themeDraft, names?: string[]) {
     if (mode === 'tema' && !theme.trim()) {
       notify('Escreva o filme, jogo ou campanha que a história deve seguir.', 'error')
       return
     }
+    if (mode === 'verdade' && (names?.length ?? 0) !== 6) {
+      notify('Escolha 6 personagens para o verdade ou desafio.', 'error')
+      return
+    }
+    if (mode === 'web' && (names?.length ?? 0) !== 1) {
+      notify('Escolha uma personagem para a web namorada.', 'error')
+      return
+    }
     setSavingTheme(true)
     try {
-      const next = withNarrativeMode(masterRules.current, mode, theme)
+      const next = (mode === 'verdade' || mode === 'web')
+        ? withChosenCast(masterRules.current, mode, names || [])
+        : withNarrativeMode(masterRules.current, mode, theme)
       await svc.saveNarrativeMode(storyId, next)
       masterRules.current = next
       setNarrativeMode(mode)
@@ -489,6 +500,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     } catch (e) {
       notify(friendlyError(e, 'Não foi possível salvar o tema.'), 'error')
     } finally { setSavingTheme(false) }
+  }
+
+  function togglePick(id: string) {
+    setPickedIds((prev) => {
+      if (narrativeMode === 'web') return prev[0] === id ? [] : [id]
+      if (prev.includes(id)) return prev.filter((item) => item !== id)
+      if (prev.length >= 6) return prev
+      return [...prev, id]
+    })
   }
 
   return (
@@ -944,7 +964,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     className="outline-button light"
                     style={{ textAlign: 'left', borderColor: narrativeMode === item.id ? '#e5b869' : undefined }}
                     disabled={savingTheme}
-                    onClick={() => { if (item.id === 'tema') setNarrativeMode('tema'); else void applyTheme(item.id) }}
+                    onClick={() => {
+                      if (item.id === 'tema' || item.id === 'verdade' || item.id === 'web') {
+                        setNarrativeMode(item.id)
+                        if (item.id !== 'tema') setPickedIds([])
+                      } else void applyTheme(item.id)
+                    }}
                   >
                     <strong>{item.label}</strong>
                     <span style={{ display: 'block', marginTop: 4, fontSize: 11, opacity: 0.8 }}>{item.hint}</span>
@@ -956,6 +981,32 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     <textarea value={themeDraft} rows={4} placeholder="Ex.: Final Fantasy VII, ou a campanha Curse of Strahd" onChange={(e) => setThemeDraft(e.target.value)} />
                     <button className="primary-button" disabled={savingTheme} onClick={() => void applyTheme('tema', themeDraft)}>
                       {savingTheme ? 'Salvando…' : 'Usar este tema'}
+                    </button>
+                  </div>
+                )}
+                {(narrativeMode === 'verdade' || narrativeMode === 'web') && (
+                  <div className="field">
+                    <span>{narrativeMode === 'verdade' ? `Escolha 6 personagens (${pickedIds.length}/6)` : 'Escolha a personagem da web namorada'}</span>
+                    {characters.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="outline-button light"
+                        style={{ textAlign: 'left', borderColor: pickedIds.includes(c.id) ? '#e5b869' : undefined }}
+                        onClick={() => togglePick(c.id)}
+                      >
+                        {c.name || 'Sem nome'}
+                      </button>
+                    ))}
+                    <button
+                      className="primary-button"
+                      disabled={savingTheme || (narrativeMode === 'verdade' ? pickedIds.length !== 6 : pickedIds.length !== 1)}
+                      onClick={() => {
+                        const names = characters.filter((c) => pickedIds.includes(c.id)).map((c) => c.name).filter(Boolean)
+                        void applyTheme(narrativeMode, '', names)
+                      }}
+                    >
+                      {savingTheme ? 'Salvando…' : narrativeMode === 'verdade' ? 'Jogar com estes 6' : 'Ficar só com ela'}
                     </button>
                   </div>
                 )}

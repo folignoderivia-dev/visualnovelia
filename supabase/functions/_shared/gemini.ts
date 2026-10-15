@@ -29,21 +29,29 @@ export async function callGemini(opts: {
     }
   }
 
-  const body = {
-    systemInstruction: { parts: [{ text: opts.system }] },
-    contents: [{ role: 'user', parts }],
-    generationConfig: {
-      temperature: opts.temperature ?? 0.9,
-      maxOutputTokens: opts.maxOutputTokens ?? 3072,
-      ...(opts.schema ? { responseMimeType: 'application/json', responseSchema: opts.schema } : {}),
-    },
-  }
+  const safety = (threshold: string) => [
+    'HARM_CATEGORY_HARASSMENT',
+    'HARM_CATEGORY_HATE_SPEECH',
+    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    'HARM_CATEGORY_DANGEROUS_CONTENT',
+  ].map((category) => ({ category, threshold }))
 
   const delays = [2000, 4000, 0]
   let attempts = 0
+  let safetyLevel = 'BLOCK_NONE'
 
   while (attempts < 3) {
     attempts++
+    const body = {
+      systemInstruction: { parts: [{ text: opts.system }] },
+      contents: [{ role: 'user', parts }],
+      safetySettings: safety(safetyLevel),
+      generationConfig: {
+        temperature: opts.temperature ?? 0.9,
+        maxOutputTokens: opts.maxOutputTokens ?? 3072,
+        ...(opts.schema ? { responseMimeType: 'application/json', responseSchema: opts.schema } : {}),
+      },
+    }
     let res: Response
     try {
       res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -77,7 +85,13 @@ export async function callGemini(opts: {
     const cand = data?.candidates?.[0]
     const text = cand?.content?.parts?.map((p: any) => p.text ?? '').join('') ?? ''
     
-    if (data?.promptFeedback?.blockReason || cand?.finishReason === 'SAFETY') {
+    const blocked = Boolean(data?.promptFeedback?.blockReason) || cand?.finishReason === 'SAFETY'
+    if (blocked && !text.trim() && safetyLevel !== 'OFF') {
+      safetyLevel = 'OFF'
+      attempts--
+      continue
+    }
+    if (blocked && !text.trim()) {
       throw new HttpError(422, 'ai_blocked', 'O narrador não pôde continuar com essa ação. Tente reformular.')
     }
     

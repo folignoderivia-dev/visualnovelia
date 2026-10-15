@@ -1,4 +1,4 @@
-export type NarrativeMode = 'visual' | 'aventura' | 'rpg' | 'namoro' | 'tema' | 'harem' | 'adulto' | 'reality' | 'companion'
+export type NarrativeMode = 'visual' | 'aventura' | 'rpg' | 'namoro' | 'tema' | 'harem' | 'adulto' | 'reality' | 'companion' | 'verdade' | 'web'
 
 export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }[] = [
   { id: 'visual', label: 'Visual novel', hint: 'Conversa entre os personagens. A narração só descreve a cena e oferece opções.' },
@@ -9,6 +9,8 @@ export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }
   { id: 'adulto', label: '+18', hint: 'Falas adultas, sem filtro e sem censura, no jeito da ficha.' },
   { id: 'reality', label: 'Reality', hint: 'Ilha do Desafio: provas, romance, voto do público e uma eliminação por capítulo.' },
   { id: 'companion', label: 'Companion', hint: 'Mistério e romance. Dois personagens por capítulo; um fica, pelo placar de aprovação.' },
+  { id: 'verdade', label: 'Verdade ou desafio', hint: 'Você escolhe 6 personagens. Cada um joga uma vez, inclusive você.' },
+  { id: 'web', label: 'Web namorada', hint: 'Você escolhe uma personagem. A aventura inteira é só o diálogo com ela.' },
   { id: 'tema', label: 'Tema regrado', hint: 'Você escreve um filme, jogo ou campanha e a história segue esse cânone.' },
 ]
 
@@ -20,6 +22,8 @@ const TEAM_S = '[[EQUIPE_COMPANION]]'
 const TEAM_E = '[[/EQUIPE_COMPANION]]'
 const REALITY_S = '[[ELIMINADOS_REALITY]]'
 const REALITY_E = '[[/ELIMINADOS_REALITY]]'
+const PICK_S = '[[ELENCO_ESCOLHIDO]]'
+const PICK_E = '[[/ELENCO_ESCOLHIDO]]'
 
 const SHEET = `REGRA DE OURO DA FICHA: cada personagem criado segue 100% a ficha editada pelo jogador — nome, apelido, idade, aparência, personalidade, estilo de fala, objetivos, medos, segredos, passado, informações extras e, acima de tudo, o que pensa sobre o protagonista. Não suavize, não contradiga e não invente um jeito de ser diferente do que está escrito. Prompts e campos da ficha são lei.`
 
@@ -73,6 +77,19 @@ No fim do capítulo só o de maior aprovação segue na equipe. Escreva [[FICA:N
 Cada fala, escolha e comportamento do protagonista gera reação coerente com a personalidade. No fim da narração, uma linha por personagem presente, só com +1, +5, +10, -1, -5 ou -10: [[APROVACAO:Nome:+5]]. 1 é um gesto pequeno, 5 uma escolha que importa, 10 acerta ou fere o núcleo da ficha. Não invente outro número.
 ${common}`
   }
+  if (mode === 'verdade') {
+    return `MODO ATIVO: VERDADE OU DESAFIO.
+${state}Todos são adultos. Jogam só o protagonista e os 6 nomes do ESTADO, uma vez cada por rodada, sempre incluindo o protagonista, e depois a rodada recomeça.
+No turno de um NPC ele joga de verdade. VERDADE: responde com sinceridade, sem desviar, usando segredos, objetivos, medos e o que pensa do protagonista na ficha. Vale pergunta íntima, constrangedora, tabu, fetiche, preferência e escolha tensa. DESAFIO: cumpre beijo, toque ou o que a ficha permitir.
+No turno do protagonista, não escreva a resposta dele. Em pending_choices ofereça "Verdade" e "Desafio", com a pergunta ou o desafio já dito para ele reagir. Não traga ninguém de fora da lista.
+${common}`
+  }
+  if (mode === 'web') {
+    return `MODO ATIVO: WEB NAMORADA.
+${state}A aventura inteira é só o protagonista e a personagem nomeada no ESTADO. Nenhuma outra pessoa entra ou fala.
+O foco é diálogo imersivo entre os dois, roleplay autêntico, 100% a ficha dela. A narração só descreve o lugar, curto. Toda fala dela vai em dialogue com o character_id real. Não escreva a fala do protagonista.
+${common}`
+  }
   if (mode === 'tema') {
     const subject = theme.trim() || '(tema ainda não escrito)'
     return `MODO ATIVO: TEMA REGRADO.
@@ -99,6 +116,8 @@ export function parseNarrativeMode(additionalRules: string | null | undefined): 
   else if (modeLine.includes('+18')) mode = 'adulto'
   else if (modeLine.includes('reality')) mode = 'reality'
   else if (modeLine.includes('companion')) mode = 'companion'
+  else if (modeLine.includes('verdade')) mode = 'verdade'
+  else if (modeLine.includes('web')) mode = 'web'
   else if (modeLine.includes('aventura')) mode = 'aventura'
   else if (modeLine.includes('rpg')) mode = 'rpg'
   else if (modeLine.includes('namoro')) mode = 'namoro'
@@ -162,11 +181,25 @@ export function realityOut(rules: string | null | undefined): string[] {
   return namesOf(readBlock(rules || '', REALITY_S, REALITY_E), 'fora')
 }
 
-export function persistentStateLine(rules: string | null | undefined): string {
+export function chosenCast(rules: string | null | undefined): { verdade: string[]; web: string } {
+  const body = readBlock(rules || '', PICK_S, PICK_E)
+  return { verdade: namesOf(body, 'verdade'), web: namesOf(body, 'web')[0] || '' }
+}
+
+export function withChosenCast(rules: string, mode: 'verdade' | 'web', names: string[]): string {
+  const cur = chosenCast(rules)
+  const verdade = mode === 'verdade' ? names : cur.verdade
+  const web = mode === 'web' ? (names[0] || '') : cur.web
+  const next = replaceBlock(rules, PICK_S, PICK_E, `verdade: ${verdade.join('; ')}\nweb: ${web}`)
+  return withNarrativeMode(next, mode, parseNarrativeMode(next).theme)
+}
+
+export function persistentStateLine(rules: string | null | undefined, mode?: NarrativeMode): string {
   const text = rules || ''
   const harem = haremRoster(text)
   const team = companionTeam(text)
   const gone = realityOut(text)
+  const chosen = chosenCast(text)
   const bits = [
     harem.eliminated.length ? `harem eliminadas: ${harem.eliminated.join(', ')}` : '',
     harem.recruited.length ? `harem recrutadas: ${harem.recruited.join(', ')}` : '',
@@ -175,6 +208,8 @@ export function persistentStateLine(rules: string | null | undefined): string {
     Object.keys(team.scores).length
       ? `companion placar: ${Object.entries(team.scores).map(([n, v]) => `${n}=${v}`).join(', ')}`
       : '',
+    chosen.verdade.length && mode !== 'web' ? `verdade jogadores: ${chosen.verdade.join(', ')}` : '',
+    chosen.web && mode !== 'verdade' ? `web namorada: ${chosen.web}` : '',
   ].filter(Boolean)
   return bits.join('. ')
 }
@@ -186,7 +221,7 @@ export function withNarrativeMode(additionalRules: string | null | undefined, mo
   const rest = (start !== -1 && end !== -1 && end > start)
     ? (text.slice(0, start) + text.slice(end + MARK_END.length)).trim()
     : text.trim()
-  const block = `${MARK_START}\n${modeInstructions(mode, theme, persistentStateLine(text))}\n${MARK_END}`
+  const block = `${MARK_START}\n${modeInstructions(mode, theme, persistentStateLine(text, mode))}\n${MARK_END}`
   return rest ? `${block}\n\n${rest}` : block
 }
 
