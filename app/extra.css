@@ -2709,6 +2709,36 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   }
 }
 
+.vn-approval-stack {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.vn-approval {
+  min-width: 220px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(12, 14, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.vn-approval.up { border-color: #3ddc97; }
+.vn-approval.up span { color: #8ef0c2; }
+.vn-approval.down { border-color: #ff6b6b; }
+.vn-approval.down span { color: #ffb4b4; }
+.vn-vote-bubble { border-color: #e5b869 !important; }
+
 
 
 

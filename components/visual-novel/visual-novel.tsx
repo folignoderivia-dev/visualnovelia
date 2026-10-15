@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, parseNarrativeMode, withNarrativeMode, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, collectSignals, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, stripStageDirections, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityOut, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -58,6 +58,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [speakBusy, setSpeakBusy] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
   const [narrativeMode, setNarrativeMode] = useState<NarrativeMode>('visual')
+  const [reactions, setReactions] = useState<{ id: string; name: string; delta: number }[]>([])
+  const narrativeModeRef = useRef<NarrativeMode>('visual')
+  narrativeModeRef.current = narrativeMode
   const [themeDraft, setThemeDraft] = useState('')
   const [savingTheme, setSavingTheme] = useState(false)
   const masterRules = useRef('')
@@ -85,7 +88,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     }
   }, [panel, tinderChatContact, messages, thinking])
 
-  const visible = useMemo(() => messages.filter((m) => !HIDDEN.includes(m.message_type)), [messages])
+  const visible = useMemo(
+    () => messages.filter((m) => !HIDDEN.includes(m.message_type) && !isPhoneMessage(m.metadata)),
+    [messages],
+  )
   const current = visible[Math.min(cursor, visible.length - 1)]
   const atEnd = visible.length === 0 || cursor >= visible.length - 1
   const npcById = useMemo(() => new Map(characters.map((c) => [c.id, c])), [characters])
@@ -154,13 +160,38 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
   useEffect(() => () => { stopSpeech() }, [])
 
+  useEffect(() => {
+    if (!reactions.length) return
+    const timer = window.setTimeout(() => setReactions([]), 4200)
+    return () => window.clearTimeout(timer)
+  }, [reactions])
+
   const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState) => {
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id))
       return [...prev, ...newMsgs.filter((m) => !seen.has(m.id))]
     })
     setState(newState)
-  }, [])
+    const signals = collectSignals(newMsgs)
+    if (signals.approvals.length) {
+      setReactions(signals.approvals.map((a) => ({ ...a, id: `${a.name}-${a.delta}-${Date.now()}-${Math.random()}` })))
+    }
+    const mode = narrativeModeRef.current
+    let rules = masterRules.current
+    let changed = false
+    if (mode === 'companion' && (signals.approvals.length || signals.stays)) {
+      rules = withCompanionUpdate(rules, signals.approvals, signals.stays)
+      changed = true
+    }
+    if (mode === 'reality' && signals.eliminated.length) {
+      rules = withRealityOut(rules, signals.eliminated)
+      changed = true
+    }
+    if (changed) {
+      masterRules.current = rules
+      svc.saveNarrativeMode(storyId, rules).catch(() => {})
+    }
+  }, [storyId])
 
   // refs com o último estado conhecido (usados dentro de callbacks assíncronos)
   const visibleCountRef = useRef(0)
@@ -184,7 +215,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     } catch { return null }
   }, [storyId])
 
-  const run = useCallback(async (kind: 'start' | 'turn', action = '', img?: string) => {
+  const run = useCallback(async (kind: 'start' | 'turn', action = '', img?: string, channel?: { channel: 'tinder' | 'whatsapp'; characterId: string }) => {
     if (busy.current) return
     if (kind === 'turn' && !dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
       notify('Limite diário de 20 mensagens atingido para sua conta. Tente novamente amanhã!', 'error')
@@ -192,19 +223,19 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     }
     busy.current = true
     const prevVisible = visibleCountRef.current
-    retry.current = () => { run(kind, action, img) }
+    retry.current = () => { run(kind, action, img, channel) }
     setThinking(true); setError('')
     try {
       let res: { messages: StoryMessage[]; state: StoryState }
       try {
-        res = kind === 'start' ? await startStory(storyId) : await sendPlayerAction(storyId, action, img)
+        res = kind === 'start' ? await startStory(storyId) : await sendPlayerAction(storyId, action, img, channel)
       } catch (e) {
         const recovered = await recover(kind, action)
         if (!recovered) throw e
         res = recovered
       }
       applyResponse(res.messages, res.state)
-      setCursor(prevVisible) // primeiro bloco novo
+      if (!channel) setCursor(prevVisible) // primeiro bloco novo da campanha
       if (kind === 'turn') {
         setInput('');
         setActionImage(null);
@@ -418,9 +449,28 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     : current?.sender_type === 'player'
       ? (player?.name || 'VOCÊ')
       : (state?.current_location || scenario?.name || 'Cena')
-  const shownText = current?.sender_type === 'narrator'
-    ? current.content.replace(/^\s*(o narrador\s+(disse|fala|falou|narra|narrou|conta|contou)\s*[:,\-–]?\s*)/i, '')
-    : current?.content
+  const shownText = current ? stripStageDirections(current.content) : ''
+
+  async function playChoice(choice: string) {
+    if (narrativeMode === 'harem') {
+      const dupla = lastDupla(messages)
+      if (dupla) {
+        const picked = dupla.find((name) => choice.toLowerCase().includes(name.toLowerCase()))
+        const rejected = picked ? dupla.filter((name) => name.toLowerCase() !== picked.toLowerCase()) : []
+        if (picked && rejected.length) {
+          const next = withHaremRoster(masterRules.current, [picked], rejected)
+          masterRules.current = next
+          try { await svc.saveNarrativeMode(storyId, next) } catch { /* a próxima cena ainda recebe a escolha */ }
+        }
+      }
+    }
+    run('turn', choice)
+  }
+
+  function publicVote() {
+    const roll = Math.floor(Math.random() * 20) + 1
+    run('turn', `[D20: ${roll}]\n[O jogador rolou um D20 e tirou: ${roll}. Este é o voto do público.]`)
+  }
 
   async function applyTheme(mode: NarrativeMode, theme = themeDraft) {
     if (mode === 'tema' && !theme.trim()) {
@@ -448,6 +498,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         if (!atEnd && !thinking && !loadingInit) advance()
       }}
     >
+      {reactions.length > 0 && (
+        <div className="vn-approval-stack" onClick={(e) => e.stopPropagation()}>
+          {reactions.map((r) => (
+            <div key={r.id} className={`vn-approval ${r.delta > 0 ? 'up' : 'down'}`}>
+              <strong>{r.name}</strong>
+              <span>{r.delta > 0 ? 'aprovou' : 'desaprovou'} {r.delta > 0 ? `+${r.delta}` : r.delta}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="novel-backdrop">
         {scenario?.image_url && /* eslint-disable-next-line @next/next/no-img-element */ <img key={scenario.id} className="novel-bg-img" src={scenario.image_url} alt="" />}
         {!scenario?.image_url && <div className="backdrop-grid" />}
@@ -672,12 +732,20 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               <button
                 key={idx}
                 className="vn-choice-bubble"
-                onClick={() => run('turn', choice)}
+                onClick={() => void playChoice(choice)}
               >
                 <span className="vn-bubble-pointer" />
                 <span className="vn-bubble-text">{choice}</span>
               </button>
             ))}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'reality' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button className="vn-choice-bubble vn-vote-bubble" onClick={publicVote}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Voto do público</span>
+            </button>
           </div>
         )}
 
@@ -894,10 +962,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               </>}
               {panel === 'history' && <>
                 {hasMore && <button className="outline-button light drawer-more" onClick={olderMessages}>Carregar mensagens anteriores</button>}
-                {messages.map((m, i) => {
+                {messages.filter((m) => !isPhoneMessage(m.metadata)).map((m, i) => {
                   const idx = visible.findIndex((v) => v.id === m.id)
                   const who = m.sender_type === 'player' ? player?.name || 'Você' : m.sender_type === 'npc' ? npcById.get(m.character_id ?? '')?.name ?? 'NPC' : m.sender_type === 'system' ? 'CENA' : 'Cena'
-                  return <button key={m.id} className={`hist-item hist-${m.sender_type}`} disabled={idx < 0} onClick={() => { if (idx >= 0) { setCursor(idx); setPanel(null) } }} data-i={i}><span>{who}</span><p>{m.content}</p></button>
+                  return <button key={m.id} className={`hist-item hist-${m.sender_type}`} disabled={idx < 0} onClick={() => { if (idx >= 0) { setCursor(idx); setPanel(null) } }} data-i={i}><span>{who}</span><p>{stripStageDirections(m.content)}</p></button>
                 })}
                 {messages.length === 0 && <p className="drawer-empty">Nada aqui ainda.</p>}
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
@@ -1184,7 +1252,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     <p className="wpp-empty-hint">Nenhum contato encontrado no celular.</p>
                   )}
                   {characters.map((c) => {
-                    const lastNpcMsg = messages.filter(m => m.character_id === c.id || (m.sender_type === 'player' && m.content.includes(c.name))).slice(-1)[0]
+                    const thread = phoneThread(messages, 'whatsapp', c.id)
+                    const lastNpcMsg = thread[thread.length - 1]
                     const intimacy = c.relationship?.relationship_value ?? 0
                     return (
                       <div key={c.id} className="wpp-chat-item" onClick={() => setWppContact(c)}>
@@ -1199,11 +1268,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                           </div>
                           <div className="wpp-chat-preview">
                             <span className="wpp-check">✓✓</span>
-                            <p>{lastNpcMsg ? lastNpcMsg.content.slice(0, 38) + (lastNpcMsg.content.length > 38 ? '...' : '') : (c.nickname || 'Olá! Estou online.')}</p>
+                            <p>{lastNpcMsg ? lastNpcMsg.content.slice(0, 38) + (lastNpcMsg.content.length > 38 ? '...' : '') : 'Conversa nova'}</p>
                           </div>
                         </div>
-                        <div className="wpp-intimacy-chip" title="Intimidade">
-                          {intimacy >= 50 ? '❤️' : intimacy >= 20 ? '💬' : '👋'} {intimacy}/100
+                        <div className="wpp-intimacy-chip" title="Chance de mandar foto se você pedir">
+                          {intimacy >= 50 ? '❤️' : intimacy >= 20 ? '💬' : '👋'} {intimacy}/100 · foto {intimacy}%
                         </div>
                       </div>
                     )
@@ -1231,12 +1300,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
                 <div className="wpp-messages-canvas">
                   <div className="wpp-encryption-notice">
-                    🔒 As mensagens e chamadas são protegidas com a criptografia de ponta a ponta.
+                    Conversa nova, só neste WhatsApp. A campanha não entra aqui. Foto, se você pedir: {wppContact.relationship?.relationship_value ?? 0}% de chance.
                   </div>
 
-                  {messages
-                    .filter((m) => m.character_id === wppContact.id || (m.sender_type === 'player' && (m.content.includes(wppContact.name) || m.content.includes('[MENSAGEM DE WHATSAPP'))))
-                    .slice(-15)
+                  {phoneThread(messages, 'whatsapp', wppContact.id)
+                    .slice(-20)
                     .map((m, idx) => {
                       const isMe = m.sender_type === 'player'
                       const isPhoto = m.expression && m.expression.startsWith('foto_')
@@ -1251,7 +1319,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                                 <span className="wpp-photo-badge">📷 Foto recebida</span>
                               </div>
                             )}
-                            <p className="wpp-bubble-text">{m.content.replace(/\[MENSAGEM DE WHATSAPP PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO WHATSAPP:.*$/, '')}</p>
+                            <p className="wpp-bubble-text">{stripStageDirections(m.content).replace(/\[MENSAGEM DE WHATSAPP PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO WHATSAPP:[\s\S]*$/, '')}</p>
                             <div className="wpp-bubble-meta">
                               <span>12:45</span>
                               {isMe && <span className="wpp-double-check">✓✓</span>}
@@ -1290,7 +1358,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                         }
                         const msg = wppInput.trim()
                         setWppInput('')
-                        run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
+                        run('turn', isolatedChatAction('whatsapp', msg, wppContact.relationship?.relationship_value ?? 0), undefined, { channel: 'whatsapp', characterId: wppContact.id })
                       }
                     }}
                   />
@@ -1307,7 +1375,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       }
                       const msg = wppInput.trim()
                       setWppInput('')
-                      run('turn', `[MENSAGEM DE WHATSAPP PARA ${wppContact.name}]: "${msg}". RESPONDA NO MODO WHATSAPP: responda como mensagens de celular (WhatsApp) de ${wppContact.name}. Se o clima for propício ou o jogador pedir fotos, use expressões foto_casual, foto_sensual, foto_pe ou foto_18.`)
+                      run('turn', isolatedChatAction('whatsapp', msg, wppContact.relationship?.relationship_value ?? 0), undefined, { channel: 'whatsapp', characterId: wppContact.id })
                     }}
                   >
                     <Send size={16}/>
@@ -1348,17 +1416,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div className="tinder-messages-canvas">
                     <div className="tinder-match-banner">
                       <Flame size={20} color="#ff4458"/>
-                      <span>VOCÊS DERAM MATCH! Digite um oi para quebrar o gelo.</span>
+                      <span>Match novo. Esta conversa começa do zero. Foto, se você pedir: {tinderChatContact.relationship?.relationship_value ?? 0}%.</span>
                     </div>
-                    {messages
-                      .filter((m) => m.character_id === tinderChatContact.id || (m.sender_type === 'player' && m.content.includes(tinderChatContact.name)))
-                      .slice(-10)
+                    {phoneThread(messages, 'tinder', tinderChatContact.id)
+                      .slice(-20)
                       .map((m, idx) => {
                         const isMe = m.sender_type === 'player'
                         return (
                           <div key={idx} className={`tinder-bubble-wrap ${isMe ? 'is-me' : 'is-them'}`}>
                             <div className={`tinder-bubble ${isMe ? 'me' : 'them'}`}>
-                              <p>{m.content.replace(/\[MENSAGEM NO TINDER PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO TINDER CHAT:.*$/, '')}</p>
+                              <p>{stripStageDirections(m.content).replace(/\[MENSAGEM NO TINDER PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO TINDER CHAT:[\s\S]*$/, '')}</p>
                             </div>
                           </div>
                         )
@@ -1388,7 +1455,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                           }
                           const msg = tinderInput.trim()
                           setTinderInput('')
-                          run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)
+                          run('turn', isolatedChatAction('tinder', msg, tinderChatContact.relationship?.relationship_value ?? 0), undefined, { channel: 'tinder', characterId: tinderChatContact.id })
                         }
                       }}
                     />
@@ -1403,7 +1470,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                         }
                         const msg = tinderInput.trim()
                         setTinderInput('')
-                        run('turn', `[MENSAGEM NO TINDER PARA ${tinderChatContact.name}]: "${msg}". RESPONDA NO MODO TINDER CHAT: seja provocativa, casual, flerte como em um app de namoro.`)
+                        run('turn', isolatedChatAction('tinder', msg, tinderChatContact.relationship?.relationship_value ?? 0), undefined, { channel: 'tinder', characterId: tinderChatContact.id })
                       }}
                     >
                       <Send size={16}/>

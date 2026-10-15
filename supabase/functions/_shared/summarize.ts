@@ -10,14 +10,15 @@ export async function summarizeStory(admin: SupabaseClient, storyId: string, for
   const from = lastSummary?.covers_until_sequence ?? 0
 
   const { data: msgs } = await admin.from('story_messages')
-    .select('sequence_number, sender_type, content, characters(name)')
+    .select('sequence_number, sender_type, content, metadata, characters(name)')
     .eq('story_id', storyId).gt('sequence_number', from).order('sequence_number', { ascending: true }).limit(80)
 
-  if (!msgs || msgs.length === 0 || (!force && msgs.length < SUMMARY_EVERY)) return null
+  const storyMsgs = (msgs ?? []).filter((m: { metadata?: { channel?: string } }) => m.metadata?.channel !== 'tinder' && m.metadata?.channel !== 'whatsapp')
+  if (!msgs || msgs.length === 0 || storyMsgs.length === 0 || (!force && storyMsgs.length < SUMMARY_EVERY)) return null
 
   const { data: state } = await admin.from('story_state').select('current_chapter').eq('story_id', storyId).maybeSingle()
 
-  const transcript = msgs.map((m: any) => {
+  const transcript = storyMsgs.map((m: any) => {
     const who = m.sender_type === 'player' ? 'PROTAGONISTA' : m.sender_type === 'npc' ? (m.characters?.name ?? 'NPC') : 'NARRAÇÃO'
     return `${who}: ${m.content}`
   }).join('\n')
@@ -48,7 +49,7 @@ export async function summarizeStory(admin: SupabaseClient, storyId: string, for
     summary: String(out.summary ?? '').slice(0, 3000),
     important_events: (out.important_events ?? []).slice(0, 15).map((e) => String(e).slice(0, 300)),
     current_state_summary: String(out.current_state_summary ?? '').slice(0, 1000),
-    covers_until_sequence: msgs[msgs.length - 1].sequence_number,
+    covers_until_sequence: storyMsgs[storyMsgs.length - 1].sequence_number,
   }
   const { data, error } = await admin.from('story_summaries').insert(row).select().single()
   if (error) throw error
