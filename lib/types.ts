@@ -100,6 +100,10 @@ export interface PlayerCharacter {
   history: string
   goals: string
   fears: string
+  /** Como fala. Guardado junto da ficha, sem coluna nova. */
+  speech_style?: string
+  /** O que o narrador sabe e não revela sem motivo. */
+  secrets?: string
   extra_information: string
   image_url: string | null
   image_path: string | null

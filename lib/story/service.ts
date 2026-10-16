@@ -92,7 +92,7 @@ export async function loadBundle(storyId: string): Promise<StoryBundle> {
     scenarios: await ensureScenario(storyId, check(scenarios) as Scenario[]),
     characters: chars,
     tags: (check(tags) as any[]) || [],
-    player: (check(player) as PlayerCharacter | null) ?? ({ story_id: storyId, user_id: userId, name: '', nickname: '', age: '', appearance: '', personality: '', history: '', goals: '', fears: '', extra_information: '', image_url: null, image_path: null } as PlayerCharacter),
+    player: unpackPlayer((check(player) as PlayerCharacter | null) ?? ({ story_id: storyId, user_id: userId, name: '', nickname: '', age: '', appearance: '', personality: '', history: '', goals: '', fears: '', extra_information: '', image_url: null, image_path: null } as PlayerCharacter)),
   }
 }
 
@@ -116,9 +116,27 @@ export async function saveMaster(m: MasterSettings): Promise<void> {
 export async function saveNarrativeMode(storyId: string, additionalRules: string): Promise<void> {
   check(await supabase.from('story_master_settings').update({ additional_rules: additionalRules }).eq('story_id', storyId).select())
 }
+const FICHA = '\n[[FICHA_PROTAGONISTA]]'
+
+/** A tabela do protagonista não tem fala nem segredos. Eles viajam no campo extra, separados na tela. */
+export function unpackPlayer(p: PlayerCharacter): PlayerCharacter {
+  const raw = p.extra_information || ''
+  const [base, packed] = raw.split(FICHA)
+  const speech = packed?.match(/Fala:\s*([\s\S]*?)(?:\nSegredos:|$)/)?.[1]?.trim() || p.speech_style || ''
+  const secrets = packed?.match(/Segredos:\s*([\s\S]*)/)?.[1]?.trim() || p.secrets || ''
+  return { ...p, speech_style: speech, secrets, extra_information: (base || '').trim() }
+}
+
+function packPlayer(p: PlayerCharacter): Record<string, unknown> {
+  const { speech_style: speech, secrets, ...rest } = strip(p) as unknown as PlayerCharacter
+  const base = (p.extra_information || '').split(FICHA)[0].trim()
+  const tail = [speech ? `Fala: ${speech}` : '', secrets ? `Segredos: ${secrets}` : ''].filter(Boolean).join('\n')
+  return { ...rest, extra_information: tail ? `${base}${FICHA}\n${tail}` : base }
+}
+
 export async function savePlayer(p: PlayerCharacter): Promise<void> {
   const userId = await getUserId()
-  check(await supabase.from('player_characters').upsert({ ...strip(p), user_id: userId }, { onConflict: 'story_id' }).select())
+  check(await supabase.from('player_characters').upsert({ ...packPlayer(p), user_id: userId }, { onConflict: 'story_id' }).select())
 }
 export async function saveScenario(sc: Scenario): Promise<void> {
   const { id, story_id: _s, ...rest } = sc

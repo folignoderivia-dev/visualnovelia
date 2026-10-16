@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, collectSignals, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, stripStageDirections, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityOut, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, REALITY_PHASE_LABEL, advanceRealityPhase, advanceVerdade, collectSignals, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, noteHaremScene, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityCast, withRealityOut, withVerdadeAsk, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -54,6 +54,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTarget, setUploadTarget] = useState<'scenario' | 'character' | string>(null as any)
   const [editingChar, setEditingChar] = useState<Character | null>(null)
+  const [editingPlayer, setEditingPlayer] = useState(false)
+  const [rulesText, setRulesText] = useState('')
+  const [askTarget, setAskTarget] = useState('')
+  const [askKind, setAskKind] = useState<'' | 'verdade' | 'desafio'>('')
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [speakBusy, setSpeakBusy] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
@@ -90,7 +94,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   }, [panel, tinderChatContact, messages, thinking])
 
   const visible = useMemo(
-    () => messages.filter((m) => !HIDDEN.includes(m.message_type) && !isPhoneMessage(m.metadata)),
+    () => messages.filter((m) => !HIDDEN.includes(m.message_type) && !isPhoneMessage(m.metadata) && stripStageDirections(m.content).length > 0),
     [messages],
   )
   const current = visible[Math.min(cursor, visible.length - 1)]
@@ -167,7 +171,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     return () => window.clearTimeout(timer)
   }, [reactions])
 
-  const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState) => {
+  const playerNameRef = useRef('')
+  playerNameRef.current = player?.name || ''
+
+  const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState, fromChannel = false) => {
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id))
       return [...prev, ...newMsgs.filter((m) => !seen.has(m.id))]
@@ -177,19 +184,43 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (signals.approvals.length) {
       setReactions(signals.approvals.map((a) => ({ ...a, id: `${a.name}-${a.delta}-${Date.now()}-${Math.random()}` })))
     }
+    if (fromChannel) return
     const mode = narrativeModeRef.current
     let rules = masterRules.current
     let changed = false
-    if (mode === 'companion' && (signals.approvals.length || signals.stays)) {
-      rules = withCompanionUpdate(rules, signals.approvals, signals.stays)
+    if (mode === 'companion' && (signals.approvals.length || signals.stays || signals.leaves.length)) {
+      rules = withCompanionUpdate(rules, signals.approvals, signals.stays, signals.leaves)
       changed = true
     }
+    if (mode === 'harem') {
+      const flow = haremFlow(rules)
+      const dupla = lastDupla(newMsgs) || flow.dupla
+      if (flow.fase !== 'escolha') {
+        const next = noteHaremScene(rules, dupla)
+        if (next !== rules) { rules = next; changed = true }
+      }
+    }
     if (mode === 'reality' && signals.eliminated.length) {
-      rules = withRealityOut(rules, signals.eliminated)
+      rules = realityCastWithout(withRealityOut(rules, signals.eliminated), signals.eliminated)
       changed = true
+    }
+    if (mode === 'verdade') {
+      const next = advanceVerdade(rules, playerNameRef.current || 'protagonista')
+      if (next !== rules) {
+        rules = next
+        changed = true
+        setAskTarget('')
+        setAskKind('')
+      }
+    }
+    if (mode === 'companion') {
+      const readable = newMsgs.some((m) => m.sender_type !== 'player' && stripStageDirections(m.content).length > 0)
+      const hadNarration = newMsgs.some((m) => m.sender_type !== 'player')
+      if (hadNarration && !readable) setError('A cena veio sem texto. Escreva de novo para a equipe reagir.')
     }
     if (changed) {
       masterRules.current = rules
+      setRulesText(rules)
       svc.saveNarrativeMode(storyId, rules).catch(() => {})
     }
   }, [storyId])
@@ -235,7 +266,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         if (!recovered) throw e
         res = recovered
       }
-      applyResponse(res.messages, res.state)
+      applyResponse(res.messages, res.state, !!channel)
       if (!channel) setCursor(prevVisible) // primeiro bloco novo da campanha
       if (kind === 'turn') {
         setInput('');
@@ -280,12 +311,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         if (!alive) return
         setStory(b.story); setScenarios(b.scenarios); setCharacters(b.characters); setPlayer(b.player); setState(st); setTags(b.tags || [])
         masterRules.current = b.master?.additional_rules || ''
+        setRulesText(masterRules.current)
         const savedMode = parseNarrativeMode(masterRules.current)
         setNarrativeMode(savedMode.mode)
         setThemeDraft(savedMode.theme)
         if (!masterRules.current.includes('[[MODO_NARRATIVO]]')) {
           const next = withNarrativeMode(masterRules.current, 'visual')
           masterRules.current = next
+          setRulesText(next)
           svc.saveNarrativeMode(storyId, next).catch(() => {})
         }
         setMessages(msgs); setHasMore(msgs.length >= 40)
@@ -304,7 +337,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     return () => { alive = false }
   }, [storyId])
 
-  function send() {
+  async function send() {
     const hasText = input.trim().length > 0
     const hasImg = Boolean(actionImage)
     if ((!hasText && !hasImg) || busy.current || thinking || !atEnd) return
@@ -312,7 +345,18 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       notify('Limite diário de 20 mensagens atingido!', 'error')
       return
     }
-    const action = hasText ? input.trim() : '[O jogador mostra uma foto/imagem e aguarda sua reação]'
+    let action = hasText ? input.trim() : '[O jogador mostra uma foto/imagem e aguarda sua reação]'
+    if (narrativeMode === 'verdade' && verdadeFlow(masterRules.current).indice <= 0) {
+      if (!askTarget || !askKind) {
+        notify('Escolha para quem perguntar e se é verdade ou desafio.', 'error')
+        return
+      }
+      const next = withVerdadeAsk(masterRules.current, askTarget, askKind)
+      masterRules.current = next
+      setRulesText(next)
+      try { await svc.saveNarrativeMode(storyId, next) } catch { /* a jogada segue na ação */ }
+      action = `${askKind === 'verdade' ? 'Verdade' : 'Desafio'} para ${askTarget}: ${action}`
+    }
     const imgToSend = actionImage || undefined
     run('turn', action, imgToSend)
   }
@@ -353,6 +397,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         id = uParts[1]
         exprType = uParts.slice(2).join('_')
       }
+    } else if (uploadTarget === 'player') {
+      id = player?.id || storyId
     } else {
       id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
     }
@@ -360,7 +406,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try {
       const ext = file.name.split('.').pop()
       const path = `${story?.user_id}/${storyId}/${id}-${Date.now()}.${ext}`
-      const isPlayer = !isExpr && uploadTarget !== 'scenario' && current?.sender_type === 'player'; const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : isPlayer ? 'player-assets' : 'character-assets'
+      const isPlayer = uploadTarget === 'player' || (!isExpr && uploadTarget !== 'scenario' && current?.sender_type === 'player'); const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : isPlayer ? 'player-assets' : 'character-assets'
       const { supabase } = await import('@/lib/supabase/client')
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
       if (error) throw error
@@ -380,6 +426,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           setCharacters((ch) => ch.map((x) => x.id === id ? up : x))
           if (editingChar?.id === id) setEditingChar(up)
         }
+      } else if (uploadTarget === 'player' && player) {
+        const up = { ...player, image_url: pub.publicUrl, image_path: path }
+        await svc.savePlayer(up)
+        setPlayer(up)
       } else if (speaker) {
         const up = { ...speaker, image_url: pub.publicUrl, image_path: path }
         if (isPlayer) {
@@ -451,21 +501,53 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       ? (player?.name || 'VOCÊ')
       : (state?.current_location || scenario?.name || 'Cena')
   const shownText = current ? stripStageDirections(current.content) : ''
+  const hFlow = haremFlow(rulesText)
+  const rFlow = realityFlow(rulesText)
+  const vFlow = verdadeFlow(rulesText)
+  const haremMustChoose = narrativeMode === 'harem' && hFlow.fase === 'escolha' && !!hFlow.dupla
+  const verdadeStep = vFlow.fila[vFlow.indice - 1]
+  const verdadeCanType = narrativeMode !== 'verdade' || vFlow.indice <= 0 || vFlow.sub === 'responder'
+  const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && !haremMustChoose
+    && Array.isArray((state?.state_data as any)?.pending_choices)
+    ? ((state?.state_data as any).pending_choices as string[])
+    : []
 
   async function playChoice(choice: string) {
     if (narrativeMode === 'harem') {
-      const dupla = lastDupla(messages)
-      if (dupla) {
+      const flow = haremFlow(masterRules.current)
+      const dupla = flow.dupla || lastDupla(messages)
+      if (flow.fase === 'escolha' && dupla) {
         const picked = dupla.find((name) => choice.toLowerCase().includes(name.toLowerCase()))
         const rejected = picked ? dupla.filter((name) => name.toLowerCase() !== picked.toLowerCase()) : []
         if (picked && rejected.length) {
-          const next = withHaremRoster(masterRules.current, [picked], rejected)
+          const next = resetHaremChapter(withHaremRoster(masterRules.current, [picked], rejected))
           masterRules.current = next
+          setRulesText(next)
           try { await svc.saveNarrativeMode(storyId, next) } catch { /* a próxima cena ainda recebe a escolha */ }
         }
       }
     }
     run('turn', choice)
+  }
+
+  async function continueVerdade() {
+    const flow = verdadeFlow(masterRules.current)
+    const play = flow.fila[flow.indice - 1]
+    if (!play || thinking) return
+    const action = play.target.toLowerCase() === (player?.name || '').toLowerCase()
+      ? `Sorteio: ${play.asker} faz um ${play.kind} para o protagonista.`
+      : `Sorteio: ${play.asker} faz um ${play.kind} para ${play.target}.`
+    run('turn', action)
+  }
+
+  async function nextRealityPart() {
+    if (thinking) return
+    const next = advanceRealityPhase(masterRules.current)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a parte nova segue na ação */ }
+    const fase = REALITY_PHASE_LABEL[realityFlow(next).fase]
+    run('turn', `A parte anterior terminou. Comece agora a parte: ${fase}.`)
   }
 
   function publicVote() {
@@ -488,11 +570,30 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     }
     setSavingTheme(true)
     try {
-      const next = (mode === 'verdade' || mode === 'web')
+      let next = (mode === 'verdade' || mode === 'web')
         ? withChosenCast(masterRules.current, mode, names || [])
         : withNarrativeMode(masterRules.current, mode, theme)
+      if (mode === 'verdade') next = startVerdadeRound(next, names || [], player?.name || 'protagonista')
+      if (mode === 'web') {
+        const seq = messages.length ? messages[messages.length - 1].sequence_number : 0
+        next = withWebSince(next, seq)
+      }
+      if (mode === 'reality') {
+        const pool = characters.map((c) => c.name).filter(Boolean)
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          const tmp = pool[i]
+          pool[i] = pool[j]
+          pool[j] = tmp
+        }
+        next = withRealityCast(next, pool.slice(0, 7))
+      }
+      if (mode === 'harem') next = resetHaremChapter(next)
       await svc.saveNarrativeMode(storyId, next)
       masterRules.current = next
+      setRulesText(next)
+      setAskTarget('')
+      setAskKind('')
       setNarrativeMode(mode)
       setThemeDraft(theme)
       notify('Tema salvo. A próxima resposta já segue esse modo.', 'ok')
@@ -746,9 +847,64 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         </section>
 
         {/* 2. BALÕES / BOTÕES DE ESCOLHAS (Abaixo do diálogo e acima da caixa de resposta) */}
-        {!loadingInit && !thinking && !error && atEnd && Array.isArray((state?.state_data as any)?.pending_choices) && ((state?.state_data as any)?.pending_choices.length > 0) && (
+        {!loadingInit && !thinking && !error && atEnd && (narrativeMode === 'verdade' || narrativeMode === 'harem' || narrativeMode === 'reality' || narrativeMode === 'companion' || narrativeMode === 'web') && (
+          <div className="vn-mode-banner" onClick={(e) => e.stopPropagation()}>
+            {narrativeMode === 'verdade' && (!vFlow.fila.length
+              ? 'Abra o tema e confirme os 6 personagens. O narrador sorteia a rodada.'
+              : vFlow.indice <= 0
+              ? 'Sua vez de perguntar ou desafiar alguém.'
+              : vFlow.sub === 'responder'
+                ? `${verdadeStep?.asker || 'Alguém'} fez um ${verdadeStep?.kind || 'desafio'}. Responda em texto.`
+                : verdadeStep?.target.toLowerCase() === (player?.name || '').toLowerCase()
+                  ? `Sorteio: ${verdadeStep?.asker} vai te fazer um ${verdadeStep?.kind}.`
+                  : `Sorteio: ${verdadeStep?.asker} faz um ${verdadeStep?.kind} para ${verdadeStep?.target}.`)}
+            {narrativeMode === 'harem' && (haremMustChoose
+              ? `Três cenas com cada uma. Escolha quem fica: ${hFlow.dupla?.[0]} ou ${hFlow.dupla?.[1]}.`
+              : hFlow.dupla
+                ? `Cenas feitas: ${hFlow.cenas} de 6. A próxima é com ${hFlow.cenas % 2 === 0 ? hFlow.dupla[0] : hFlow.dupla[1]}.`
+                : 'Duas mulheres entram. Cada uma tem três cenas para te conquistar.')}
+            {narrativeMode === 'reality' && `Parte: ${REALITY_PHASE_LABEL[rFlow.fase]}. Elenco: ${rFlow.elenco.join(', ') || 'abra o tema para sortear 7'}.`}
+            {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
+            {narrativeMode === 'web' && 'Conversa do zero, sem escolhas. Escreva o que você diz.'}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.indice <= 0 && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            {(state?.state_data as any).pending_choices.map((choice: string, idx: number) => (
+            {vFlow.fila.map((p) => p.asker).filter((name, i, arr) => arr.indexOf(name) === i).map((name) => (
+              <button key={name} type="button" className="vn-choice-bubble" style={{ borderColor: askTarget === name ? '#e5b869' : undefined }} onClick={() => setAskTarget(name)}>
+                <span className="vn-bubble-pointer" />
+                <span className="vn-bubble-text">Perguntar a {name}</span>
+              </button>
+            ))}
+            <button type="button" className="vn-choice-bubble" style={{ borderColor: askKind === 'verdade' ? '#e5b869' : undefined }} onClick={() => setAskKind('verdade')}>
+              <span className="vn-bubble-pointer" /><span className="vn-bubble-text">Verdade</span>
+            </button>
+            <button type="button" className="vn-choice-bubble" style={{ borderColor: askKind === 'desafio' ? '#e5b869' : undefined }} onClick={() => setAskKind('desafio')}>
+              <span className="vn-bubble-pointer" /><span className="vn-bubble-text">Desafio</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.indice > 0 && vFlow.sub !== 'responder' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void continueVerdade()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">{verdadeStep?.target.toLowerCase() === (player?.name || '').toLowerCase() ? 'Ouvir a pergunta' : 'Continuar a rodada'}</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && haremMustChoose && hFlow.dupla && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            {hFlow.dupla.map((name) => (
+              <button key={name} type="button" className="vn-choice-bubble" onClick={() => void playChoice(`${name} fica comigo`)}>
+                <span className="vn-bubble-pointer" />
+                <span className="vn-bubble-text">{name} fica</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && modelChoices.length > 0 && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            {modelChoices.map((choice: string, idx: number) => (
               <button
                 key={idx}
                 className="vn-choice-bubble"
@@ -760,7 +916,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             ))}
           </div>
         )}
-        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'reality' && (
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'reality' && rFlow.fase !== 'voto' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button className="vn-choice-bubble" onClick={() => void nextRealityPart()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Terminar esta parte</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'reality' && rFlow.fase === 'voto' && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
             <button className="vn-choice-bubble vn-vote-bubble" onClick={publicVote}>
               <span className="vn-bubble-pointer" />
@@ -770,7 +934,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
 
         {/* 3. PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
-        {!loadingInit && !thinking && !error && current && atEnd && (
+        {!loadingInit && !thinking && !error && current && atEnd && !haremMustChoose && verdadeCanType && (
           <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
             <div className="vn-action-console-inner">
               <span className="vn-action-console-badge">SUA RESPOSTA</span>
@@ -1021,7 +1185,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 {messages.length === 0 && <p className="drawer-empty">Nada aqui ainda.</p>}
                 <p className="drawer-note">O histórico é somente leitura para não quebrar a continuidade da história.</p>
               </>}
-              {panel === 'cast' && !editingChar && <>
+              {panel === 'cast' && !editingChar && !editingPlayer && <>
                 <button
                   className="primary-button vn-gold-button"
                   style={{ width: '100%', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 14px' }}
@@ -1113,7 +1277,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     <Download size={14} /> Exportar Elenco ({characters.length})
                   </button>
                 </div>
-                {player && <div className="cast-item"><div className="cast-avatar">{player.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={player.image_url} alt="" /> : <UserRound />}</div><div><strong>{player.name}</strong><span>VOCÊ CONTROLA</span></div></div>}
+                {player && <div className="cast-item"><div className="cast-avatar">{player.image_url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={player.image_url} alt="" /> : <UserRound />}</div><div style={{ flex: 1 }}><strong>{player.name}</strong><span>VOCÊ CONTROLA</span></div><button className="icon-button light" onClick={() => setEditingPlayer(true)} aria-label="Editar protagonista"><Pencil size={15} /></button></div>}
                 {characters.map((c) => (
                   <div key={c.id} className="cast-item">
                     <div className="cast-avatar">{c.image_url ? <img src={c.image_url} alt="" /> : <UserRound />}</div>
@@ -1123,6 +1287,37 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 ))}
                 {characters.length === 0 && <p className="drawer-empty">Nenhum personagem criado.</p>}
               </>}
+              {panel === 'cast' && editingPlayer && player && (
+                <div className="char-editor-panel">
+                  <div className="drawer-head" style={{ padding: 0, marginBottom: '12px', background: 'none' }}>
+                    <button className="outline-button light" onClick={() => setEditingPlayer(false)}><ArrowLeft size={16} /> Voltar</button>
+                    <strong style={{ flex: 1, textAlign: 'right' }}>{player.name || 'Protagonista'}</strong>
+                  </div>
+                  <button type="button" className="outline-button light" onClick={() => { setUploadTarget('player'); fileInputRef.current?.click() }}>Trocar imagem</button>
+                  <div className="field"><span>Nome</span><input value={player.name} onChange={(e) => setPlayer({ ...player, name: e.target.value })} /></div>
+                  <div className="char-form-grid">
+                    <div className="field"><span>Apelido</span><input value={player.nickname} onChange={(e) => setPlayer({ ...player, nickname: e.target.value })} /></div>
+                    <div className="field"><span>Idade</span><input value={player.age} onChange={(e) => setPlayer({ ...player, age: e.target.value })} /></div>
+                  </div>
+                  <div className="field"><span>Aparência</span><textarea value={player.appearance} onChange={(e) => setPlayer({ ...player, appearance: e.target.value })} rows={3} /></div>
+                  <div className="field"><span>Personalidade</span><textarea value={player.personality} onChange={(e) => setPlayer({ ...player, personality: e.target.value })} rows={3} /></div>
+                  <div className="field"><span>Passado</span><textarea value={player.history} onChange={(e) => setPlayer({ ...player, history: e.target.value })} rows={3} /></div>
+                  <div className="field"><span>Estilo de fala</span><textarea value={player.speech_style || ''} onChange={(e) => setPlayer({ ...player, speech_style: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Objetivos</span><textarea value={player.goals} onChange={(e) => setPlayer({ ...player, goals: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Medos</span><textarea value={player.fears} onChange={(e) => setPlayer({ ...player, fears: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Segredos</span><textarea value={player.secrets || ''} onChange={(e) => setPlayer({ ...player, secrets: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Informações extras</span><textarea value={player.extra_information} onChange={(e) => setPlayer({ ...player, extra_information: e.target.value })} rows={2} /></div>
+                  <button className="primary-button" style={{ marginTop: 16 }} onClick={async () => {
+                    try {
+                      await svc.savePlayer(player)
+                      setEditingPlayer(false)
+                      notify('Protagonista atualizado.', 'ok')
+                    } catch (e) {
+                      notify(friendlyError(e, 'Não foi possível salvar o protagonista.'), 'error')
+                    }
+                  }}>Salvar protagonista</button>
+                </div>
+              )}
               {panel === 'cast' && editingChar && (
                 <div className="char-editor-panel">
                   <div className="drawer-head" style={{ padding: 0, marginBottom: '12px', background: 'none' }}>

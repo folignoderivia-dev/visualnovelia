@@ -476,6 +476,10 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
             <Field label="Aparência" placeholder="Como você é fisicamente?" multiline rows={3} value={player.appearance} onChange={(v) => setPlayer({ appearance: v })} />
             <Field label="Personalidade" placeholder="Descreva quem você é neste mundo..." multiline rows={3} value={player.personality} onChange={(v) => setPlayer({ personality: v })} />
             <Field label="Passado" placeholder="De onde você veio?" multiline rows={3} value={player.history} onChange={(v) => setPlayer({ history: v })} />
+            <Field label="Estilo de fala" placeholder="Gírias, tom, tiques" multiline rows={2} value={player.speech_style || ''} onChange={(v) => setPlayer({ speech_style: v })} />
+            <Field label="Medos" placeholder="Do que você tem medo?" multiline rows={2} value={player.fears} onChange={(v) => setPlayer({ fears: v })} />
+            <Field label="Segredos" placeholder="O narrador sabe, mas não revela sem motivo." multiline rows={2} value={player.secrets || ''} onChange={(v) => setPlayer({ secrets: v })} />
+            <Field label="Informações extras" placeholder="Mais alguma coisa sobre você?" multiline rows={2} value={player.extra_information} onChange={(v) => setPlayer({ extra_information: v })} />
           </div></>}
 
         {step === 5 && <>

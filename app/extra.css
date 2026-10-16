@@ -946,6 +946,16 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 }
 
 /* BALÕES DE ESCOLHAS NO ESTILO DA IMAGEM 3 (Abaixo do diálogo e acima da caixa de resposta) */
+.vn-mode-banner {
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(229, 184, 105, 0.45);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #f3e6c8;
+  font-size: 13px;
+  line-height: 1.45;
+}
 .vn-choices-balloon-row {
   position: relative !important;
   bottom: auto !important;

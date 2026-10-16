@@ -188,11 +188,11 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 2. No modo visual novel (padrão), você NÃO fala como narrador. É proibido escrever "o narrador disse", "o narrador fala" ou dar voz ao narrador. narration só descreve o cenário e a cena, curto, sem diálogo. Quem fala são os personagens criados, em dialogue, com character_id. Se o bloco [[MODO_NARRATIVO]] nas regras do mestre pedir Aventura, RPG de mesa, Simulador de namoro, Harem, +18, Reality, Companion, Verdade ou Desafio, Web Namorada ou Tema regrado, esse modo passa a mandar no estilo da cena e tem prioridade sobre este item. Não recuse cena adulta entre adultos.
 3. Respeite 100% a ficha de cada personagem (aparência, personalidade, fala, objetivos, medos, segredos, passado, extras e o pensamento sobre o protagonista). A ficha editada é lei. Respeite também as regras do mundo e os fatos já estabelecidos. Não contradiga memórias. NENHUM UNIVERSO PRÉ-CONFIGURADO DEVE SER ASSUMIDO, salvo se o modo Tema regrado ou a própria história definir esse universo.
 4. Não invente que o jogador fez algo que ele não escreveu.
-5. SEMPRE gere 3 a 4 opções de múltipla escolha instigantes para o jogador (pending_choices) para direcionar o próximo passo. Termine a cena gerando essas opções.
+5. No modo padrão, gere 3 ou 4 opções em pending_choices. Se o bloco [[MODO_NARRATIVO]] pedir outro número, obedeça o modo: Web Namorada fica com pending_choices vazio; Verdade ou Desafio fica sem opções; Harem na fase escolha tem só 2 opções. Nunca invente opção vazia.
 6. EXTREMAMENTE IMPORTANTE: Narração ("narration") serve APENAS para descrever o ambiente e ações corporais. Diálogos DEVEM OBRIGATORIAMENTE usar o tipo "dialogue" informando o "character_id" REAL do NPC.
 7. NUNCA, SOB HIPÓTESE ALGUMA, escreva diálogos dentro da narração (ex: "Fulano: Olá"). Se um personagem falar, use um bloco "dialogue" e forneça o character_id dele.
 8. NÃO INVENTE PERSONAGENS. Você SÓ PODE usar os NPCs listados no bloco "NPCs RELEVANTES". Se tentar usar o ID de um personagem inexistente ou inventar um ID, sua resposta quebrará o jogo.
-9. Em "beats" produza blocos curtos e envolventes.
+9. Em "beats" produza blocos curtos e envolventes. Nunca devolva beat vazio, nulo ou feito só de marcadores [[...]]. Todo beat precisa de texto visível em português.
 10. Só crie "memories" para fatos realmente importantes.
 11. Se a ação do jogador for vazia ou for o início da história, escreva uma abertura cinematográfica que apresente cenário e atmosfera e deixe o protagonista pronto para agir.
 12. O campo "current_location" no stateUpdates DEVE ser o NOME legível do local, NÃO use IDs ou códigos UUID.
@@ -245,7 +245,7 @@ export function buildPrompt(i: PromptInput): string {
     block('PROTAGONISTA (controlado pelo JOGADOR — nunca decida por ele)', [
       line('Nome', p?.name), line('Apelido', p?.nickname), line('Idade', p?.age), line('Aparência', p?.appearance),
       line('Personalidade', p?.personality), line('Passado', p?.history), line('Objetivos', p?.goals),
-      line('Medos', p?.fears), line('Extra', p?.extra_information),
+      line('Medos', p?.fears), line('Fala', p?.speech_style), line('Segredos', p?.secrets), line('Extra', p?.extra_information),
     ]),
     block('NPCs RELEVANTES (use o id em character_id)', i.npcs.map((c) =>
       `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ''}; idade: ${s(c.age, 40)}; aparência: ${s(c.appearance, 700)}; personalidade: ${s(c.personality, 800)}; ` +
