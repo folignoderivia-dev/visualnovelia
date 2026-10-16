@@ -9,7 +9,7 @@ export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }
   { id: 'adulto', label: '+18', hint: 'Falas adultas, sem filtro e sem censura, no jeito da ficha.' },
   { id: 'reality', label: 'Reality', hint: 'Sete participantes. Convivência, desafios, intimidade, provas e o voto do público.' },
   { id: 'companion', label: 'Companion', hint: 'Cada fala sua gera aprovação ou desaprovação. Quem perde pontos sai da equipe.' },
-  { id: 'verdade', label: 'Verdade ou desafio', hint: 'O narrador sorteia quem pergunta para quem. Você pergunta numa vez e recebe na outra.' },
+  { id: 'verdade', label: 'Verdade ou desafio', hint: 'D6: você pergunta, o narrador sorteia quem te pergunta, você desafia, o narrador sorteia quem te desafia.' },
   { id: 'web', label: 'Web namorada', hint: 'Conversa do zero, só vocês dois, sem escolhas. Tudo por texto.' },
   { id: 'tema', label: 'Tema regrado', hint: 'Você escreve um filme, jogo ou campanha e a história segue esse cânone.' },
 ]
@@ -70,8 +70,8 @@ ${common}`
     return `MODO ATIVO: HAREM.
 ${state}Só duas mulheres da ficha, 100% no jeito de cada uma. Sem homens e sem gente inventada. pending_choices SEMPRE vazio: o jogo mostra os botões.
 Se o ESTADO não tem dupla, apresente duas que não foram eliminadas. Cada uma tenta chamar a atenção do protagonista do jeito dela. Escreva [[DUPLA:Nome A|Nome B]] na narração. Não faça ele escolher ainda.
-Se a fase é apresenta, as duas tentam chamar a atenção, cada uma do seu jeito, em falas curtas. Não avance a interação. Não escolha por ele.
-Se a fase é solo, a cena é SÓ com o foco. A outra não fala, não entra e não é citada. Ela age para conquistar, seduzir ou mostrar qualidades. No fim, uma narração curta: as duas tentam chamar a atenção de novo.
+Se a fase é apresenta, as duas se esforçam para encantar, apaixonar, seduzir, apelar e ousar até conseguir a atenção dele. Cada uma no limite da ficha, sem timidez genérica. Não avance a interação. Não escolha por ele.
+Se a fase é solo, a cena é SÓ com o foco. A outra não fala, não entra e não é citada. Ela se esforça para encantar, apaixonar, seduzir, apelar e ousar. No fim, uma narração curta: as duas voltam a disputar a atenção, ousadas.
 Se a fase é final, não escreva cena nova.
 Narração com lugar. Falas em dialogue com character_id real. Nada vazio. Não escreva a fala do protagonista.
 ${SHEET}`
@@ -102,12 +102,17 @@ ${SHEET}`
   }
   if (mode === 'verdade') {
     return `MODO ATIVO: VERDADE OU DESAFIO.
-${state}Adultos. Só o protagonista e os 6 nomes do ESTADO. Siga a linha JOGADA, nessa ordem, sem pular ninguém.
-VERDADE: resposta sincera, sem desviar, com segredos, objetivos, medos e o que pensa do protagonista. Vale pergunta íntima, constrangedora, tabu, fetiche, preferência e escolha tensa. DESAFIO: a pessoa cumpre beijo, toque ou o que a ficha permitir.
-Se a JOGADA diz que o protagonista pergunta: não invente a pergunta. O alvo responde ou cumpre agora. pending_choices vazio.
-Se a JOGADA diz que ele recebe e ainda não ouviu: escreva SÓ a pergunta ou o desafio, em dialogue, com o character_id de quem pergunta. Não responda por ele. pending_choices vazio.
-Se a JOGADA diz que ele já respondeu: quem perguntou reage em uma fala curta. pending_choices vazio.
-Se a JOGADA é entre dois NPCs: os dois jogam agora, pergunta e resposta. pending_choices vazio.
+${state}Adultos. Só o protagonista e os 6 nomes do ESTADO, nesta ordem, sem pular e sem inverter:
+1. Ele rola um D6 e faz uma PERGUNTA para quem caiu. Essa pessoa é obrigada a responder com toda a verdade da ficha.
+2. O narrador rola um D6. Quem caiu faz uma PERGUNTA para ele.
+3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa é obrigada a cumprir.
+4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
+VERDADE: sem desviar, com segredos, objetivos, medos e o que pensa do protagonista. DESAFIO: cumpre beijo, toque ou o que a ficha permitir, sem recusar.
+Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde agora. pending_choices vazio.
+Se a JOGADA é pergunta para ele e ele ainda não ouviu: escreva SÓ a pergunta, em dialogue, com o character_id de quem caiu. Não responda por ele.
+Se a JOGADA é o desafio dele: não invente o desafio. Quem caiu cumpre agora.
+Se a JOGADA é o desafio para ele e ele ainda não ouviu: escreva SÓ o desafio. Não cumpra por ele.
+Se a JOGADA é a resposta dele: quem perguntou ou desafiou só reage, curto.
 Não traga gente de fora. Nada vazio.
 ${SHEET}`
   }
@@ -319,99 +324,84 @@ export function realityCastWithout(rules: string, gone: string[]): string {
   return refreshMode(replaceBlock(rules, REALITY_FLOW_S, REALITY_FLOW_E, `fase: convivencia\nelenco: ${elenco.join('; ')}`))
 }
 
-export interface VerdadePlay { asker: string; target: string; kind: 'verdade' | 'desafio' }
+export type VerdadePasso = 0 | 1 | 2 | 3
+export type VerdadeFase = 'rolar' | 'escrever' | 'ouvir' | 'responder'
+
 export function verdadeFlow(rules: string | null | undefined): {
   rodada: number
-  indice: number
-  sub: '' | 'ouvir' | 'responder'
-  fila: VerdadePlay[]
+  passo: VerdadePasso
+  fase: VerdadeFase
+  dado: number
   alvo: string
-  tipo: '' | 'verdade' | 'desafio'
+  elenco: string[]
   jogador: string
 } {
-  const body = readBlock(rules || '', VERDADE_FLOW_S, VERDADE_FLOW_E)
-  const fila = (body.match(/fila:\s*(.*)/)?.[1] || '').split(';').map((part) => {
-    const [asker, target, kind] = part.split('::').map((x) => x.trim())
-    if (!asker || !target) return null
-    return { asker, target, kind: kind === 'desafio' ? 'desafio' as const : 'verdade' as const }
-  }).filter((x): x is VerdadePlay => !!x)
-  const subRaw = body.match(/sub:\s*(\w+)/)?.[1] || ''
-  const tipoRaw = body.match(/tipo:\s*(\w+)/)?.[1] || ''
+  const text = rules || ''
+  const body = readBlock(text, VERDADE_FLOW_S, VERDADE_FLOW_E)
+  const passoRaw = Number(body.match(/passo:\s*(\d+)/)?.[1] || 0)
+  const passo = (passoRaw === 1 || passoRaw === 2 || passoRaw === 3 ? passoRaw : 0) as VerdadePasso
+  const faseRaw = body.match(/fase:\s*(\w+)/)?.[1] || 'rolar'
+  const fase: VerdadeFase = faseRaw === 'escrever' || faseRaw === 'ouvir' || faseRaw === 'responder' ? faseRaw : 'rolar'
+  const listed = namesOf(body, 'elenco')
   return {
     rodada: Number(body.match(/rodada:\s*(\d+)/)?.[1] || 1) || 1,
-    indice: Number(body.match(/indice:\s*(\d+)/)?.[1] || 0) || 0,
-    sub: subRaw === 'ouvir' || subRaw === 'responder' ? subRaw : '',
-    fila,
+    passo,
+    fase,
+    dado: Number(body.match(/dado:\s*(\d+)/)?.[1] || 0) || 0,
     alvo: body.match(/alvo:\s*(.*)/)?.[1]?.trim() || '',
-    tipo: tipoRaw === 'verdade' || tipoRaw === 'desafio' ? tipoRaw : '',
+    elenco: listed.length ? listed : chosenCast(text).verdade,
     jogador: body.match(/jogador:\s*(.*)/)?.[1]?.trim() || '',
   }
 }
 
 function writeVerdade(rules: string, flow: ReturnType<typeof verdadeFlow>): string {
-  const fila = flow.fila.map((p) => `${p.asker}::${p.target}::${p.kind}`).join('; ')
-  const body = `rodada: ${flow.rodada}\nindice: ${flow.indice}\nsub: ${flow.sub}\njogador: ${flow.jogador}\nalvo: ${flow.alvo}\ntipo: ${flow.tipo}\nfila: ${fila}`
+  const body = `rodada: ${flow.rodada}\npasso: ${flow.passo}\nfase: ${flow.fase}\ndado: ${flow.dado}\nalvo: ${flow.alvo}\njogador: ${flow.jogador}\nelenco: ${flow.elenco.join('; ')}`
   return refreshMode(replaceBlock(rules, VERDADE_FLOW_S, VERDADE_FLOW_E, body))
 }
 
 export function startVerdadeRound(rules: string, npcNames: string[], playerName: string, rodada = 1): string {
-  const names = unique(npcNames).slice(0, 6)
-  const askers = shuffle(names)
-  const recebe = Math.floor(Math.random() * Math.max(askers.length, 1))
-  const fila: VerdadePlay[] = askers.map((asker, i) => {
-    const kind: VerdadePlay['kind'] = Math.random() < 0.5 ? 'verdade' : 'desafio'
-    if (i === recebe) return { asker, target: playerName || 'protagonista', kind }
-    const others = names.filter((n) => n.toLowerCase() !== asker.toLowerCase())
-    const target = others[Math.floor(Math.random() * Math.max(others.length, 1))] || asker
-    return { asker, target, kind }
+  const elenco = unique(npcNames).slice(0, 6)
+  return writeVerdade(rules, { rodada, passo: 0, fase: 'rolar', dado: 0, alvo: '', elenco, jogador: playerName || 'protagonista' })
+}
+
+/** D6: 1 a 6 cai na pessoa da mesma posição. Passos 0 e 2 esperam o texto dele. 1 e 3 a pessoa fala. */
+export function withVerdadeRoll(rules: string, dado: number, alvo: string, fase: 'escrever' | 'ouvir'): string {
+  const cur = verdadeFlow(rules)
+  return writeVerdade(rules, { ...cur, dado, alvo, fase })
+}
+
+/** Depois da resposta: ou ele ainda vai responder, ou a ordem anda para o próximo passo. */
+export function advanceVerdade(rules: string, _playerName = ''): string {
+  const cur = verdadeFlow(rules)
+  if (!cur.elenco.length) return rules
+  if (cur.fase === 'ouvir') return writeVerdade(rules, { ...cur, fase: 'responder' })
+  if (cur.fase !== 'escrever' && cur.fase !== 'responder') return rules
+  const passo = ((cur.passo + 1) % 4) as VerdadePasso
+  return writeVerdade(rules, {
+    ...cur,
+    passo,
+    fase: 'rolar',
+    dado: 0,
+    alvo: '',
+    rodada: passo === 0 ? cur.rodada + 1 : cur.rodada,
   })
-  return writeVerdade(rules, { rodada, indice: 0, sub: '', fila, alvo: '', tipo: '', jogador: playerName || 'protagonista' })
 }
 
-export function withVerdadeAsk(rules: string, target: string, kind: 'verdade' | 'desafio'): string {
-  const cur = verdadeFlow(rules)
-  return writeVerdade(rules, { ...cur, indice: 0, sub: '', alvo: target, tipo: kind })
-}
-
-/** Avança a rodada depois que o narrador respondeu a jogada atual. */
-export function advanceVerdade(rules: string, playerName: string): string {
-  const cur = verdadeFlow(rules)
-  const you = (playerName || 'protagonista').toLowerCase()
-  if (!cur.fila.length) return rules
-  if (cur.indice <= 0) {
-    const first = cur.fila[0]
-    const sub = first && first.target.toLowerCase() === you ? 'ouvir' as const : '' as const
-    return writeVerdade(rules, { ...cur, indice: 1, sub, alvo: '', tipo: '' })
-  }
-  const play = cur.fila[cur.indice - 1]
-  if (play && play.target.toLowerCase() === you && cur.sub === 'ouvir') {
-    return writeVerdade(rules, { ...cur, sub: 'responder' })
-  }
-  const indice = cur.indice + 1
-  if (indice > cur.fila.length) {
-    const names = unique(cur.fila.map((p) => p.asker))
-    return startVerdadeRound(rules, names, playerName, cur.rodada + 1)
-  }
-  const next = cur.fila[indice - 1]
-  const sub = next && next.target.toLowerCase() === you ? 'ouvir' as const : '' as const
-  return writeVerdade(rules, { ...cur, indice, sub, alvo: '', tipo: '' })
-}
-
-export function verdadeJogada(rules: string | null | undefined, playerName = ''): string {
+export function verdadeJogada(rules: string | null | undefined, _playerName = ''): string {
   const f = verdadeFlow(rules)
-  const you = playerName || f.jogador || 'protagonista'
-  if (!f.fila.length) return 'JOGADA: ainda sem sorteio. Espere o jogador confirmar os 6.'
-  if (f.indice <= 0) {
-    if (f.alvo && f.tipo) return `JOGADA: o protagonista pergunta ${f.tipo} para ${f.alvo}. ${f.alvo} responde ou cumpre agora. Sem pending_choices.`
-    return 'JOGADA: vez do protagonista perguntar ou desafiar. Espere o nome e o tipo na ação. Sem pending_choices.'
-  }
-  const play = f.fila[f.indice - 1]
-  if (!play) return 'JOGADA: rode de novo.'
-  if (play.target.toLowerCase() === you.toLowerCase()) {
-    if (f.sub === 'responder') return `JOGADA: o protagonista responde agora na ação ao ${play.kind} de ${play.asker}. ${play.asker} só reage, curto. Sem pending_choices.`
-    return `JOGADA: ${play.asker} faz um ${play.kind} para o protagonista. Escreva só a pergunta ou o desafio. Sem pending_choices.`
-  }
-  return `JOGADA: ${play.asker} faz um ${play.kind} para ${play.target}. Os dois jogam agora. Sem pending_choices.`
+  if (f.elenco.length < 6) return 'JOGADA: faltam os 6 nomes. Espere o jogador confirmar o elenco.'
+  const who = f.alvo || 'quem caiu no dado'
+  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. ${who} é obrigada a responder com toda a verdade da ficha. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UMA pergunta para o protagonista. Escreva só a pergunta, em dialogue. Não responda por ele. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde agora à pergunta de ${who}. ${who} só reage, curto. Sem pending_choices.`
+  if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. ${who} é obrigada a cumprir agora. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UM desafio para o protagonista. Escreva só o desafio. Não cumpra por ele. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta agora o desafio de ${who}. ${who} só reage, curto. Sem pending_choices.`
+  const espera = f.passo === 0 ? 'o protagonista rolar o D6 para perguntar'
+    : f.passo === 1 ? 'o narrador rolar o D6 para ver quem pergunta a ele'
+    : f.passo === 2 ? 'o protagonista rolar o D6 para desafiar'
+    : 'o narrador rolar o D6 para ver quem desafia ele'
+  return `JOGADA: espere ${espera}. Não avance a cena. Sem pending_choices.`
 }
 
 export function webSince(rules: string | null | undefined): number {
@@ -432,17 +422,6 @@ export function withPlayerPhotos(rules: string, keys: string[]): string {
   return replaceBlock(rules, PHOTO_S, PHOTO_E, body)
 }
 
-function shuffle<T>(list: T[]): T[] {
-  const arr = [...list]
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const tmp = arr[i]
-    arr[i] = arr[j]
-    arr[j] = tmp
-  }
-  return arr
-}
-
 export function persistentStateLine(rules: string | null | undefined, mode?: NarrativeMode): string {
   const text = rules || ''
   const harem = haremRoster(text)
@@ -456,8 +435,8 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
       ? hf.fase === 'final'
         ? `harem fase: final. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. As duas já tiveram 5 ações. Não escreva cena. Sem pending_choices.`
         : hf.fase === 'solo'
-          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cena SÓ com o foco. A outra não fala nem aparece. Sem pending_choices.`
-          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. As duas tentam chamar a atenção, cada uma do seu jeito. O jogador ainda não escolheu. Sem pending_choices.`
+          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cena SÓ com o foco. Ela se esforça para encantar, apaixonar, seduzir, apelar e ousar. A outra não fala nem aparece. Sem pending_choices.`
+          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. As duas se esforçam para encantar, apaixonar, seduzir, apelar e ousar até conseguir a atenção dele. O jogador ainda não escolheu. Sem pending_choices.`
       : '',
     mode === 'harem' && !hf.dupla ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres novas que não foram eliminadas. Cada uma chama a atenção do seu jeito. Escreva [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
     harem.eliminated.length ? `harem eliminadas: ${harem.eliminated.join(', ')}` : '',
@@ -563,12 +542,14 @@ const PHOTO_ASK = /foto|fotos|photo|nudes?|pelad|sem roupa|nua\b|nu\b|pack\b|sen
 export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: string, points: number): string {
   const chance = Math.max(0, Math.min(100, Math.round(points || 0)))
   const app = channel === 'tinder' ? 'Tinder' : 'WhatsApp'
-  let photo = 'Não pediu foto. Não mande foto.'
+  let photo = 'Não pediu foto. Não mande foto primeiro. Foto só em troca: ninguém manda sem o outro também mandar.'
   if (PHOTO_ASK.test(message)) {
     const roll = Math.floor(Math.random() * 100) + 1
     photo = roll <= chance
-      ? `DADO DE FOTO: ACEITOU. Chance ${chance}%. Mande a foto.`
-      : `DADO DE FOTO: RECUSOU. Chance ${chance}%. Recuse a foto e não use expression de foto.`
+      ? `ELE PEDIU FOTO. Se esta mensagem não tiver uma foto dele, não mande a sua: peça a foto dele primeiro. Se ele já mandou a dele, retribua.`
+      : `DADO DE FOTO: RECUSOU. Chance ${chance}%. Recuse e não use expression de foto.`
+  } else if (chance >= 40 && Math.random() * 100 < Math.min(35, chance / 3)) {
+    photo = 'PEÇA A FOTO DELE, no seu jeito. Não mande a sua ainda. Foto nunca sai primeiro e nunca sai sem troca.'
   }
   return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}`
 }

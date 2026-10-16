@@ -282,17 +282,32 @@ export type PhotoCall = {
   accepted: boolean
   expression: 'foto_casual' | 'foto_sensual' | 'foto_pe' | 'foto_18' | null
   chance: number
+  /** Pede a foto dele e não manda a sua. */
+  askPlayer: boolean
+  /** Ele pediu, mas ainda não mandou a dele. */
+  waitForHis: boolean
 }
 
-/** A chance de aceitar e mandar a foto é o próprio valor de relacionamento (0 a 100). */
-export function decidePhoto(text: string, points: number): PhotoCall {
+function photoExpression(chance: number): PhotoCall['expression'] {
+  return chance >= 80 ? 'foto_18' : chance >= 60 ? 'foto_pe' : chance >= 40 ? 'foto_sensual' : 'foto_casual'
+}
+
+/** Foto só em troca. Ninguém manda sem o outro já ter mandado. A chance continua sendo a intimidade. */
+export function decidePhoto(text: string, points: number, flags?: { sentBefore?: boolean; sentNow?: boolean }): PhotoCall {
   const chance = Math.max(0, Math.min(100, Math.round(Number(points) || 0)))
   const asked = PHOTO_ASK.test(text || '')
-  if (!asked) return { asked: false, accepted: false, expression: null, chance }
-  const roll = Math.floor(Math.random() * 100) + 1
-  if (roll > chance) return { asked: true, accepted: false, expression: null, chance }
-  const expression = chance >= 80 ? 'foto_18' : chance >= 60 ? 'foto_pe' : chance >= 40 ? 'foto_sensual' : 'foto_casual'
-  return { asked: true, accepted: true, expression, chance }
+  const sent = Boolean(flags?.sentBefore || flags?.sentNow)
+  const none: PhotoCall = { asked, accepted: false, expression: null, chance, askPlayer: false, waitForHis: false }
+  const roll = () => Math.floor(Math.random() * 100) + 1
+  if (asked || flags?.sentNow) {
+    if (roll() > chance) return { ...none, asked: true }
+    if (!sent) return { ...none, asked: true, askPlayer: true, waitForHis: true }
+    return { ...none, asked: true, accepted: true, expression: photoExpression(chance) }
+  }
+  if (!sent && chance >= 40 && Math.random() * 100 < Math.min(35, chance / 3)) {
+    return { ...none, askPlayer: true }
+  }
+  return none
 }
 
 export const CHANNEL_RULES = `Você é uma pessoa adulta respondendo no celular, em português do Brasil.
@@ -300,7 +315,12 @@ Esta conversa NÃO é a campanha. Começou agora, neste app. É proibido citar c
 A única ponte com a campanha é o número de intimidade (0 a 100). Ele mede o quanto você se abre. Não invente outra memória.
 Você segue a ficha: jeito de falar, personalidade, idade, aparência. Não vire outra pessoa.
 Responda só com 1 a 3 beats "dialogue" usando o character_id informado. Mensagens curtas de chat, sem narração de cena e sem pending_choices.
-Não escreva a fala do jogador. Não mande foto se o resultado do dado de foto for RECUSOU. Se for ACEITOU, use exatamente a expression indicada em um dos beats.`
+Não escreva a fala do jogador.
+Foto é sempre troca. Nunca mande uma foto primeiro e nunca mande sem ele também mandar a dele.
+Se o bloco disser PEÇA A FOTO DELE, peça a foto do protagonista e não mande a sua.
+Se disser ESPERE A FOTO DELE, ele pediu a sua mas não mandou a dele: peça a dele e não mande a sua.
+Se disser RETRIBUA, ele já mandou a dele: mande a sua com a expression indicada.
+Se disser RECUSOU, não mande foto.`
 
 export function buildChannelPrompt(i: {
   channel: 'tinder' | 'whatsapp'
@@ -315,11 +335,15 @@ export function buildChannelPrompt(i: {
   const app = i.channel === 'tinder'
     ? 'Tinder. Vocês acabaram de dar match. É a primeira conversa de um app de paquera, do zero.'
     : 'WhatsApp. É um chat de celular particular, do zero, como se a conversa neste número estivesse começando agora.'
-  const photoLine = !i.photo.asked
-    ? 'O jogador não pediu foto. Não mande foto.'
-    : i.photo.accepted
-      ? `DADO DE FOTO: ACEITOU. Chance era ${i.photo.chance}%. Mande a foto com expression "${i.photo.expression}" e uma fala curta de quem enviou.`
-      : `DADO DE FOTO: RECUSOU. Chance era ${i.photo.chance}%. Recuse mandar a foto, no seu jeito. expression null. Não mande foto_casual, foto_sensual, foto_pe nem foto_18.`
+  const photoLine = i.photo.accepted
+    ? `RETRIBUA. Chance era ${i.photo.chance}%. Ele já mandou a foto dele. Mande a sua com expression "${i.photo.expression}".`
+    : i.photo.waitForHis
+      ? 'ESPERE A FOTO DELE. Ele pediu a sua e não mandou a dele. Peça a foto dele e não mande a sua. expression null.'
+      : i.photo.askPlayer
+        ? 'PEÇA A FOTO DELE, no clima da intimidade. Não mande a sua. expression null.'
+        : i.photo.asked
+          ? `RECUSOU. Chance era ${i.photo.chance}%. Não mande foto. expression null.`
+          : 'Não mande foto e não peça foto nesta mensagem.'
   const history = i.history.length
     ? i.history.map((m) => `${m.sender_type === 'player' ? i.playerName : c?.name}: ${s(m.content, 400)}`).join('\n')
     : '(nenhuma mensagem ainda. Esta é a primeira.)'

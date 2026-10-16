@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeAsk, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -56,8 +56,6 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [editingChar, setEditingChar] = useState<Character | null>(null)
   const [editingPlayer, setEditingPlayer] = useState(false)
   const [rulesText, setRulesText] = useState('')
-  const [askTarget, setAskTarget] = useState('')
-  const [askKind, setAskKind] = useState<'' | 'verdade' | 'desafio'>('')
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [speakBusy, setSpeakBusy] = useState(false)
   const [autoSpeak, setAutoSpeak] = useState(false)
@@ -218,8 +216,6 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       if (next !== rules) {
         rules = next
         changed = true
-        setAskTarget('')
-        setAskKind('')
       }
     }
     if (mode === 'companion') {
@@ -364,16 +360,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       try { await svc.saveNarrativeMode(storyId, next) } catch { /* a cena segue na ação */ }
       action = `Eu interajo só com ${flow.foco}, e com mais ninguém: ${action}`
     }
-    if (narrativeMode === 'verdade' && verdadeFlow(masterRules.current).indice <= 0) {
-      if (!askTarget || !askKind) {
-        notify('Escolha para quem perguntar e se é verdade ou desafio.', 'error')
-        return
-      }
-      const next = withVerdadeAsk(masterRules.current, askTarget, askKind)
-      masterRules.current = next
-      setRulesText(next)
-      try { await svc.saveNarrativeMode(storyId, next) } catch { /* a jogada segue na ação */ }
-      action = `${askKind === 'verdade' ? 'Verdade' : 'Desafio'} para ${askTarget}: ${action}`
+    if (narrativeMode === 'verdade') {
+      const flow = verdadeFlow(masterRules.current)
+      if (flow.fase !== 'escrever' && flow.fase !== 'responder') return
+      action = flow.passo === 0
+        ? `D6 caiu em ${flow.alvo}. Minha pergunta, e ela é obrigada a dizer a verdade: ${action}`
+        : flow.passo === 2
+          ? `D6 caiu em ${flow.alvo}. Meu desafio, e ela é obrigada a cumprir: ${action}`
+          : `Minha resposta: ${action}`
     }
     const imgToSend = actionImage || undefined
     run('turn', action, imgToSend)
@@ -536,8 +530,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const rFlow = realityFlow(rulesText)
   const vFlow = verdadeFlow(rulesText)
   const haremLocksInput = narrativeMode === 'harem' && hFlow.fase !== 'solo'
-  const verdadeStep = vFlow.fila[vFlow.indice - 1]
-  const verdadeCanType = narrativeMode !== 'verdade' || vFlow.indice <= 0 || vFlow.sub === 'responder'
+  const verdadeCanType = narrativeMode !== 'verdade' || vFlow.fase === 'escrever' || vFlow.fase === 'responder'
   const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && narrativeMode !== 'harem'
     && Array.isArray((state?.state_data as any)?.pending_choices)
     ? ((state?.state_data as any).pending_choices as string[])
@@ -559,14 +552,22 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     run('turn', choice)
   }
 
-  async function continueVerdade() {
+  async function rollVerdade() {
+    if (thinking) return
     const flow = verdadeFlow(masterRules.current)
-    const play = flow.fila[flow.indice - 1]
-    if (!play || thinking) return
-    const action = play.target.toLowerCase() === (player?.name || '').toLowerCase()
-      ? `Sorteio: ${play.asker} faz um ${play.kind} para o protagonista.`
-      : `Sorteio: ${play.asker} faz um ${play.kind} para ${play.target}.`
-    run('turn', action)
+    if (flow.elenco.length < 1 || flow.fase !== 'rolar') return
+    const faces = Math.min(6, flow.elenco.length)
+    const dado = Math.floor(Math.random() * faces) + 1
+    const alvo = flow.elenco[dado - 1]
+    const fase = flow.passo === 0 || flow.passo === 2 ? 'escrever' as const : 'ouvir' as const
+    const next = withVerdadeRoll(masterRules.current, dado, alvo, fase)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* o dado segue na ação */ }
+    if (fase === 'ouvir') {
+      const kind = flow.passo === 1 ? 'uma pergunta de verdade' : 'um desafio'
+      run('turn', `O narrador rolou um D6 e tirou ${dado}. Caiu em ${alvo}. ${alvo} faz ${kind} para o protagonista.`)
+    }
   }
 
   async function presentHarem() {
@@ -638,8 +639,6 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       await svc.saveNarrativeMode(storyId, next)
       masterRules.current = next
       setRulesText(next)
-      setAskTarget('')
-      setAskKind('')
       setNarrativeMode(mode)
       setThemeDraft(theme)
       notify('Tema salvo. A próxima resposta já segue esse modo.', 'ok')
@@ -895,15 +894,23 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {/* 2. BALÕES / BOTÕES DE ESCOLHAS (Abaixo do diálogo e acima da caixa de resposta) */}
         {!loadingInit && !thinking && !error && atEnd && (narrativeMode === 'verdade' || narrativeMode === 'harem' || narrativeMode === 'reality' || narrativeMode === 'companion' || narrativeMode === 'web') && (
           <div className="vn-mode-banner" onClick={(e) => e.stopPropagation()}>
-            {narrativeMode === 'verdade' && (!vFlow.fila.length
-              ? 'Abra o tema e confirme os 6 personagens. O narrador sorteia a rodada.'
-              : vFlow.indice <= 0
-              ? 'Sua vez de perguntar ou desafiar alguém.'
-              : vFlow.sub === 'responder'
-                ? `${verdadeStep?.asker || 'Alguém'} fez um ${verdadeStep?.kind || 'desafio'}. Responda em texto.`
-                : verdadeStep?.target.toLowerCase() === (player?.name || '').toLowerCase()
-                  ? `Sorteio: ${verdadeStep?.asker} vai te fazer um ${verdadeStep?.kind}.`
-                  : `Sorteio: ${verdadeStep?.asker} faz um ${verdadeStep?.kind} para ${verdadeStep?.target}.`)}
+            {narrativeMode === 'verdade' && (vFlow.elenco.length < 6
+              ? 'Abra o tema e confirme os 6 personagens.'
+              : vFlow.fase === 'escrever' && vFlow.passo === 0
+                ? `D6 caiu em ${vFlow.alvo}. Escreva a pergunta. Ela responde com a verdade da ficha.`
+                : vFlow.fase === 'responder' && vFlow.passo === 1
+                  ? `${vFlow.alvo} te perguntou. Responda em texto.`
+                  : vFlow.fase === 'escrever' && vFlow.passo === 2
+                    ? `D6 caiu em ${vFlow.alvo}. Escreva o desafio. Ela é obrigada a cumprir.`
+                    : vFlow.fase === 'responder' && vFlow.passo === 3
+                      ? `${vFlow.alvo} te desafiou. Escreva como você enfrenta.`
+                      : vFlow.passo === 0
+                        ? 'Sua vez. Role o D6 para ver a quem você pergunta.'
+                        : vFlow.passo === 1
+                          ? 'Vez do narrador rolar o D6 e ver quem te pergunta.'
+                          : vFlow.passo === 2
+                            ? 'Sua vez. Role o D6 para ver quem cumpre o seu desafio.'
+                            : 'Vez do narrador rolar o D6 e ver quem te desafia.')}
             {narrativeMode === 'harem' && (hFlow.fase === 'final' && hFlow.dupla
               ? `${hFlow.dupla[0]} e ${hFlow.dupla[1]} já tiveram 5 ações cada. Decida quem segue.`
               : hFlow.fase === 'solo'
@@ -916,27 +923,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             {narrativeMode === 'web' && 'Conversa do zero, sem escolhas. Escreva o que você diz.'}
           </div>
         )}
-        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.indice <= 0 && (
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'rolar' && vFlow.elenco.length >= 6 && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            {vFlow.fila.map((p) => p.asker).filter((name, i, arr) => arr.indexOf(name) === i).map((name) => (
-              <button key={name} type="button" className="vn-choice-bubble" style={{ borderColor: askTarget === name ? '#e5b869' : undefined }} onClick={() => setAskTarget(name)}>
-                <span className="vn-bubble-pointer" />
-                <span className="vn-bubble-text">Perguntar a {name}</span>
-              </button>
-            ))}
-            <button type="button" className="vn-choice-bubble" style={{ borderColor: askKind === 'verdade' ? '#e5b869' : undefined }} onClick={() => setAskKind('verdade')}>
-              <span className="vn-bubble-pointer" /><span className="vn-bubble-text">Verdade</span>
-            </button>
-            <button type="button" className="vn-choice-bubble" style={{ borderColor: askKind === 'desafio' ? '#e5b869' : undefined }} onClick={() => setAskKind('desafio')}>
-              <span className="vn-bubble-pointer" /><span className="vn-bubble-text">Desafio</span>
-            </button>
-          </div>
-        )}
-        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.indice > 0 && vFlow.sub !== 'responder' && (
-          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="vn-choice-bubble" onClick={() => void continueVerdade()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void rollVerdade()}>
               <span className="vn-bubble-pointer" />
-              <span className="vn-bubble-text">{verdadeStep?.target.toLowerCase() === (player?.name || '').toLowerCase() ? 'Ouvir a pergunta' : 'Continuar a rodada'}</span>
+              <span className="vn-bubble-text">{vFlow.passo === 0 || vFlow.passo === 2 ? 'Rolar o D6' : 'Narrador rola o D6'}</span>
             </button>
           </div>
         )}
@@ -1051,7 +1042,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={2000}
                 disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
-                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : narrativeMode === 'harem' && hFlow.foco ? `O que você faz só com ${hFlow.foco}?` : `Como ${player?.name || 'você'} reage ou responde agora...?`}
+                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : narrativeMode === 'harem' && hFlow.foco ? `O que você faz só com ${hFlow.foco}?` : narrativeMode === 'verdade' && vFlow.passo === 0 ? 'Escreva a pergunta' : narrativeMode === 'verdade' && vFlow.passo === 2 ? 'Escreva o desafio' : `Como ${player?.name || 'você'} reage ou responde agora...?`}
                 aria-label="Resposta do jogador"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
               />
