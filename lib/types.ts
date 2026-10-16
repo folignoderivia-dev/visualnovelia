@@ -105,6 +105,8 @@ export interface PlayerCharacter {
   /** O que o narrador sabe e não revela sem motivo. */
   secrets?: string
   extra_information: string
+  /** Mesmas chaves dos NPCs: neutral, happy, angry, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18. */
+  expressions?: Record<string, string>
   image_url: string | null
   image_path: string | null
 }

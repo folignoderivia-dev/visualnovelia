@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, REALITY_PHASE_LABEL, advanceRealityPhase, advanceVerdade, collectSignals, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, noteHaremScene, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withRealityCast, withRealityOut, withVerdadeAsk, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeAsk, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -103,7 +103,20 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const scenario = scenarios.find((s) => s.id === state?.current_scenario_id) ?? scenarios.find((s) => s.is_starting_scenario) ?? scenarios[0]
   const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : current?.sender_type === 'player' ? player : undefined
   const currentExpr = current?.expression || 'neutral'
-  const speakerImg = speaker ? ((speaker as any).expressions?.[currentExpr] || speaker.image_url) : null
+  let carriedFoto = ''
+  for (const m of visible.slice(0, Math.min(cursor, Math.max(visible.length - 1, 0)) + 1)) {
+    const hit = m.content.match(/\[\[FOTO_JOGADOR:\s*([a-z0-9_]+)\s*\]\]/i)?.[1]
+    if (hit) carriedFoto = hit
+    if (m.sender_type === 'player' && m.expression) carriedFoto = m.expression
+  }
+  const playerFoto = current?.sender_type === 'narrator'
+    ? (current.content.match(/\[\[FOTO_JOGADOR:\s*([a-z0-9_]+)\s*\]\]/i)?.[1] || '')
+    : current?.sender_type === 'player'
+      ? (current.expression || carriedFoto)
+      : ''
+  const portrait = (current?.sender_type === 'player' || playerFoto) && player ? player : speaker
+  const portraitExpr = playerFoto || currentExpr
+  const speakerImg = portrait ? ((portrait as { expressions?: Record<string, string> }).expressions?.[portraitExpr] || portrait.image_url) : null
   const speakerVoice = current?.sender_type === 'npc' && speaker && 'voice' in speaker ? (speaker.voice || '') : ''
 
   const hearLine = useCallback(async (msg: StoryMessage, voice: string) => {
@@ -192,13 +205,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       rules = withCompanionUpdate(rules, signals.approvals, signals.stays, signals.leaves)
       changed = true
     }
-    if (mode === 'harem') {
-      const flow = haremFlow(rules)
-      const dupla = lastDupla(newMsgs) || flow.dupla
-      if (flow.fase !== 'escolha') {
-        const next = noteHaremScene(rules, dupla)
-        if (next !== rules) { rules = next; changed = true }
-      }
+    if (mode === 'harem' && haremFlow(rules).fase !== 'final') {
+      const next = settleHaremTurn(rules, lastDupla(newMsgs))
+      if (next !== rules) { rules = next; changed = true }
     }
     if (mode === 'reality' && signals.eliminated.length) {
       rules = realityCastWithout(withRealityOut(rules, signals.eliminated), signals.eliminated)
@@ -346,6 +355,15 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       return
     }
     let action = hasText ? input.trim() : '[O jogador mostra uma foto/imagem e aguarda sua reação]'
+    if (narrativeMode === 'harem') {
+      const flow = haremFlow(masterRules.current)
+      if (flow.fase !== 'solo' || !flow.foco) return
+      const next = addHaremAction(masterRules.current, flow.foco)
+      masterRules.current = next
+      setRulesText(next)
+      try { await svc.saveNarrativeMode(storyId, next) } catch { /* a cena segue na ação */ }
+      action = `Eu interajo só com ${flow.foco}, e com mais ninguém: ${action}`
+    }
     if (narrativeMode === 'verdade' && verdadeFlow(masterRules.current).indice <= 0) {
       if (!askTarget || !askKind) {
         notify('Escolha para quem perguntar e se é verdade ou desafio.', 'error')
@@ -397,7 +415,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         id = uParts[1]
         exprType = uParts.slice(2).join('_')
       }
-    } else if (uploadTarget === 'player') {
+    } else if (uploadTarget === 'player' || uploadTarget.startsWith('player_expr:')) {
       id = player?.id || storyId
     } else {
       id = uploadTarget === 'scenario' ? scenario?.id : speaker?.id
@@ -406,7 +424,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try {
       const ext = file.name.split('.').pop()
       const path = `${story?.user_id}/${storyId}/${id}-${Date.now()}.${ext}`
-      const isPlayer = uploadTarget === 'player' || (!isExpr && uploadTarget !== 'scenario' && current?.sender_type === 'player'); const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : isPlayer ? 'player-assets' : 'character-assets'
+      const isPlayer = uploadTarget === 'player' || uploadTarget.startsWith('player_expr:') || (!isExpr && uploadTarget !== 'scenario' && current?.sender_type === 'player'); const bucket = uploadTarget === 'scenario' ? 'scenario-assets' : isPlayer ? 'player-assets' : 'character-assets'
       const { supabase } = await import('@/lib/supabase/client')
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true })
       if (error) throw error
@@ -426,10 +444,21 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           setCharacters((ch) => ch.map((x) => x.id === id ? up : x))
           if (editingChar?.id === id) setEditingChar(up)
         }
-      } else if (uploadTarget === 'player' && player) {
-        const up = { ...player, image_url: pub.publicUrl, image_path: path }
+      } else if ((uploadTarget === 'player' || uploadTarget.startsWith('player_expr:')) && player) {
+        const expr = uploadTarget.startsWith('player_expr:') ? uploadTarget.slice('player_expr:'.length) : ''
+        const expressions = expr ? { ...(player.expressions || {}), [expr]: pub.publicUrl } : player.expressions
+        const up = {
+          ...player,
+          expressions,
+          image_url: !expr || expr === 'neutral' ? pub.publicUrl : player.image_url,
+          image_path: !expr || expr === 'neutral' ? path : player.image_path,
+        }
         await svc.savePlayer(up)
         setPlayer(up)
+        const photoRules = withPlayerPhotos(masterRules.current, Object.keys(up.expressions || {}))
+        masterRules.current = photoRules
+        setRulesText(photoRules)
+        svc.saveNarrativeMode(storyId, photoRules).catch(() => {})
       } else if (speaker) {
         const up = { ...speaker, image_url: pub.publicUrl, image_path: path }
         if (isPlayer) {
@@ -495,19 +524,21 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   }, [panel, advance])
 
   const title = story?.title || 'Minha história'
-  const label = current?.sender_type === 'npc'
-    ? (speaker?.name ?? 'NPC')
-    : current?.sender_type === 'player'
-      ? (player?.name || 'VOCÊ')
-      : (state?.current_location || scenario?.name || 'Cena')
+  const label = playerFoto
+    ? (player?.name || 'VOCÊ')
+    : current?.sender_type === 'npc'
+      ? (speaker?.name ?? 'NPC')
+      : current?.sender_type === 'player'
+        ? (player?.name || 'VOCÊ')
+        : (state?.current_location || scenario?.name || 'Cena')
   const shownText = current ? stripStageDirections(current.content) : ''
   const hFlow = haremFlow(rulesText)
   const rFlow = realityFlow(rulesText)
   const vFlow = verdadeFlow(rulesText)
-  const haremMustChoose = narrativeMode === 'harem' && hFlow.fase === 'escolha' && !!hFlow.dupla
+  const haremLocksInput = narrativeMode === 'harem' && hFlow.fase !== 'solo'
   const verdadeStep = vFlow.fila[vFlow.indice - 1]
   const verdadeCanType = narrativeMode !== 'verdade' || vFlow.indice <= 0 || vFlow.sub === 'responder'
-  const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && !haremMustChoose
+  const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && narrativeMode !== 'harem'
     && Array.isArray((state?.state_data as any)?.pending_choices)
     ? ((state?.state_data as any).pending_choices as string[])
     : []
@@ -516,15 +547,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (narrativeMode === 'harem') {
       const flow = haremFlow(masterRules.current)
       const dupla = flow.dupla || lastDupla(messages)
-      if (flow.fase === 'escolha' && dupla) {
-        const picked = dupla.find((name) => choice.toLowerCase().includes(name.toLowerCase()))
-        const rejected = picked ? dupla.filter((name) => name.toLowerCase() !== picked.toLowerCase()) : []
-        if (picked && rejected.length) {
-          const next = resetHaremChapter(withHaremRoster(masterRules.current, [picked], rejected))
-          masterRules.current = next
-          setRulesText(next)
-          try { await svc.saveNarrativeMode(storyId, next) } catch { /* a próxima cena ainda recebe a escolha */ }
-        }
+      const ignore = choice.match(/Ignorar (.+?) para sempre/i)?.[1]?.trim()
+      const stay = choice.match(/seguir com (.+?) no jogo/i)?.[1]?.trim()
+      if (flow.fase === 'final' && dupla && ignore && stay) {
+        const next = resetHaremChapter(withHaremRoster(masterRules.current, [stay], [ignore]))
+        masterRules.current = next
+        setRulesText(next)
+        try { await svc.saveNarrativeMode(storyId, next) } catch { /* a próxima cena ainda recebe a escolha */ }
       }
     }
     run('turn', choice)
@@ -538,6 +567,23 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       ? `Sorteio: ${play.asker} faz um ${play.kind} para o protagonista.`
       : `Sorteio: ${play.asker} faz um ${play.kind} para ${play.target}.`
     run('turn', action)
+  }
+
+  async function presentHarem() {
+    if (thinking) return
+    const flow = haremFlow(masterRules.current)
+    const action = flow.dupla
+      ? `Nova cena. ${flow.dupla[0]} e ${flow.dupla[1]} tentam chamar minha atenção, cada uma do seu jeito. Eu ainda não escolhi com quem interagir.`
+      : 'Apresente exatamente duas mulheres da ficha que ainda não foram eliminadas. Cada uma tenta chamar minha atenção do jeito dela.'
+    run('turn', action)
+  }
+
+  async function chooseHarem(name: string) {
+    if (thinking) return
+    const next = focusHarem(masterRules.current, name)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* o texto ainda vale na hora de enviar */ }
   }
 
   async function nextRealityPart() {
@@ -858,11 +904,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 : verdadeStep?.target.toLowerCase() === (player?.name || '').toLowerCase()
                   ? `Sorteio: ${verdadeStep?.asker} vai te fazer um ${verdadeStep?.kind}.`
                   : `Sorteio: ${verdadeStep?.asker} faz um ${verdadeStep?.kind} para ${verdadeStep?.target}.`)}
-            {narrativeMode === 'harem' && (haremMustChoose
-              ? `Três cenas com cada uma. Escolha quem fica: ${hFlow.dupla?.[0]} ou ${hFlow.dupla?.[1]}.`
-              : hFlow.dupla
-                ? `Cenas feitas: ${hFlow.cenas} de 6. A próxima é com ${hFlow.cenas % 2 === 0 ? hFlow.dupla[0] : hFlow.dupla[1]}.`
-                : 'Duas mulheres entram. Cada uma tem três cenas para te conquistar.')}
+            {narrativeMode === 'harem' && (hFlow.fase === 'final' && hFlow.dupla
+              ? `${hFlow.dupla[0]} e ${hFlow.dupla[1]} já tiveram 5 ações cada. Decida quem segue.`
+              : hFlow.fase === 'solo'
+                ? `Só com ${hFlow.foco}. ${hFlow.dupla?.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ') || ''}`
+                : hFlow.dupla
+                  ? `Escolha com quem ficar nesta cena. ${hFlow.dupla.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ')}`
+                  : 'Duas mulheres vão chamar sua atenção. Você escolhe uma por cena.')}
             {narrativeMode === 'reality' && `Parte: ${REALITY_PHASE_LABEL[rFlow.fase]}. Elenco: ${rFlow.elenco.join(', ') || 'abra o tema para sortear 7'}.`}
             {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
             {narrativeMode === 'web' && 'Conversa do zero, sem escolhas. Escreva o que você diz.'}
@@ -892,14 +940,34 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             </button>
           </div>
         )}
-        {!loadingInit && !thinking && !error && atEnd && haremMustChoose && hFlow.dupla && (
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'apresenta' && !hFlow.dupla && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            {hFlow.dupla.map((name) => (
-              <button key={name} type="button" className="vn-choice-bubble" onClick={() => void playChoice(`${name} fica comigo`)}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void presentHarem()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ver as duas</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'apresenta' && hFlow.dupla && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            {hFlow.dupla.filter((name) => (hFlow.acoes[name] || 0) < 5).map((name) => (
+              <button key={name} type="button" className="vn-choice-bubble" onClick={() => void chooseHarem(name)}>
                 <span className="vn-bubble-pointer" />
-                <span className="vn-bubble-text">{name} fica</span>
+                <span className="vn-bubble-text">Interagir com {name}</span>
               </button>
             ))}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'final' && hFlow.dupla && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void playChoice(`Ignorar ${hFlow.dupla?.[1]} para sempre e seguir com ${hFlow.dupla?.[0]} no jogo`)}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ignorar {hFlow.dupla[1]} para sempre e seguir com {hFlow.dupla[0]}</span>
+            </button>
+            <button type="button" className="vn-choice-bubble" onClick={() => void playChoice(`Ignorar ${hFlow.dupla?.[0]} para sempre e seguir com ${hFlow.dupla?.[1]} no jogo`)}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ignorar {hFlow.dupla[0]} para sempre e seguir com {hFlow.dupla[1]}</span>
+            </button>
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && modelChoices.length > 0 && (
@@ -934,7 +1002,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
 
         {/* 3. PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
-        {!loadingInit && !thinking && !error && current && atEnd && !haremMustChoose && verdadeCanType && (
+        {!loadingInit && !thinking && !error && current && atEnd && !haremLocksInput && verdadeCanType && (
           <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
             <div className="vn-action-console-inner">
               <span className="vn-action-console-badge">SUA RESPOSTA</span>
@@ -983,7 +1051,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={2000}
                 disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
-                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : `Como ${player?.name || 'você'} reage ou responde agora...?`}
+                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : narrativeMode === 'harem' && hFlow.foco ? `O que você faz só com ${hFlow.foco}?` : `Como ${player?.name || 'você'} reage ou responde agora...?`}
                 aria-label="Resposta do jogador"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
               />
@@ -1307,9 +1375,27 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div className="field"><span>Medos</span><textarea value={player.fears} onChange={(e) => setPlayer({ ...player, fears: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Segredos</span><textarea value={player.secrets || ''} onChange={(e) => setPlayer({ ...player, secrets: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Informações extras</span><textarea value={player.extra_information} onChange={(e) => setPlayer({ ...player, extra_information: e.target.value })} rows={2} /></div>
+                  <div className="expressions-grid">
+                    <span>Expressões e fotos</span>
+                    <div className="expr-slots">
+                      {['neutral', 'happy', 'angry', 'ashamed', 'intimate', 'foto_casual', 'foto_sensual', 'foto_pe', 'foto_18'].map((expr) => {
+                        const img = player.expressions?.[expr] || (expr === 'neutral' ? player.image_url : null)
+                        return (
+                          <div key={expr} className="expr-slot" onClick={() => { setUploadTarget(`player_expr:${expr}`); fileInputRef.current?.click() }}>
+                            {img ? <img src={img} alt={expr} /> : <div className="expr-empty"><ImagePlus size={16}/></div>}
+                            <small>{expr.replace('foto_', 'foto ')}</small>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                   <button className="primary-button" style={{ marginTop: 16 }} onClick={async () => {
                     try {
                       await svc.savePlayer(player)
+                      const photoRules = withPlayerPhotos(masterRules.current, Object.keys(player.expressions || {}))
+                      masterRules.current = photoRules
+                      setRulesText(photoRules)
+                      await svc.saveNarrativeMode(storyId, photoRules)
                       setEditingPlayer(false)
                       notify('Protagonista atualizado.', 'ok')
                     } catch (e) {

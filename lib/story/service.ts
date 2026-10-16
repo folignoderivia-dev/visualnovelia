@@ -122,15 +122,24 @@ const FICHA = '\n[[FICHA_PROTAGONISTA]]'
 export function unpackPlayer(p: PlayerCharacter): PlayerCharacter {
   const raw = p.extra_information || ''
   const [base, packed] = raw.split(FICHA)
-  const speech = packed?.match(/Fala:\s*([\s\S]*?)(?:\nSegredos:|$)/)?.[1]?.trim() || p.speech_style || ''
-  const secrets = packed?.match(/Segredos:\s*([\s\S]*)/)?.[1]?.trim() || p.secrets || ''
-  return { ...p, speech_style: speech, secrets, extra_information: (base || '').trim() }
+  const speech = packed?.match(/Fala:\s*([\s\S]*?)(?:\nSegredos:|\nFotos:|$)/)?.[1]?.trim() || p.speech_style || ''
+  const secrets = packed?.match(/Segredos:\s*([\s\S]*?)(?:\nFotos:|$)/)?.[1]?.trim() || p.secrets || ''
+  let expressions = p.expressions || {}
+  const fotos = packed?.match(/Fotos:\s*(\{.*\})/)?.[1]
+  if (fotos) {
+    try {
+      const parsed = JSON.parse(fotos) as Record<string, string>
+      if (parsed && typeof parsed === 'object') expressions = parsed
+    } catch { /* foto ilegível fica de fora */ }
+  }
+  return { ...p, speech_style: speech, secrets, expressions, extra_information: (base || '').trim() }
 }
 
 function packPlayer(p: PlayerCharacter): Record<string, unknown> {
-  const { speech_style: speech, secrets, ...rest } = strip(p) as unknown as PlayerCharacter
+  const { speech_style: speech, secrets, expressions, ...rest } = strip(p) as unknown as PlayerCharacter
   const base = (p.extra_information || '').split(FICHA)[0].trim()
-  const tail = [speech ? `Fala: ${speech}` : '', secrets ? `Segredos: ${secrets}` : ''].filter(Boolean).join('\n')
+  const fotos = expressions && Object.keys(expressions).length ? `Fotos: ${JSON.stringify(expressions)}` : ''
+  const tail = [speech ? `Fala: ${speech}` : '', secrets ? `Segredos: ${secrets}` : '', fotos].filter(Boolean).join('\n')
   return { ...rest, extra_information: tail ? `${base}${FICHA}\n${tail}` : base }
 }
 

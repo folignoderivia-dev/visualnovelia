@@ -82,6 +82,7 @@ export interface ValidatedTurn {
   stateUpdates: { current_location: string; story_time: string; new_chapter: boolean; flags: { key: string; value: string }[], pending_choices: string[] }
   memories: { memory_type: string; content: string; importance: number; character_ids: string[] }[]
   relationships: { character_id: string; relationship_type: string; description: string; value: number | null }[]
+  playerExpression: string | null
 }
 
 /**
@@ -148,6 +149,7 @@ export function validateAiResponse(ai: any, ctx: ValidationContext): ValidatedTu
       new_chapter: su.new_chapter === true, flags, pending_choices: Array.isArray(su?.pending_choices) ? su.pending_choices.map((c: any) => s(c, 150)).filter(Boolean) : []
     },
     memories, relationships,
+    playerExpression: (EXPRESSIONS as readonly string[]).includes(ai.player_expression) ? ai.player_expression : null,
   }
 }
 
@@ -200,7 +202,7 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 12. O campo "current_location" no stateUpdates DEVE ser o NOME legível do local, NÃO use IDs ou códigos UUID.
 13. MUDE OS PERSONAGENS QUANDO PEDIDO: Se a ação incluir [ENCERRAR CENA] ou [INCLUIR PERSONAGEM], você DEVE obedecer imediatamente: encerre o diálogo atual, despeça os personagens presentes e traga os novos solicitados no mesmo beat.
 14. ROLAGEM DE DADO E RPG: Se o jogador mandar "[O jogador rolou um D20 e tirou: X]", interprete OBRIGATORIAMENTE como um teste: 1-5 falha trágica, 6-10 falha, 11-15 sucesso com custo, 16-20 sucesso épico.
-15. EXPRESSÕES VISUAIS E FOTOS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18.
+15. EXPRESSÕES VISUAIS E FOTOS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18. O protagonista usa as mesmas chaves. Se [[FOTOS_JOGADOR]] listar chaves, preencha player_expression com a que combina com a situação dele e escreva na narração [[FOTO_JOGADOR:chave]]. Não invente chave fora da lista.
 16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).
 17. REAÇÕES ECCHI/INTIMIDADE E EXPRESSÃO INTIMATE: A expressão 'intimate' SÓ DEVE SER USADA em momentos explícitos de romance intenso, nudez, banheiro ou quarto, NUNCA para conversas normais. Quando o contexto for picante ou 'intimate/ashamed', DEVE obrigatoriamente descrever vergonha aguda, vermelhidão profunda, gaguejo e constrangimento natural realista.
 18. CAMPANHA E CELULAR SÃO CONVERSAS DIFERENTES. Nesta função de campanha, não continue papo de Tinder nem de WhatsApp e não cite o que foi dito nesses apps. Foto na campanha só com as expressões foto_casual, foto_sensual, foto_pe ou foto_18, e só se o jogador pedir ou se o clima da cena pedir.
@@ -586,6 +588,7 @@ const RESPONSE_SCHEMA = {
         required: ['type', 'text'],
       },
     },
+    player_expression: { type: 'STRING', enum: [...EXPRESSIONS], nullable: true },
     current_scenario_id: { type: 'STRING', nullable: true },
     state_updates: {
       type: 'OBJECT',
@@ -929,7 +932,7 @@ Deno.serve(async (req) => {
 
     // ---------- 5. Grava mensagens + estado numa única transação ----------
     const msgs: Record<string, unknown>[] = []
-    if (mode === 'turn') msgs.push({ sender_type: 'player', content: action + (image ? '\n[Uma imagem foi anexada nesta ação]' : ''), message_type: 'action' })
+    if (mode === 'turn') msgs.push({ sender_type: 'player', content: action + (image ? '\n[Uma imagem foi anexada nesta ação]' : ''), message_type: 'action', expression: turn.playerExpression })
     if (turn.newScenarioId) {
       msgs.push({ sender_type: 'system', content: scs.find((x) => x.id === turn.newScenarioId)?.name || 'Nova cena',
         message_type: 'scene_change', metadata: { scenario_id: turn.newScenarioId } })
