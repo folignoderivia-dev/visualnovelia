@@ -69,9 +69,9 @@ ${common}`
   if (mode === 'harem') {
     return `MODO ATIVO: HAREM.
 ${state}Só duas mulheres da ficha, 100% no jeito de cada uma. Sem homens e sem gente inventada. pending_choices SEMPRE vazio: o jogo mostra os botões.
-Se o ESTADO não tem dupla, apresente duas que não foram eliminadas. Cada uma tenta chamar a atenção do protagonista do jeito dela. Escreva [[DUPLA:Nome A|Nome B]] na narração. Não faça ele escolher ainda.
-Se a fase é apresenta, as duas se esforçam para encantar, apaixonar, seduzir, apelar e ousar até conseguir a atenção dele. Cada uma no limite da ficha, sem timidez genérica. Não avance a interação. Não escolha por ele.
-Se a fase é solo, a cena é SÓ com o foco. A outra não fala, não entra e não é citada. Ela se esforça para encantar, apaixonar, seduzir, apelar e ousar. No fim, uma narração curta: as duas voltam a disputar a atenção, ousadas.
+Se o ESTADO não tem dupla, apresente duas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[DUPLA:Nome A|Nome B]] e [[PROPOSTA:Nome|a proposta]] na narração. Não faça ele escolher ainda.
+Se a fase é apresenta, cada uma faz UMA proposta concreta para o protagonista: um caminho ousado, no jeito da ficha, para encantar, apaixonar, seduzir, apelar ou ousar. Escreva [[PROPOSTA:Nome|a proposta]] para cada uma. Não escolha por ele. Não misture os caminhos.
+Se a fase é solo, a cena segue SÓ a proposta do foco, até o fim desse caminho. A outra não fala, não entra e não é citada. No fim, as duas fazem propostas novas.
 Se a fase é final, não escreva cena nova.
 Narração com lugar. Falas em dialogue com character_id real. Nada vazio. Não escreva a fala do protagonista.
 ${SHEET}`
@@ -107,12 +107,13 @@ ${state}Adultos. Só o protagonista e os 6 nomes do ESTADO, nesta ordem, sem pul
 2. O narrador rola um D6. Quem caiu faz uma PERGUNTA para ele.
 3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa é obrigada a cumprir.
 4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
-VERDADE: sem desviar, com segredos, objetivos, medos e o que pensa do protagonista. DESAFIO: cumpre beijo, toque ou o que a ficha permitir, sem recusar.
-Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde agora. pending_choices vazio.
+VERDADE: sem desviar, com segredos, objetivos, medos e o que pensa do protagonista, até a resposta ficar inteira. DESAFIO: cumpre beijo, toque ou o que a ficha permitir, do começo ao fim, sem resumir e sem recusar.
+A jogada dura até estar concluída. Proibido pular, cortar no meio ou passar para outra pessoa antes do fim. Só quando a verdade foi dita por completo ou o desafio foi cumprido até o fim, escreva [[FEITO]] na narração. Sem [[FEITO]], a cena continua.
+Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde. pending_choices vazio.
 Se a JOGADA é pergunta para ele e ele ainda não ouviu: escreva SÓ a pergunta, em dialogue, com o character_id de quem caiu. Não responda por ele.
-Se a JOGADA é o desafio dele: não invente o desafio. Quem caiu cumpre agora.
+Se a JOGADA é o desafio dele: não invente o desafio. Quem caiu começa a cumprir e só para quando acabar.
 Se a JOGADA é o desafio para ele e ele ainda não ouviu: escreva SÓ o desafio. Não cumpra por ele.
-Se a JOGADA é a resposta dele: quem perguntou ou desafiou só reage, curto.
+Se a JOGADA ainda não acabou: continue a mesma cena. Não escreva [[FEITO]].
 Não traga gente de fora. Nada vazio.
 ${SHEET}`
   }
@@ -325,7 +326,7 @@ export function realityCastWithout(rules: string, gone: string[]): string {
 }
 
 export type VerdadePasso = 0 | 1 | 2 | 3
-export type VerdadeFase = 'rolar' | 'escrever' | 'ouvir' | 'responder'
+export type VerdadeFase = 'rolar' | 'escrever' | 'ouvir' | 'responder' | 'cumprir'
 
 export function verdadeFlow(rules: string | null | undefined): {
   rodada: number
@@ -341,7 +342,7 @@ export function verdadeFlow(rules: string | null | undefined): {
   const passoRaw = Number(body.match(/passo:\s*(\d+)/)?.[1] || 0)
   const passo = (passoRaw === 1 || passoRaw === 2 || passoRaw === 3 ? passoRaw : 0) as VerdadePasso
   const faseRaw = body.match(/fase:\s*(\w+)/)?.[1] || 'rolar'
-  const fase: VerdadeFase = faseRaw === 'escrever' || faseRaw === 'ouvir' || faseRaw === 'responder' ? faseRaw : 'rolar'
+  const fase: VerdadeFase = faseRaw === 'escrever' || faseRaw === 'ouvir' || faseRaw === 'responder' || faseRaw === 'cumprir' ? faseRaw : 'rolar'
   const listed = namesOf(body, 'elenco')
   return {
     rodada: Number(body.match(/rodada:\s*(\d+)/)?.[1] || 1) || 1,
@@ -370,12 +371,16 @@ export function withVerdadeRoll(rules: string, dado: number, alvo: string, fase:
   return writeVerdade(rules, { ...cur, dado, alvo, fase })
 }
 
-/** Depois da resposta: ou ele ainda vai responder, ou a ordem anda para o próximo passo. */
-export function advanceVerdade(rules: string, _playerName = ''): string {
+/** Sem [[FEITO]], a verdade ou o desafio continua. Com [[FEITO]], a ordem anda. */
+export function advanceVerdade(rules: string, _playerName = '', done = false): string {
   const cur = verdadeFlow(rules)
   if (!cur.elenco.length) return rules
   if (cur.fase === 'ouvir') return writeVerdade(rules, { ...cur, fase: 'responder' })
-  if (cur.fase !== 'escrever' && cur.fase !== 'responder') return rules
+  if (cur.fase !== 'escrever' && cur.fase !== 'responder' && cur.fase !== 'cumprir') return rules
+  if (!done) {
+    if (cur.fase === 'cumprir') return rules
+    return writeVerdade(rules, { ...cur, fase: 'cumprir' })
+  }
   const passo = ((cur.passo + 1) % 4) as VerdadePasso
   return writeVerdade(rules, {
     ...cur,
@@ -391,12 +396,16 @@ export function verdadeJogada(rules: string | null | undefined, _playerName = ''
   const f = verdadeFlow(rules)
   if (f.elenco.length < 6) return 'JOGADA: faltam os 6 nomes. Espere o jogador confirmar o elenco.'
   const who = f.alvo || 'quem caiu no dado'
-  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. ${who} é obrigada a responder com toda a verdade da ficha. Sem pending_choices.`
+  if (f.fase === 'cumprir') {
+    const oQue = f.passo >= 2 ? 'desafio' : 'verdade'
+    return `JOGADA: o ${oQue} de ${who} AINDA NÃO ACABOU. Continue a mesma cena e a mesma pessoa até o cumprimento completo. Proibido resumir, pular ou abrir outra jogada. Escreva [[FEITO]] só quando estiver concluído de verdade. Sem pending_choices.`
+  }
+  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. ${who} é obrigada a responder com toda a verdade da ficha, até o fim. Escreva [[FEITO]] só se a resposta ficou completa. Sem pending_choices.`
   if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UMA pergunta para o protagonista. Escreva só a pergunta, em dialogue. Não responda por ele. Sem pending_choices.`
-  if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde agora à pergunta de ${who}. ${who} só reage, curto. Sem pending_choices.`
-  if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. ${who} é obrigada a cumprir agora. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde agora à pergunta de ${who}. A resposta tem que ficar completa. ${who} reage sem encerrar no meio. Escreva [[FEITO]] só quando a verdade dele acabar. Sem pending_choices.`
+  if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. ${who} é obrigada a cumprir até o fim, sem resumir. Escreva [[FEITO]] só quando o desafio acabar. Sem pending_choices.`
   if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UM desafio para o protagonista. Escreva só o desafio. Não cumpra por ele. Sem pending_choices.`
-  if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta agora o desafio de ${who}. ${who} só reage, curto. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta o desafio de ${who} até o fim. Não encerre no meio. Escreva [[FEITO]] só quando estiver cumprido. Sem pending_choices.`
   const espera = f.passo === 0 ? 'o protagonista rolar o D6 para perguntar'
     : f.passo === 1 ? 'o narrador rolar o D6 para ver quem pergunta a ele'
     : f.passo === 2 ? 'o protagonista rolar o D6 para desafiar'
@@ -435,10 +444,10 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
       ? hf.fase === 'final'
         ? `harem fase: final. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. As duas já tiveram 5 ações. Não escreva cena. Sem pending_choices.`
         : hf.fase === 'solo'
-          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cena SÓ com o foco. Ela se esforça para encantar, apaixonar, seduzir, apelar e ousar. A outra não fala nem aparece. Sem pending_choices.`
-          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. As duas se esforçam para encantar, apaixonar, seduzir, apelar e ousar até conseguir a atenção dele. O jogador ainda não escolheu. Sem pending_choices.`
+          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Siga só a proposta escolhida do foco, até o fim desse caminho. A outra não fala nem aparece. Sem pending_choices.`
+          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]]. O jogador escolhe o caminho. Sem pending_choices.`
       : '',
-    mode === 'harem' && !hf.dupla ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres novas que não foram eliminadas. Cada uma chama a atenção do seu jeito. Escreva [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
+    mode === 'harem' && !hf.dupla ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres novas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]] e [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
     harem.eliminated.length ? `harem eliminadas: ${harem.eliminated.join(', ')}` : '',
     harem.recruited.length ? `harem recrutadas: ${harem.recruited.join(', ')}` : '',
     mode === 'reality' ? `reality fase: ${rf.fase}. reality elenco: ${rf.elenco.join(', ') || '(sorteie 7)'}` : '',
@@ -506,6 +515,16 @@ export function withCompanionUpdate(
   return refreshMode(replaceBlock(rules, TEAM_S, TEAM_E, body))
 }
 
+export function lastProposals(messages: { content: string; sender_type?: string }[]): { name: string; text: string }[] {
+  const found: { name: string; text: string }[] = []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].sender_type === 'player') break
+    const hits = [...messages[i].content.matchAll(/\[\[PROPOSTA:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\]/g)]
+    for (const m of hits) found.push({ name: m[1].trim(), text: m[2].trim() })
+  }
+  return found.reverse()
+}
+
 export function lastDupla(messages: { content: string }[]): [string, string] | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i].content.match(/\[\[DUPLA:\s*([^|\]]+?)\s*\|\s*([^\]]+?)\s*\]\]/)
@@ -542,6 +561,9 @@ const PHOTO_ASK = /foto|fotos|photo|nudes?|pelad|sem roupa|nua\b|nu\b|pack\b|sen
 export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: string, points: number): string {
   const chance = Math.max(0, Math.min(100, Math.round(points || 0)))
   const app = channel === 'tinder' ? 'Tinder' : 'WhatsApp'
+  const voz = channel === 'tinder'
+    ? ' Fale sem papas na língua e sem filtro, 100% na ficha: gíria, NSFW e apelido vulgar se a ficha for assim. Não suavize.'
+    : ''
   let photo = 'Não pediu foto. Não mande foto primeiro. Foto só em troca: ninguém manda sem o outro também mandar.'
   if (PHOTO_ASK.test(message)) {
     const roll = Math.floor(Math.random() * 100) + 1
@@ -551,7 +573,7 @@ export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: stri
   } else if (chance >= 40 && Math.random() * 100 < Math.min(35, chance / 3)) {
     photo = 'PEÇA A FOTO DELE, no seu jeito. Não mande a sua ainda. Foto nunca sai primeiro e nunca sai sem troca.'
   }
-  return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}`
+  return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}${voz}`
 }
 
 export function stripStageDirections(text: string): string {
@@ -562,6 +584,8 @@ export function stripStageDirections(text: string): string {
     .replace(/\[\[FICA:[^\]]+\]\]/g, '')
     .replace(/\[\[SAI:[^\]]+\]\]/g, '')
     .replace(/\[\[FOTO_JOGADOR:[^\]]+\]\]/g, '')
+    .replace(/\[\[PROPOSTA:[^\]]+\]\]/g, '')
+    .replace(/\[\[FEITO\]\]/g, '')
     .replace(/^\s*(o narrador\s+(disse|fala|falou|narra|narrou|conta|contou)\s*[:,\-–]?\s*)/i, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

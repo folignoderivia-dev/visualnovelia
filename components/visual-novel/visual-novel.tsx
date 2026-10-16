@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, lastProposals, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -212,7 +212,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       changed = true
     }
     if (mode === 'verdade') {
-      const next = advanceVerdade(rules, playerNameRef.current || 'protagonista')
+      const done = newMsgs.some((m) => /\[\[FEITO\]\]/.test(m.content))
+      const next = advanceVerdade(rules, playerNameRef.current || 'protagonista', done)
       if (next !== rules) {
         rules = next
         changed = true
@@ -325,6 +326,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           masterRules.current = next
           setRulesText(next)
           svc.saveNarrativeMode(storyId, next).catch(() => {})
+        } else if (savedMode.mode !== 'visual') {
+          const next = withNarrativeMode(masterRules.current, savedMode.mode, savedMode.theme)
+          if (next !== masterRules.current) {
+            masterRules.current = next
+            setRulesText(next)
+            svc.saveNarrativeMode(storyId, next).catch(() => {})
+          }
         }
         setMessages(msgs); setHasMore(msgs.length >= 40)
         setDailyLimit(limit)
@@ -362,12 +370,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     }
     if (narrativeMode === 'verdade') {
       const flow = verdadeFlow(masterRules.current)
-      if (flow.fase !== 'escrever' && flow.fase !== 'responder') return
-      action = flow.passo === 0
-        ? `D6 caiu em ${flow.alvo}. Minha pergunta, e ela é obrigada a dizer a verdade: ${action}`
-        : flow.passo === 2
-          ? `D6 caiu em ${flow.alvo}. Meu desafio, e ela é obrigada a cumprir: ${action}`
-          : `Minha resposta: ${action}`
+      if (flow.fase !== 'escrever' && flow.fase !== 'responder' && flow.fase !== 'cumprir') return
+      action = flow.fase === 'cumprir'
+        ? `Ainda não terminou. Continue a mesma verdade ou o mesmo desafio até o fim: ${action}`
+        : flow.passo === 0
+          ? `D6 caiu em ${flow.alvo}. Minha pergunta, e ela é obrigada a dizer a verdade até o fim: ${action}`
+          : flow.passo === 2
+            ? `D6 caiu em ${flow.alvo}. Meu desafio, e ela é obrigada a cumprir até o fim: ${action}`
+            : `Minha resposta, até concluir: ${action}`
     }
     const imgToSend = actionImage || undefined
     run('turn', action, imgToSend)
@@ -530,7 +540,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const rFlow = realityFlow(rulesText)
   const vFlow = verdadeFlow(rulesText)
   const haremLocksInput = narrativeMode === 'harem' && hFlow.fase !== 'solo'
-  const verdadeCanType = narrativeMode !== 'verdade' || vFlow.fase === 'escrever' || vFlow.fase === 'responder'
+  const verdadeCanType = narrativeMode !== 'verdade' || vFlow.fase === 'escrever' || vFlow.fase === 'responder' || vFlow.fase === 'cumprir'
+  const haremOffers = lastProposals(messages).flatMap((p) => {
+    const name = hFlow.dupla?.find((n) => n.toLowerCase() === p.name.toLowerCase())
+    if (!name || (hFlow.acoes[name] || 0) >= 5) return []
+    return [{ name, text: p.text }]
+  })
   const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && narrativeMode !== 'harem'
     && Array.isArray((state?.state_data as any)?.pending_choices)
     ? ((state?.state_data as any).pending_choices as string[])
@@ -574,17 +589,18 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (thinking) return
     const flow = haremFlow(masterRules.current)
     const action = flow.dupla
-      ? `Nova cena. ${flow.dupla[0]} e ${flow.dupla[1]} tentam chamar minha atenção, cada uma do seu jeito. Eu ainda não escolhi com quem interagir.`
-      : 'Apresente exatamente duas mulheres da ficha que ainda não foram eliminadas. Cada uma tenta chamar minha atenção do jeito dela.'
+      ? `Nova cena. ${flow.dupla[0]} e ${flow.dupla[1]} fazem cada uma UMA proposta concreta para mim, ousada e no jeito da ficha. Escreva [[PROPOSTA:Nome|a proposta]] para cada uma. Eu ainda não escolhi o caminho.`
+      : 'Apresente exatamente duas mulheres da ficha que ainda não foram eliminadas. Cada uma faz uma proposta para mim. Escreva [[PROPOSTA:Nome|a proposta]] e [[DUPLA:Nome A|Nome B]].'
     run('turn', action)
   }
 
-  async function chooseHarem(name: string) {
+  async function followProposal(name: string, text: string) {
     if (thinking) return
-    const next = focusHarem(masterRules.current, name)
+    const next = addHaremAction(focusHarem(masterRules.current, name), name)
     masterRules.current = next
     setRulesText(next)
-    try { await svc.saveNarrativeMode(storyId, next) } catch { /* o texto ainda vale na hora de enviar */ }
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a proposta segue na ação */ }
+    run('turn', `Eu escolho o caminho de ${name}: ${text}. Só ela. A outra não entra nesta cena.`)
   }
 
   async function nextRealityPart() {
@@ -896,7 +912,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           <div className="vn-mode-banner" onClick={(e) => e.stopPropagation()}>
             {narrativeMode === 'verdade' && (vFlow.elenco.length < 6
               ? 'Abra o tema e confirme os 6 personagens.'
-              : vFlow.fase === 'escrever' && vFlow.passo === 0
+              : vFlow.fase === 'cumprir'
+                ? `A ${vFlow.passo >= 2 ? 'desafio' : 'verdade'} de ${vFlow.alvo} ainda não acabou. Continue até cumprir.`
+                : vFlow.fase === 'escrever' && vFlow.passo === 0
                 ? `D6 caiu em ${vFlow.alvo}. Escreva a pergunta. Ela responde com a verdade da ficha.`
                 : vFlow.fase === 'responder' && vFlow.passo === 1
                   ? `${vFlow.alvo} te perguntou. Responda em texto.`
@@ -916,11 +934,19 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
               : hFlow.fase === 'solo'
                 ? `Só com ${hFlow.foco}. ${hFlow.dupla?.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ') || ''}`
                 : hFlow.dupla
-                  ? `Escolha com quem ficar nesta cena. ${hFlow.dupla.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ')}`
-                  : 'Duas mulheres vão chamar sua atenção. Você escolhe uma por cena.')}
+                  ? `Cada uma fez uma proposta. Escolha o caminho. ${hFlow.dupla.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ')}`
+                  : 'Duas mulheres vão fazer uma proposta. Você escolhe qual caminho seguir.')}
             {narrativeMode === 'reality' && `Parte: ${REALITY_PHASE_LABEL[rFlow.fase]}. Elenco: ${rFlow.elenco.join(', ') || 'abra o tema para sortear 7'}.`}
             {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
             {narrativeMode === 'web' && 'Conversa do zero, sem escolhas. Escreva o que você diz.'}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'cumprir' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => run('turn', 'Ainda não acabou. Continue a mesma verdade ou o mesmo desafio até o cumprimento completo. Não troque de pessoa e não escreva [[FEITO]] antes do fim.')}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Continuar até o fim</span>
+            </button>
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'rolar' && vFlow.elenco.length >= 6 && (
@@ -939,14 +965,22 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             </button>
           </div>
         )}
-        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'apresenta' && hFlow.dupla && (
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'apresenta' && hFlow.dupla && haremOffers.length > 0 && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            {hFlow.dupla.filter((name) => (hFlow.acoes[name] || 0) < 5).map((name) => (
-              <button key={name} type="button" className="vn-choice-bubble" onClick={() => void chooseHarem(name)}>
+            {haremOffers.map((offer) => (
+              <button key={offer.name} type="button" className="vn-choice-bubble" onClick={() => void followProposal(offer.name, offer.text)}>
                 <span className="vn-bubble-pointer" />
-                <span className="vn-bubble-text">Interagir com {name}</span>
+                <span className="vn-bubble-text">{offer.name}: {offer.text}</span>
               </button>
             ))}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'apresenta' && hFlow.dupla && haremOffers.length === 0 && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void presentHarem()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ouvir as propostas</span>
+            </button>
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'final' && hFlow.dupla && (
