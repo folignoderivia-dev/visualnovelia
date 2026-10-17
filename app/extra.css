@@ -2761,6 +2761,29 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 .vn-approval.down span { color: #ffb4b4; }
 .vn-vote-bubble { border-color: #e5b869 !important; }
 
+@media (max-width: 1100px) {
+  .vn-dialogue-text {
+    font-size: 16px !important;
+    line-height: 1.35 !important;
+  }
+  .dialogue-panel.vn-dialogue-window {
+    padding: 8px 12px 6px !important;
+  }
+  .novel-portrait-frame {
+    height: min(30vh, 240px) !important;
+    max-width: min(72vw, 420px) !important;
+  }
+  .novel-portrait-inner img,
+  .novel-portrait img {
+    object-fit: contain !important;
+    max-height: 30vh !important;
+    width: auto !important;
+    margin: 0 auto !important;
+  }
+  .vn-bottom-interaction-stack { gap: 6px !important; }
+  .vn-choice-bubble { max-width: 100% !important; }
+}
+
 
 
 

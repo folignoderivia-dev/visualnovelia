@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, focusNamoro, haremFlow, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastProposals, leaveNamoro, namoroFlow, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, arriveNamoro, collectSignals, focusHarem, focusNamoro, haremFlow, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastProposals, lastTrio, leaveNamoro, namoroFlow, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, setNamoroTrio, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -238,6 +238,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       }
     }
     if (mode === 'namoro') {
+      const flow = namoroFlow(rules)
+      const trio = lastTrio(newMsgs)
+      if (flow.fase === 'trio' && trio.length) {
+        rules = setNamoroTrio(rules, trio)
+        changed = true
+      }
       for (const hit of lastAffection(newMsgs)) {
         const person = charactersRef.current.find((c) => c.name.toLowerCase() === hit.name.toLowerCase())
         if (!person) continue
@@ -354,7 +360,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           masterRules.current = next
           setRulesText(next)
           svc.saveNarrativeMode(storyId, next).catch(() => {})
-        } else if (savedMode.mode !== 'visual') {
+        } else {
           const next = withNarrativeMode(masterRules.current, savedMode.mode, savedMode.theme)
           if (next !== masterRules.current) {
             masterRules.current = next
@@ -387,6 +393,18 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       return
     }
     let action = hasText ? input.trim() : '[O jogador mostra uma foto/imagem e aguarda sua reação]'
+    if (narrativeMode === 'namoro') {
+      const flow = namoroFlow(masterRules.current)
+      if (flow.fase === 'onde') {
+        const next = arriveNamoro(masterRules.current, action)
+        masterRules.current = next
+        setRulesText(next)
+        try { await svc.saveNarrativeMode(storyId, next) } catch { /* o lugar segue na ação */ }
+        action = `Eu vou para: ${action}. Carregue esse lugar em Hogwarts. Traga exatamente 3 mulheres da ficha, nunca mais que 3. Escreva [[TRIO:Nome|Nome|Nome]]. Antes de cada uma aparecer, use a ficha inteira.`
+      } else if (flow.fase === 'fala' && flow.foco) {
+        action = `Eu estou só com ${flow.foco}, em ${flow.lugar || 'Hogwarts'}: ${action}`
+      }
+    }
     if (narrativeMode === 'harem') {
       const flow = haremFlow(masterRules.current)
       if (flow.fase !== 'solo' || !flow.foco) return
@@ -589,7 +607,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const vFlow = verdadeFlow(rulesText)
   const nFlow = namoroFlow(rulesText)
   const haremLocksInput = narrativeMode === 'harem' && hFlow.fase !== 'solo'
-  const namoroLocksInput = narrativeMode === 'namoro' && nFlow.fase !== 'fala'
+  const namoroLocksInput = narrativeMode === 'namoro' && nFlow.fase === 'trio'
   const verdadeCanType = narrativeMode !== 'verdade' || vFlow.fase === 'escrever' || vFlow.fase === 'responder' || vFlow.fase === 'cumprir'
   const haremOffers = lastProposals(messages).flatMap((p) => {
     const name = hFlow.dupla?.find((n) => n.toLowerCase() === p.name.toLowerCase())
@@ -671,7 +689,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     masterRules.current = next
     setRulesText(next)
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* a conversa segue na ação */ }
-    run('turn', `Eu escolho falar só com ${name}. Uma narração curta mostra o lugar e quem está ali, sem voz de narrador. Só ${name} fala.`)
+    run('turn', `Eu escolho falar só com ${name} em ${namoroFlow(next).lugar || 'Hogwarts'}. Antes da fala, carregue a ficha inteira dela. Só ela.`)
   }
 
   async function namoroMove(label: string) {
@@ -688,8 +706,29 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     const next = leaveNamoro(masterRules.current)
     masterRules.current = next
     setRulesText(next)
-    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a sala segue no texto */ }
-    run('turn', 'Eu me afasto. Mostre de novo o cenário e quem está nele, sem voz de narrador.')
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* o lugar volta a ser perguntado */ }
+  }
+
+  async function wipePhone() {
+    if (thinking) return
+    try {
+      await svc.deletePhoneChats(storyId)
+      setMessages((prev) => prev.filter((m) => !isPhoneMessage(m.metadata)))
+      notify('Memória do Tinder e do WhatsApp apagada.', 'ok')
+    } catch (e) {
+      notify(friendlyError(e, 'Não foi possível apagar os chats.'), 'error')
+    }
+  }
+
+  async function resetPoints() {
+    if (thinking) return
+    try {
+      await svc.resetAllRelationships(storyId, characters.map((c) => c.id))
+      setCharacters((prev) => prev.map((c) => ({ ...c, relationship: { ...(c.relationship || {}), relationship_value: 10 } })))
+      notify('Pontos de todas voltaram para 10.', 'ok')
+    } catch (e) {
+      notify(friendlyError(e, 'Não foi possível resetar os pontos.'), 'error')
+    }
   }
 
   async function nextRealityPart() {
@@ -1039,8 +1078,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
             {narrativeMode === 'web' && 'Conversa do zero, sem narrador. Escreva o que você diz.'}
             {narrativeMode === 'namoro' && (nFlow.fase === 'fala'
-              ? `Só com ${nFlow.foco}. Pontos: ${characters.find((c) => c.name.toLowerCase() === nFlow.foco.toLowerCase())?.relationship?.relationship_value ?? 0}/100. Os botões fechados ainda não destrancaram.`
-              : 'O lugar mostra quem está aí. Escolha com quem falar.')}
+              ? `Só com ${nFlow.foco} em ${nFlow.lugar || 'Hogwarts'}. Pontos: ${characters.find((c) => c.name.toLowerCase() === nFlow.foco.toLowerCase())?.relationship?.relationship_value ?? 0}/100.`
+              : nFlow.fase === 'trio'
+                ? `${nFlow.lugar || 'O lugar'}: escolha uma das três.`
+                : 'Para onde você vai? Escreva o lugar.')}
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'cumprir' && (
@@ -1055,14 +1096,18 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             </button>
           </div>
         )}
-        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'namoro' && nFlow.fase === 'sala' && (
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'namoro' && nFlow.fase === 'trio' && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            {characters.filter((c) => c.name).map((c) => (
-              <button key={c.id} type="button" className="vn-choice-bubble" onClick={() => void namoroTalk(c.name)}>
+            {nFlow.trio.slice(0, 3).map((name) => (
+              <button key={name} type="button" className="vn-choice-bubble" onClick={() => void namoroTalk(name)}>
                 <span className="vn-bubble-pointer" />
-                <span className="vn-bubble-text">Falar com {c.name}</span>
+                <span className="vn-bubble-text">Falar com {name}</span>
               </button>
             ))}
+            <button type="button" className="vn-choice-bubble" onClick={() => void namoroBack()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ir para outro lugar</span>
+            </button>
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'namoro' && nFlow.fase === 'fala' && (
@@ -1210,7 +1255,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={2000}
                 disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
-                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : narrativeMode === 'harem' && hFlow.foco ? `O que você faz só com ${hFlow.foco}?` : narrativeMode === 'verdade' && vFlow.passo === 0 ? 'Escreva a pergunta' : narrativeMode === 'verdade' && vFlow.passo === 2 ? 'Escreva o desafio' : `Como ${player?.name || 'você'} reage ou responde agora...?`}
+                placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? '⚠️ Limite diário de 20 mensagens atingido. Retorne amanhã!' : narrativeMode === 'namoro' && nFlow.fase === 'onde' ? 'Para onde você vai?' : narrativeMode === 'harem' && hFlow.foco ? `O que você faz só com ${hFlow.foco}?` : narrativeMode === 'verdade' && vFlow.passo === 0 ? 'Escreva a pergunta' : narrativeMode === 'verdade' && vFlow.passo === 2 ? 'Escreva o desafio' : `Como ${player?.name || 'você'} reage ou responde agora...?`}
                 aria-label="Resposta do jogador"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) send() }}
               />
@@ -1482,6 +1527,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   >
                     <Upload size={14} /> Importar Elenco (JSON)
                   </button>
+                  <button type="button" className="outline-button light" style={{ flex: 1, minWidth: '150px' }} onClick={() => void wipePhone()}>Apagar memória do Tinder e WhatsApp</button>
+                  <button type="button" className="outline-button light" style={{ flex: 1, minWidth: '150px' }} onClick={() => void resetPoints()}>Resetar pontos para 10</button>
                   <button
                     className="outline-button light"
                     style={{ flex: 1, minWidth: '150px' }}
@@ -1737,6 +1784,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                 <div className="wpp-header-main">
                   <div className="wpp-header-title">
                     <strong>WhatsApp</strong>
+                    <button className="outline-button light" type="button" onClick={() => void wipePhone()}>Apagar memória</button>
                     <button className="icon-button light" onClick={() => setPanel(null)}><X size={18}/></button>
                   </div>
                   <div className="wpp-header-tabs">
@@ -1888,7 +1936,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       {tinderChatContact.image_url ? <img src={tinderChatContact.image_url} alt="" /> : <UserRound size={18}/>}
                     </div>
                     <strong>{tinderChatContact.name}</strong>
-                    <button className="icon-button light" style={{ marginLeft: 'auto' }} onClick={() => { setPanel(null); setTinderChatContact(null); }}><X size={18}/></button>
+                    <button className="outline-button light" type="button" style={{ marginLeft: 'auto' }} onClick={() => void wipePhone()}>Apagar memória</button>
+                    <button className="icon-button light" onClick={() => { setPanel(null); setTinderChatContact(null); }}><X size={18}/></button>
                   </div>
                   <div className="tinder-messages-canvas">
                     <div className="tinder-match-banner">

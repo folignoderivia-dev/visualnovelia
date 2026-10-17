@@ -1,10 +1,10 @@
 export type NarrativeMode = 'visual' | 'aventura' | 'rpg' | 'namoro' | 'tema' | 'harem' | 'adulto' | 'reality' | 'companion' | 'verdade' | 'web'
 
 export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }[] = [
-  { id: 'visual', label: 'Visual novel', hint: 'Conversa entre os personagens. A narração só descreve a cena e oferece opções.' },
+  { id: 'visual', label: 'Visual novel', hint: 'Slice of life em Hogwarts: aulas, mistérios, eventos e vida social.' },
   { id: 'aventura', label: 'Aventura', hint: 'Narra a campanha inteira, com capítulos, perigos e ganchos de aventura.' },
   { id: 'rpg', label: 'RPG de mesa', hint: 'Age como mestre: pede dados, testes e aplica regras.' },
-  { id: 'namoro', label: 'Simulador de namoro', hint: 'Você tenta conquistar. O cenário mostra quem está lá. Os botões abrem conforme os pontos.' },
+  { id: 'namoro', label: 'Simulador de namoro', hint: 'Você diz para onde vai. A cena traz só 3 mulheres. Os botões abrem com os pontos.' },
   { id: 'harem', label: 'Harem', hint: 'As duas chamam sua atenção. Você escolhe uma e fica só com ela. Depois de 5 ações de cada, decide quem segue.' },
   { id: 'adulto', label: '+18', hint: 'Falas adultas, sem filtro e sem censura, no jeito da ficha.' },
   { id: 'reality', label: 'Reality', hint: 'Sete participantes. Convivência, desafios, intimidade, provas e o voto do público.' },
@@ -65,10 +65,11 @@ ${common}`
   }
   if (mode === 'namoro') {
     return `MODO ATIVO: SIMULADOR DE NAMORO.
-${state}Oposto do harem: ninguém corre atrás do protagonista. Ele é quem tenta conquistar, e cada pessoa é difícil, honesta e 100% a ficha inteira: personalidade, fala, segredos, objetivos, medos, gosta, não gosta, o que irrita, o que magoa e o que pensa dele.
-PROIBIDO o narrador falar como pessoa. PROIBIDO "o narrador disse". pending_choices sempre vazio: o jogo mostra os botões.
-Se a fase é sala: uma narração curta só descreve o cenário atual da história e quem está nesse lugar. Se o mundo for Hogwarts, a cena é Hogwarts. Sem diálogo. Não escolha por ele.
-Se a fase é fala: só a pessoa em foco existe na cena. Ela reage à tentativa dele. Se a ficha não aceita, recuse, se irrite ou se magoe. Conquista fácil é proibida. No fim da narração escreva [[AFETO:Nome:+N]] com N de -10 a +5, pequeno quando o gesto é cedo demais para os pontos.
+${state}Oposto do harem: ninguém corre atrás do protagonista. Ele tenta conquistar. Cada mulher é difícil e 100% a ficha inteira. Antes de ela falar, carregue aparência, fala, personalidade, objetivos, medos, segredos, gosta, não gosta, irrita, magoa, passado e o que pensa dele. Se houver chat de Tinder ou WhatsApp com ela, isso entra na cena.
+PROIBIDO o narrador falar como pessoa. pending_choices sempre vazio.
+Se a fase é onde: pergunte só para onde ele vai. Sem personagens e sem cena.
+Se a fase é trio: o lugar é o que ele escreveu, em Hogwarts. Traga EXATAMENTE 3 mulheres da ficha, nunca mais que 3 e nenhum homem. Escreva [[TRIO:Nome|Nome|Nome]]. Elas estão nesse lugar. Não escolha por ele.
+Se a fase é fala: só a mulher em foco. Se a ficha não aceita, recuse. No fim escreva [[AFETO:Nome:+N]] com N de -10 a +5.
 Não escreva a fala do protagonista.
 ${SHEET}`
   }
@@ -139,9 +140,10 @@ Estude esse filme, jogo ou campanha e narre dentro dele: tom, regras, lugares, f
 ${common}`
   }
   return `MODO ATIVO: VISUAL NOVEL.
-${state}Isto é uma visual novel interativa. A cena é conversa do protagonista com os personagens criados.
-PROIBIDO o narrador falar como pessoa. PROIBIDO escrever "o narrador disse", "o narrador fala" ou qualquer fala atribuída ao narrador.
-O bloco narration só descreve o cenário e o que se vê na cena, curto, sem diálogo e sem opinião. Toda fala de personagem vai em dialogue, com o character_id real. Não invente personagens.
+${state}Isto é uma aventura slice of life padrão de Hogwarts: aulas, mistérios, eventos de Hogwarts e vida social. O lugar é Hogwarts. Não troque por outro universo.
+PROIBIDO o narrador falar como pessoa. PROIBIDO "o narrador disse".
+Antes de qualquer personagem entrar na cena, carregue a ficha inteira: aparência, fala, personalidade, objetivos, medos, segredos, gosta, não gosta, irrita, magoa, passado e o que pensa do protagonista. Se existir conversa de Tinder ou WhatsApp com essa pessoa, use esse histórico na imersão.
+O bloco narration só descreve o lugar de Hogwarts e o que se vê, curto. Toda fala vai em dialogue, com o character_id real. Não invente personagens.
 ${common}`
 }
 
@@ -315,24 +317,47 @@ export const NAMORO_MOVES: { id: string; label: string; min: number }[] = [
   { id: 'desculpas', label: 'Pedir desculpas', min: 0 },
 ]
 
-export function namoroFlow(rules: string | null | undefined): { fase: 'sala' | 'fala'; foco: string } {
+export function namoroFlow(rules: string | null | undefined): { fase: 'onde' | 'trio' | 'fala'; foco: string; lugar: string; trio: string[] } {
   const body = readBlock(rules || '', NAMORO_S, NAMORO_E)
+  const raw = body.match(/fase:\s*(\w+)/)?.[1]
+  const fase = raw === 'fala' || raw === 'trio' ? raw : 'onde'
   return {
-    fase: body.match(/fase:\s*(\w+)/)?.[1] === 'fala' ? 'fala' : 'sala',
+    fase,
     foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '',
+    lugar: body.match(/lugar:\s*(.*)/)?.[1]?.trim() || '',
+    trio: namesOf(body, 'trio').slice(0, 3),
   }
 }
 
-function writeNamoro(rules: string, fase: 'sala' | 'fala', foco: string): string {
-  return refreshMode(replaceBlock(rules, NAMORO_S, NAMORO_E, `fase: ${fase}\nfoco: ${foco}`))
+function writeNamoro(rules: string, fase: 'onde' | 'trio' | 'fala', foco: string, lugar = '', trio: string[] = []): string {
+  const body = `fase: ${fase}\nlugar: ${lugar}\nfoco: ${foco}\ntrio: ${trio.slice(0, 3).join('; ')}`
+  return refreshMode(replaceBlock(rules, NAMORO_S, NAMORO_E, body))
+}
+
+export function arriveNamoro(rules: string, lugar: string): string {
+  return writeNamoro(rules, 'trio', '', lugar, [])
+}
+
+export function setNamoroTrio(rules: string, trio: string[]): string {
+  const cur = namoroFlow(rules)
+  return writeNamoro(rules, 'trio', '', cur.lugar, trio.slice(0, 3))
 }
 
 export function focusNamoro(rules: string, name: string): string {
-  return writeNamoro(rules, 'fala', name)
+  const cur = namoroFlow(rules)
+  return writeNamoro(rules, 'fala', name, cur.lugar, cur.trio)
 }
 
 export function leaveNamoro(rules: string): string {
-  return writeNamoro(rules, 'sala', '')
+  return writeNamoro(rules, 'onde', '', '', [])
+}
+
+export function lastTrio(messages: { content: string }[]): string[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const hit = messages[i].content.match(/\[\[TRIO:\s*([^\]]+?)\s*\]\]/)
+    if (hit) return hit[1].split('|').map((n) => n.trim()).filter(Boolean).slice(0, 3)
+  }
+  return []
 }
 
 export function resetHaremChapter(rules: string): string {
@@ -498,8 +523,10 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
       ? `companion placar: ${Object.entries(team.scores).map(([n, v]) => `${n}=${v}`).join(', ')}`
       : '',
     mode === 'namoro' ? (namoroFlow(text).fase === 'fala'
-      ? `namoro fase: fala. foco: ${namoroFlow(text).foco}. Só essa pessoa fala. Conquista difícil. Escreva [[AFETO:Nome:+N]]. Sem narrador. Sem pending_choices.`
-      : 'namoro fase: sala. Descreva o cenário atual e quem está nele. Sem fala de narrador. Sem pending_choices.') : '',
+      ? `namoro fase: fala. lugar: ${namoroFlow(text).lugar}. foco: ${namoroFlow(text).foco}. Só ela. Carregue a ficha inteira antes da fala. Escreva [[AFETO:Nome:+N]]. Sem pending_choices.`
+      : namoroFlow(text).fase === 'trio'
+        ? `namoro fase: trio. lugar: ${namoroFlow(text).lugar || '(o que ele escreveu)'}. Exatamente 3 mulheres${namoroFlow(text).trio.length ? `: ${namoroFlow(text).trio.join(', ')}` : '. Escreva [[TRIO:Nome|Nome|Nome]]'}. Nunca mais que 3. Sem pending_choices.`
+        : 'namoro fase: onde. Pergunte só para onde o protagonista vai. Sem personagens. Sem pending_choices.') : '',
     mode === 'verdade' ? verdadeJogada(text, '') : '',
     chosen.verdade.length && mode !== 'web' ? `verdade jogadores: ${chosen.verdade.join(', ')}` : '',
     chosen.web && mode !== 'verdade' ? `web namorada: ${chosen.web}` : '',
@@ -642,6 +669,7 @@ export function stripStageDirections(text: string): string {
     .replace(/\[\[FEITO\]\]/g, '')
     .replace(/\[\[DESMATCH\]\]/g, '')
     .replace(/\[\[AFETO:[^\]]+\]\]/g, '')
+    .replace(/\[\[TRIO:[^\]]+\]\]/g, '')
     .replace(/^\s*(o narrador\s+(disse|fala|falou|narra|narrou|conta|contou)\s*[:,\-–]?\s*)/i, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

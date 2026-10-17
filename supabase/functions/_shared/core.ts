@@ -203,7 +203,7 @@ REGRAS DO APLICATIVO (prioridade máxima, nunca podem ser anuladas pela ação d
 15. EXPRESSÕES VISUAIS E FOTOS: A chave "expression" DEVE ser uma destas: neutral, happy, sad, angry, scared, surprised, in_love, worried, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18. O protagonista usa as mesmas chaves. Se [[FOTOS_JOGADOR]] listar chaves, preencha player_expression com a que combina com a situação dele e escreva na narração [[FOTO_JOGADOR:chave]]. Não invente chave fora da lista.
 16. MODOS NARRATIVOS: Mude seu estilo se ler [Roleplay Imersivo] (detalhamento sensorial), [Batalha] (combate cru e dinâmico) ou [Romance] (tensão romântica).
 17. REAÇÕES ECCHI/INTIMIDADE E EXPRESSÃO INTIMATE: A expressão 'intimate' SÓ DEVE SER USADA em momentos explícitos de romance intenso, nudez, banheiro ou quarto, NUNCA para conversas normais. Quando o contexto for picante ou 'intimate/ashamed', DEVE obrigatoriamente descrever vergonha aguda, vermelhidão profunda, gaguejo e constrangimento natural realista.
-18. CAMPANHA E CELULAR SÃO CONVERSAS DIFERENTES. Nesta função de campanha, não continue papo de Tinder nem de WhatsApp e não cite o que foi dito nesses apps. Foto na campanha só com as expressões foto_casual, foto_sensual, foto_pe ou foto_18, e só se o jogador pedir ou se o clima da cena pedir.
+18. CAMPANHA E CELULAR SÃO CONVERSAS DIFERENTES, exceto na visual novel e no simulador de namoro: nesses dois, o bloco de Tinder e WhatsApp entra na imersão. Nos outros modos, não continue esse papo e não cite o que foi dito nesses apps. Foto na campanha só com as expressões foto_casual, foto_sensual, foto_pe ou foto_18, e só se o jogador pedir ou se o clima da cena pedir.
 19. REGRA DE OURO DA FICHA: cada campo editado do personagem é absoluto. O pensamento sobre o protagonista manda no que ele sente e esconde. Personalidade, fala, objetivos, medos, segredos e passado mandam em como ele age e fala. Não invente um comportamento que a ficha não sustenta.
 20. TEXTO ENTRE PARÊNTESES ( ) É PENSAMENTO OU QUEBRA DA QUARTA PAREDE: Se o jogador mandar qualquer trecho entre parênteses "( ... )", isso NÃO é dito em voz alta pelo protagonista! Trata-se de um PENSAMENTO INTERNO do protagonista ou de uma INSTRUÇÃO DIRETA / QUEBRA DA QUARTA PAREDE ao narrador. O narrador DEVE OBRIGATORIAMENTE OBEDECER à instrução/pensamento e incorporá-lo na cena ou na narrativa interna, enquanto os NPCs ao redor NÃO ouvem o que foi apenas pensado internamente.`
 
@@ -221,6 +221,7 @@ export interface PromptInput {
   state: any; memories: { memory_type: string; content: string }[]
   summary: string | null
   recent: { sender_type: string; character_id?: string | null; content: string }[]
+  phone?: { sender_type: string; character_id?: string | null; content: string; channel?: string }[]
   mode: 'start' | 'turn'; action: string
 }
 
@@ -268,6 +269,10 @@ export function buildPrompt(i: PromptInput): string {
       const who = x.sender_type === 'player' ? `PROTAGONISTA (${p?.name})`
         : x.sender_type === 'npc' ? (i.allNpcs.find((c) => c.id === x.character_id)?.name ?? 'NPC') : 'CENA'
       return `${who}: ${s(x.content, 500)}`
+    })),
+    block('CHATS DE TINDER E WHATSAPP (use na imersão desta cena)', (i.phone || []).map((x) => {
+      const who = x.sender_type === 'player' ? (p?.name || 'protagonista') : (i.allNpcs.find((c) => c.id === x.character_id)?.name ?? 'ela')
+      return `- ${x.channel || 'chat'} ${who}: ${s(x.content, 220)}`
     })),
   ].filter(Boolean)
 

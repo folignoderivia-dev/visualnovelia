@@ -250,6 +250,15 @@ export async function loadTopMemories(storyId: string, limit = 20): Promise<Stor
     .order('importance', { ascending: false }).order('created_at', { ascending: false }).limit(limit)) as StoryMemory[]
 }
 export async function deleteMessage(id: string): Promise<void> { check(await supabase.from('story_messages').delete().eq('id', id).select()) }
+
+export async function deletePhoneChats(storyId: string): Promise<void> {
+  check(await supabase.from('story_messages').delete().eq('story_id', storyId).contains('metadata', { channel: 'tinder' }).select())
+  check(await supabase.from('story_messages').delete().eq('story_id', storyId).contains('metadata', { channel: 'whatsapp' }).select())
+}
+
+export async function resetAllRelationships(storyId: string, characterIds: string[]): Promise<void> {
+  await Promise.all(characterIds.map((id) => setRelationship(storyId, id, 10)))
+}
 export async function deleteMemory(id: string): Promise<void> {
   check(await supabase.from('story_memories').delete().eq('id', id).select())
 }
