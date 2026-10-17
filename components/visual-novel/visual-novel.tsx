@@ -614,7 +614,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (!name || (hFlow.acoes[name] || 0) >= 5) return []
     return [{ name, text: p.text }]
   })
-  const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && narrativeMode !== 'harem'
+  const modelChoices = narrativeMode !== 'web' && narrativeMode !== 'verdade' && narrativeMode !== 'harem' && narrativeMode !== 'namoro'
     && Array.isArray((state?.state_data as any)?.pending_choices)
     ? ((state?.state_data as any).pending_choices as string[])
     : []

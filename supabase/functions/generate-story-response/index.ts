@@ -941,7 +941,8 @@ Deno.serve(async (req) => {
     const rulesText = master.data?.additional_rules || ''
     const webMode = rulesText.includes('MODO ATIVO: WEB NAMORADA')
     const verdadeMode = rulesText.includes('MODO ATIVO: VERDADE OU DESAFIO')
-    const immersePhone = rulesText.includes('MODO ATIVO: VISUAL NOVEL') || rulesText.includes('MODO ATIVO: SIMULADOR DE NAMORO')
+    const namoroMode = rulesText.includes('MODO ATIVO: SIMULADOR DE NAMORO')
+    const immersePhone = rulesText.includes('MODO ATIVO: VISUAL NOVEL') || namoroMode
     const webSince = Number(rulesText.match(/web desde:\s*(\d+)/)?.[1] || 0)
     const recent = (recentRes.data ?? [])
       .filter((m: { metadata?: { channel?: string }; sequence_number?: number }) => m.metadata?.channel !== 'tinder' && m.metadata?.channel !== 'whatsapp')
@@ -982,7 +983,7 @@ Deno.serve(async (req) => {
     const turn = validateAiResponse(ai, {
       npcIds: new Set(npcs.map((c) => c.id)), scenarioIds: new Set(scs.map((x) => x.id)), currentScenarioId,
     })
-    if (webMode || verdadeMode) turn.stateUpdates.pending_choices = []
+    if (webMode || verdadeMode || namoroMode) turn.stateUpdates.pending_choices = []
     const readable = turn.beats.some((b) => b.text.replace(/\[\[[^\]]+\]\]/g, '').trim().length > 0)
     if (!readable) throw new HttpError(502, 'ai_empty', 'O narrador não respondeu. Tente reformular sua ação.')
     const nextState = computeNextState(state, turn, {
