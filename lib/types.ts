@@ -81,6 +81,11 @@ export interface Character {
   fears: string
   secrets: string
   relationship_to_protagonist: string
+  /** O que gosta. Guardado no campo extra, sem coluna nova. */
+  likes?: string
+  dislikes?: string
+  irritates?: string
+  hurts?: string
   extra_information: string
   /** Nome de uma voz pré-pronta do Gemini TTS. Vazio = sem voz. */
   voice: string | null
@@ -104,6 +109,10 @@ export interface PlayerCharacter {
   speech_style?: string
   /** O que o narrador sabe e não revela sem motivo. */
   secrets?: string
+  likes?: string
+  dislikes?: string
+  irritates?: string
+  hurts?: string
   extra_information: string
   /** Mesmas chaves dos NPCs: neutral, happy, angry, ashamed, intimate, foto_casual, foto_sensual, foto_pe, foto_18. */
   expressions?: Record<string, string>

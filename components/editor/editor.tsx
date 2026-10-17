@@ -381,6 +381,8 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
               </div>
               <div className="two-col"><Field label="Objetivos" placeholder="O que quer?" multiline rows={3} value={editing.goals} onChange={ch('goals')} /><Field label="Medos" placeholder="Do que tem medo?" multiline rows={3} value={editing.fears} onChange={ch('fears')} /></div>
               <Field label="Segredos" placeholder="O que o narrador sabe mas não deve revelar sem motivo." multiline rows={3} value={editing.secrets} onChange={ch('secrets')} />
+              <div className="two-col"><Field label="Gosta de" placeholder="O que essa pessoa gosta." multiline rows={2} value={editing.likes || ''} onChange={ch('likes')} /><Field label="Não gosta de" placeholder="O que essa pessoa não gosta." multiline rows={2} value={editing.dislikes || ''} onChange={ch('dislikes')} /></div>
+              <div className="two-col"><Field label="Se irrita ao máximo com" placeholder="O que tira essa pessoa do sério." multiline rows={2} value={editing.irritates || ''} onChange={ch('irritates')} /><Field label="Se magoa com" placeholder="O que machuca essa pessoa." multiline rows={2} value={editing.hurts || ''} onChange={ch('hurts')} /></div>
               <Field label="Informações extras" placeholder="Qualquer outra coisa importante." multiline rows={3} value={editing.extra_information} onChange={ch('extra_information')} />
               <div className="editor-footer char-footer"><button className="ghost-button" onClick={() => setEditing(null)}><ArrowLeft /> Cancelar</button><button className="ghost-button danger" onClick={() => removeChar(editing)}><Trash2 /> Excluir</button><button className="primary-button" disabled={savingChar} onClick={saveChar}><Save /> {savingChar ? 'Salvando…' : 'Salvar personagem'}</button></div>
             </div>
@@ -479,6 +481,10 @@ export function Editor({ storyId, onExit, onPlay, onSaveState }: {
             <Field label="Estilo de fala" placeholder="Gírias, tom, tiques" multiline rows={2} value={player.speech_style || ''} onChange={(v) => setPlayer({ speech_style: v })} />
             <Field label="Medos" placeholder="Do que você tem medo?" multiline rows={2} value={player.fears} onChange={(v) => setPlayer({ fears: v })} />
             <Field label="Segredos" placeholder="O narrador sabe, mas não revela sem motivo." multiline rows={2} value={player.secrets || ''} onChange={(v) => setPlayer({ secrets: v })} />
+            <Field label="Gosta de" placeholder="Do que você gosta?" multiline rows={2} value={player.likes || ''} onChange={(v) => setPlayer({ likes: v })} />
+            <Field label="Não gosta de" placeholder="Do que você não gosta?" multiline rows={2} value={player.dislikes || ''} onChange={(v) => setPlayer({ dislikes: v })} />
+            <Field label="Se irrita ao máximo com" placeholder="O que te tira do sério?" multiline rows={2} value={player.irritates || ''} onChange={(v) => setPlayer({ irritates: v })} />
+            <Field label="Se magoa com" placeholder="O que te machuca?" multiline rows={2} value={player.hurts || ''} onChange={(v) => setPlayer({ hurts: v })} />
             <Field label="Informações extras" placeholder="Mais alguma coisa sobre você?" multiline rows={2} value={player.extra_information} onChange={(v) => setPlayer({ extra_information: v })} />
           </div></>}
 

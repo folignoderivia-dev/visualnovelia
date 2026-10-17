@@ -254,6 +254,7 @@ export function buildPrompt(i: PromptInput): string {
     block('NPCs RELEVANTES (use o id em character_id)', i.npcs.map((c) =>
       `- [id=${c.id}] ${c.name}${c.nickname ? ` ("${c.nickname}")` : ''}; idade: ${s(c.age, 40)}; aparência: ${s(c.appearance, 700)}; personalidade: ${s(c.personality, 800)}; ` +
       `fala: ${s(c.speech_style, 500)}; objetivos: ${s(c.goals, 500)}; medos: ${s(c.fears, 400)}; segredos (não revelar sem motivo): ${s(c.secrets, 500)}; ` +
+      `gosta: ${s(tasteOf(c.extra_information).likes, 240)}; não gosta: ${s(tasteOf(c.extra_information).dislikes, 240)}; irrita ao máximo: ${s(tasteOf(c.extra_information).irritates, 240)}; magoa: ${s(tasteOf(c.extra_information).hurts, 240)}; ` +
       `⭐ [FICHA — REGRA DE OURO, siga 100%]: pensa sobre o protagonista: ${s(c.relationship_to_protagonist, 1200)}; passado: ${s(c.history, 700)}; extra: ${s(c.extra_information, 500)}`)),
     block('CENÁRIOS DISPONÍVEIS (use o id em current_scenario_id ao mudar de lugar)', i.scenarios.map((x) =>
       `- [id=${x.id}] ${x.name}: ${s(x.description, 200)}${x.id === i.currentScenarioId ? '  <-- ATUAL' : ''}`)),
@@ -290,6 +291,12 @@ export type PhotoCall = {
   waitForHis: boolean
 }
 
+function tasteOf(extra: string): { likes: string; dislikes: string; irritates: string; hurts: string } {
+  const packed = (extra || '').split('[[GOSTOS]]')[1] || ''
+  const grab = (label: string) => packed.match(new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n(?:Gosta|Nao gosta|Irrita|Magoa):|$)`))?.[1]?.trim() || ''
+  return { likes: grab('Gosta'), dislikes: grab('Nao gosta'), irritates: grab('Irrita'), hurts: grab('Magoa') }
+}
+
 function photoExpression(chance: number): PhotoCall['expression'] {
   return chance >= 80 ? 'foto_18' : chance >= 60 ? 'foto_pe' : chance >= 40 ? 'foto_sensual' : 'foto_casual'
 }
@@ -322,7 +329,8 @@ Foto é sempre troca. Nunca mande uma foto primeiro e nunca mande sem ele també
 Se o bloco disser PEÇA A FOTO DELE, peça a foto do protagonista e não mande a sua.
 Se disser ESPERE A FOTO DELE, ele pediu a sua mas não mandou a dele: peça a dele e não mande a sua.
 Se disser RETRIBUA, ele já mandou a dele: mande a sua com a expression indicada.
-Se disser RECUSOU, não mande foto.`
+Se disser RECUSOU, não mande foto.
+Se a mensagem te irritar, ofender ou der nojo segundo gosta, não gosta, irrita e magoa da ficha, encerre a conversa e escreva [[DESMATCH]] no fim. Não continue flertando.`
 
 export function buildChannelPrompt(i: {
   channel: 'tinder' | 'whatsapp'
@@ -363,6 +371,10 @@ export function buildChannelPrompt(i: {
     `- o que pensa do protagonista: ${s(c?.relationship_to_protagonist, 400)}`,
     `- segredos: ${s(c?.secrets, 400)}`,
     `- extra: ${s(c?.extra_information, 300)}`,
+    `- gosta: ${s(tasteOf(c?.extra_information || '').likes, 200)}`,
+    `- não gosta: ${s(tasteOf(c?.extra_information || '').dislikes, 200)}`,
+    `- irrita ao máximo: ${s(tasteOf(c?.extra_information || '').irritates, 200)}`,
+    `- magoa: ${s(tasteOf(c?.extra_information || '').hurts, 200)}`,
     i.channel === 'tinder'
       ? 'FALA DO TINDER: sem papas na língua e sem filtro. Reação, intimidade, gíria e cada palavra seguem 100% a ficha, inclusive apelido vulgar e NSFW se a ficha for assim. Não suavize e não troque o vocabulário dela por um jeito educado.'
       : '',

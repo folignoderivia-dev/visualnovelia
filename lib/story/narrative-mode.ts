@@ -4,7 +4,7 @@ export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }
   { id: 'visual', label: 'Visual novel', hint: 'Conversa entre os personagens. A narração só descreve a cena e oferece opções.' },
   { id: 'aventura', label: 'Aventura', hint: 'Narra a campanha inteira, com capítulos, perigos e ganchos de aventura.' },
   { id: 'rpg', label: 'RPG de mesa', hint: 'Age como mestre: pede dados, testes e aplica regras.' },
-  { id: 'namoro', label: 'Simulador de namoro', hint: 'Slice of life com 3 ou 4 personagens por capítulo, um de cada vez.' },
+  { id: 'namoro', label: 'Simulador de namoro', hint: 'Você tenta conquistar. O cenário mostra quem está lá. Os botões abrem conforme os pontos.' },
   { id: 'harem', label: 'Harem', hint: 'As duas chamam sua atenção. Você escolhe uma e fica só com ela. Depois de 5 ações de cada, decide quem segue.' },
   { id: 'adulto', label: '+18', hint: 'Falas adultas, sem filtro e sem censura, no jeito da ficha.' },
   { id: 'reality', label: 'Reality', hint: 'Sete participantes. Convivência, desafios, intimidade, provas e o voto do público.' },
@@ -30,6 +30,8 @@ const REALITY_FLOW_S = '[[FLUXO_REALITY]]'
 const REALITY_FLOW_E = '[[/FLUXO_REALITY]]'
 const VERDADE_FLOW_S = '[[FLUXO_VERDADE]]'
 const VERDADE_FLOW_E = '[[/FLUXO_VERDADE]]'
+const NAMORO_S = '[[FLUXO_NAMORO]]'
+const NAMORO_E = '[[/FLUXO_NAMORO]]'
 const WEB_FLOW_S = '[[FLUXO_WEB]]'
 const WEB_FLOW_E = '[[/FLUXO_WEB]]'
 const PHOTO_S = '[[FOTOS_JOGADOR]]'
@@ -45,7 +47,7 @@ export const REALITY_PHASE_LABEL: Record<RealityPhase, string> = {
   voto: 'Voto do público',
 }
 
-const SHEET = `REGRA DE OURO DA FICHA: cada personagem criado segue 100% a ficha editada pelo jogador — nome, apelido, idade, aparência, personalidade, estilo de fala, objetivos, medos, segredos, passado, informações extras e, acima de tudo, o que pensa sobre o protagonista. Não suavize, não contradiga e não invente um jeito de ser diferente do que está escrito. Prompts e campos da ficha são lei.`
+const SHEET = `REGRA DE OURO DA FICHA: cada personagem criado segue 100% a ficha editada pelo jogador — nome, apelido, idade, aparência, personalidade, estilo de fala, objetivos, medos, segredos, gosta, não gosta, o que irrita ao máximo, o que magoa, passado, informações extras e, acima de tudo, o que pensa sobre o protagonista. Não suavize, não contradiga e não invente um jeito de ser diferente do que está escrito. Prompts e campos da ficha são lei.`
 
 export function modeInstructions(mode: NarrativeMode, theme = '', stateLine = ''): string {
   const state = stateLine ? `ESTADO SALVO (não contradiga): ${stateLine}\n` : ''
@@ -62,9 +64,13 @@ ${state}Você é o mestre da mesa. Obrigatório regrar a cena: diga qual teste o
 ${common}`
   }
   if (mode === 'namoro') {
-    return `MODO ATIVO: SIMULADOR DE NAMORO (slice of life).
-${state}Use o elenco para as pessoas se conhecerem. Em cada capítulo, escolha só 3 ou 4 personagens e foque neles um de cada vez, em cenas separadas. Não coloque o elenco inteiro junto. Simule amizade, aproximação, tentativa de flerte, romance e o que a ficha daquele personagem permitir — nada além do que a ficha autoriza. Ao abrir um capítulo novo, troque o grupo de 3 ou 4. A narração só descreve o lugar e o clima; o resto é fala do personagem em dialogue.
-${common}`
+    return `MODO ATIVO: SIMULADOR DE NAMORO.
+${state}Oposto do harem: ninguém corre atrás do protagonista. Ele é quem tenta conquistar, e cada pessoa é difícil, honesta e 100% a ficha inteira: personalidade, fala, segredos, objetivos, medos, gosta, não gosta, o que irrita, o que magoa e o que pensa dele.
+PROIBIDO o narrador falar como pessoa. PROIBIDO "o narrador disse". pending_choices sempre vazio: o jogo mostra os botões.
+Se a fase é sala: uma narração curta só descreve o cenário atual da história e quem está nesse lugar. Se o mundo for Hogwarts, a cena é Hogwarts. Sem diálogo. Não escolha por ele.
+Se a fase é fala: só a pessoa em foco existe na cena. Ela reage à tentativa dele. Se a ficha não aceita, recuse, se irrite ou se magoe. Conquista fácil é proibida. No fim da narração escreva [[AFETO:Nome:+N]] com N de -10 a +5, pequeno quando o gesto é cedo demais para os pontos.
+Não escreva a fala do protagonista.
+${SHEET}`
   }
   if (mode === 'harem') {
     return `MODO ATIVO: HAREM.
@@ -78,9 +84,9 @@ ${SHEET}`
   }
   if (mode === 'adulto') {
     return `MODO ATIVO: +18.
-${state}Todos os envolvidos são adultos. As falas são imersivas, sem filtro e sem censura: detalhadas, provocantes, no tesão, na vergonha e no poder que a ficha já tem.
-Use termos crus quando a personalidade pedir: buceta, pinto, piru, piroca, piroquinha, xereca, pepeka. Fale de tamanho, cheiro, depilação, sado, BDSM, humilhação de pênis pequeno e outros fetiches conhecidos. Não troque isso por eufemismo e não recuse a cena adulta.
-Quem fala é o personagem, em dialogue, com o character_id real. A narração só descreve corpo e lugar, também sem censura.
+${state}É uma visual novel adulta. A narração só descreve o cenário, o corpo e o que se vê. PROIBIDO o narrador falar como pessoa. Toda fala vai em dialogue, com o character_id real.
+Sem censura e sem filtro. Use a parte mais NSFW da ficha de cada um: segredos, o que gosta, o que não gosta, o que irrita, o que magoa, objetivos, medos e personalidade. Insista, aluda e force o fetiche que a ficha já tem. Desafios íntimos, ecchi e nudez acidental cabem na cena.
+Palavras permitidas e esperadas quando a ficha pede: xereca, xana, buceta, pinto, pau, piru, piruzinho. Não troque por eufemismo e não recuse a cena adulta. Todos são adultos.
 ${common}`
   }
   if (mode === 'reality') {
@@ -107,21 +113,22 @@ ${state}Adultos. Só o protagonista e os 6 nomes do ESTADO, nesta ordem, sem pul
 2. O narrador rola um D6. Quem caiu faz uma PERGUNTA para ele.
 3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa é obrigada a cumprir.
 4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
-VERDADE: sem desviar, com segredos, objetivos, medos e o que pensa do protagonista, até a resposta ficar inteira. DESAFIO: cumpre beijo, toque ou o que a ficha permitir, do começo ao fim, sem resumir e sem recusar.
-A jogada dura até estar concluída. Proibido pular, cortar no meio ou passar para outra pessoa antes do fim. Só quando a verdade foi dita por completo ou o desafio foi cumprido até o fim, escreva [[FEITO]] na narração. Sem [[FEITO]], a cena continua.
-Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde. pending_choices vazio.
-Se a JOGADA é pergunta para ele e ele ainda não ouviu: escreva SÓ a pergunta, em dialogue, com o character_id de quem caiu. Não responda por ele.
-Se a JOGADA é o desafio dele: não invente o desafio. Quem caiu começa a cumprir e só para quando acabar.
-Se a JOGADA é o desafio para ele e ele ainda não ouviu: escreva SÓ o desafio. Não cumpra por ele.
-Se a JOGADA ainda não acabou: continue a mesma cena. Não escreva [[FEITO]].
-Não traga gente de fora. Nada vazio.
+Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. Nenhuma outra pessoa responde, comenta ou entra. PROIBIDO narração e PROIBIDO qualquer frase de narrador.
+VERDADE: sem desviar, puxando segredos, objetivos, medos, personalidade e o NSFW da ficha. DESAFIO: ousado, apelativo, maligno e criativo, no que a ficha permite, do começo ao fim.
+Proibido repetir pergunta ou desafio que já apareceu nas últimas mensagens. Invente outro.
+Não troque de pessoa no meio. pending_choices vazio. O jogador confirma no botão se já acabou.
+Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde.
+Se a JOGADA é pergunta para ele e ele ainda não ouviu: escreva SÓ a pergunta dessa pessoa. Não responda por ele.
+Se a JOGADA é o desafio dele: não invente o desafio. Quem caiu cumpre.
+Se a JOGADA é o desafio para ele e ele ainda não ouviu: escreva SÓ o desafio dessa pessoa.
+Se a JOGADA ainda não acabou: continue a mesma pessoa e a mesma jogada.
 ${SHEET}`
   }
   if (mode === 'web') {
     return `MODO ATIVO: WEB NAMORADA.
 ${state}Isto é uma conversa do absoluto zero. Duas pessoas estão se conhecendo agora. Ignore campanha, memórias e qualquer pessoa que não seja ela.
 Sem escolhas. pending_choices fica vazio sempre. O jogador escreve o texto livre.
-Narração: no máximo uma frase sobre o lugar. O resto é a fala dela em dialogue, com o character_id real, 100% na ficha. Não escreva a fala do protagonista. Ninguém mais entra ou fala.
+PROIBIDO narração. PROIBIDO o narrador. A resposta inteira é a fala dela em dialogue, com o character_id real, 100% na ficha. Não escreva a fala do protagonista. Ninguém mais entra ou fala.
 ${SHEET}`
   }
   if (mode === 'tema') {
@@ -295,6 +302,39 @@ export function settleHaremTurn(rules: string, seen: [string, string] | null): s
   return writeHaremFlow(rules, done ? 'final' : 'apresenta', dupla, acoes, done ? '' : '')
 }
 
+export const NAMORO_MOVES: { id: string; label: string; min: number }[] = [
+  { id: 'presente', label: 'Presentear', min: 10 },
+  { id: 'sair', label: 'Chamar pra sair', min: 15 },
+  { id: 'abracar', label: 'Tentar abraçar', min: 20 },
+  { id: 'acariciar', label: 'Tentar acariciar', min: 30 },
+  { id: 'beijo', label: 'Tentar primeiro beijo', min: 40 },
+  { id: 'mao', label: 'Tentar mão boba', min: 55 },
+  { id: 'intimidade', label: 'Tentar intimidade', min: 75 },
+  { id: 'brigar', label: 'Brigar', min: 0 },
+  { id: 'discutir', label: 'Discutir', min: 0 },
+  { id: 'desculpas', label: 'Pedir desculpas', min: 0 },
+]
+
+export function namoroFlow(rules: string | null | undefined): { fase: 'sala' | 'fala'; foco: string } {
+  const body = readBlock(rules || '', NAMORO_S, NAMORO_E)
+  return {
+    fase: body.match(/fase:\s*(\w+)/)?.[1] === 'fala' ? 'fala' : 'sala',
+    foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '',
+  }
+}
+
+function writeNamoro(rules: string, fase: 'sala' | 'fala', foco: string): string {
+  return refreshMode(replaceBlock(rules, NAMORO_S, NAMORO_E, `fase: ${fase}\nfoco: ${foco}`))
+}
+
+export function focusNamoro(rules: string, name: string): string {
+  return writeNamoro(rules, 'fala', name)
+}
+
+export function leaveNamoro(rules: string): string {
+  return writeNamoro(rules, 'sala', '')
+}
+
 export function resetHaremChapter(rules: string): string {
   return writeHaremFlow(rules, 'apresenta', null, {}, '')
 }
@@ -398,14 +438,14 @@ export function verdadeJogada(rules: string | null | undefined, _playerName = ''
   const who = f.alvo || 'quem caiu no dado'
   if (f.fase === 'cumprir') {
     const oQue = f.passo >= 2 ? 'desafio' : 'verdade'
-    return `JOGADA: o ${oQue} de ${who} AINDA NÃO ACABOU. Continue a mesma cena e a mesma pessoa até o cumprimento completo. Proibido resumir, pular ou abrir outra jogada. Escreva [[FEITO]] só quando estiver concluído de verdade. Sem pending_choices.`
+    return `JOGADA: o ${oQue} de ${who} continua. Só ${who} fala, em dialogue. Nenhuma outra pessoa. Sem narração e sem narrador. Não repita o que já foi dito. Sem pending_choices.`
   }
-  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. ${who} é obrigada a responder com toda a verdade da ficha, até o fim. Escreva [[FEITO]] só se a resposta ficou completa. Sem pending_choices.`
-  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UMA pergunta para o protagonista. Escreva só a pergunta, em dialogue. Não responda por ele. Sem pending_choices.`
-  if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde agora à pergunta de ${who}. A resposta tem que ficar completa. ${who} reage sem encerrar no meio. Escreva [[FEITO]] só quando a verdade dele acabar. Sem pending_choices.`
-  if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. ${who} é obrigada a cumprir até o fim, sem resumir. Escreva [[FEITO]] só quando o desafio acabar. Sem pending_choices.`
-  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o narrador rolou o D6 e caiu em ${who}. ${who} faz UM desafio para o protagonista. Escreva só o desafio. Não cumpra por ele. Sem pending_choices.`
-  if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta o desafio de ${who} até o fim. Não encerre no meio. Escreva [[FEITO]] só quando estiver cumprido. Sem pending_choices.`
+  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. Só ${who} responde, com segredos, objetivos, medos e o NSFW da ficha. Sem narração. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UMA pergunta nova, ousada e maligna, puxando a ficha. Não repita pergunta antiga. Escreva só a pergunta, em dialogue. Sem narração. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde à pergunta de ${who}. Só ${who} reage. Sem narração e sem outra pessoa. Sem pending_choices.`
+  if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. Só ${who} cumpre, sem resumir e sem outra pessoa. Sem narração. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UM desafio novo, ousado, apelativo e NSFW da ficha. Não repita desafio antigo. Escreva só o desafio. Sem narração. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta o desafio de ${who}. Só ${who} reage. Sem narração e sem outra pessoa. Sem pending_choices.`
   const espera = f.passo === 0 ? 'o protagonista rolar o D6 para perguntar'
     : f.passo === 1 ? 'o narrador rolar o D6 para ver quem pergunta a ele'
     : f.passo === 2 ? 'o protagonista rolar o D6 para desafiar'
@@ -457,6 +497,9 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
     Object.keys(team.scores).length
       ? `companion placar: ${Object.entries(team.scores).map(([n, v]) => `${n}=${v}`).join(', ')}`
       : '',
+    mode === 'namoro' ? (namoroFlow(text).fase === 'fala'
+      ? `namoro fase: fala. foco: ${namoroFlow(text).foco}. Só essa pessoa fala. Conquista difícil. Escreva [[AFETO:Nome:+N]]. Sem narrador. Sem pending_choices.`
+      : 'namoro fase: sala. Descreva o cenário atual e quem está nele. Sem fala de narrador. Sem pending_choices.') : '',
     mode === 'verdade' ? verdadeJogada(text, '') : '',
     chosen.verdade.length && mode !== 'web' ? `verdade jogadores: ${chosen.verdade.join(', ')}` : '',
     chosen.web && mode !== 'verdade' ? `web namorada: ${chosen.web}` : '',
@@ -515,6 +558,16 @@ export function withCompanionUpdate(
   return refreshMode(replaceBlock(rules, TEAM_S, TEAM_E, body))
 }
 
+export function lastAffection(messages: { content: string }[]): { name: string; delta: number }[] {
+  const found: { name: string; delta: number }[] = []
+  for (const message of messages) {
+    for (const m of message.content.matchAll(/\[\[AFETO:\s*([^:\]]+?)\s*:\s*([+-]?\d{1,2})\s*\]\]/g)) {
+      found.push({ name: m[1].trim(), delta: Number(m[2]) })
+    }
+  }
+  return found
+}
+
 export function lastProposals(messages: { content: string; sender_type?: string }[]): { name: string; text: string }[] {
   const found: { name: string; text: string }[] = []
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -564,6 +617,7 @@ export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: stri
   const voz = channel === 'tinder'
     ? ' Fale sem papas na língua e sem filtro, 100% na ficha: gíria, NSFW e apelido vulgar se a ficha for assim. Não suavize.'
     : ''
+  const corte = ' Se esta mensagem te irritar, ofender ou der nojo segundo a ficha, encerre de vez e escreva [[DESMATCH]].'
   let photo = 'Não pediu foto. Não mande foto primeiro. Foto só em troca: ninguém manda sem o outro também mandar.'
   if (PHOTO_ASK.test(message)) {
     const roll = Math.floor(Math.random() * 100) + 1
@@ -573,7 +627,7 @@ export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: stri
   } else if (chance >= 40 && Math.random() * 100 < Math.min(35, chance / 3)) {
     photo = 'PEÇA A FOTO DELE, no seu jeito. Não mande a sua ainda. Foto nunca sai primeiro e nunca sai sem troca.'
   }
-  return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}${voz}`
+  return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}${voz}${corte}`
 }
 
 export function stripStageDirections(text: string): string {
@@ -586,6 +640,8 @@ export function stripStageDirections(text: string): string {
     .replace(/\[\[FOTO_JOGADOR:[^\]]+\]\]/g, '')
     .replace(/\[\[PROPOSTA:[^\]]+\]\]/g, '')
     .replace(/\[\[FEITO\]\]/g, '')
+    .replace(/\[\[DESMATCH\]\]/g, '')
+    .replace(/\[\[AFETO:[^\]]+\]\]/g, '')
     .replace(/^\s*(o narrador\s+(disse|fala|falou|narra|narrou|conta|contou)\s*[:,\-–]?\s*)/i, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

@@ -1209,6 +1209,18 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
   font-style: italic !important;
 }
 
+.vn-rewind {
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #e5b869 !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+}
+.vn-choice-bubble.is-locked { opacity: 0.4 !important; cursor: not-allowed !important; }
 .vn-alisa-pointer {
   position: absolute !important;
   bottom: 0px !important;

@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, haremFlow, isPhoneMessage, isolatedChatAction, lastDupla, lastProposals, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, collectSignals, focusHarem, focusNamoro, haremFlow, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastProposals, leaveNamoro, namoroFlow, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -40,6 +40,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const [tinderInput, setTinderInput] = useState('')
   const [wppContact, setWppContact] = useState<Character | null>(null)
   const [wppInput, setWppInput] = useState('')
+  const [phoneImage, setPhoneImage] = useState<string | null>(null)
+  const phoneImageRef = useRef<HTMLInputElement>(null)
   const [showMobileLeft, setShowMobileLeft] = useState(false)
   const [showMobileRight, setShowMobileRight] = useState(false)
   const [dailyLimit, setDailyLimit] = useState<{ isWhitelisted: boolean; used: number; max: number; remaining: number }>({
@@ -92,8 +94,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   }, [panel, tinderChatContact, messages, thinking])
 
   const visible = useMemo(
-    () => messages.filter((m) => !HIDDEN.includes(m.message_type) && !isPhoneMessage(m.metadata) && stripStageDirections(m.content).length > 0),
-    [messages],
+    () => messages.filter((m) => {
+      if (HIDDEN.includes(m.message_type) || isPhoneMessage(m.metadata) || m.sender_type === 'player') return false
+      if ((narrativeMode === 'verdade' || narrativeMode === 'web') && (m.message_type === 'narration' || m.sender_type === 'narrator')) return false
+      return stripStageDirections(m.content).length > 0
+    }),
+    [messages, narrativeMode],
   )
   const current = visible[Math.min(cursor, visible.length - 1)]
   const atEnd = visible.length === 0 || cursor >= visible.length - 1
@@ -102,7 +108,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const speaker = current?.sender_type === 'npc' && current.character_id ? npcById.get(current.character_id) : current?.sender_type === 'player' ? player : undefined
   const currentExpr = current?.expression || 'neutral'
   let carriedFoto = ''
-  for (const m of visible.slice(0, Math.min(cursor, Math.max(visible.length - 1, 0)) + 1)) {
+  const currentSeq = current?.sequence_number ?? Number.POSITIVE_INFINITY
+  for (const m of messages) {
+    if (m.sequence_number > currentSeq) break
     const hit = m.content.match(/\[\[FOTO_JOGADOR:\s*([a-z0-9_]+)\s*\]\]/i)?.[1]
     if (hit) carriedFoto = hit
     if (m.sender_type === 'player' && m.expression) carriedFoto = m.expression
@@ -184,6 +192,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
   const playerNameRef = useRef('')
   playerNameRef.current = player?.name || ''
+  const charactersRef = useRef(characters)
+  charactersRef.current = characters
 
   const applyResponse = useCallback((newMsgs: StoryMessage[], newState: StoryState, fromChannel = false) => {
     setMessages((prev) => {
@@ -195,7 +205,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (signals.approvals.length) {
       setReactions(signals.approvals.map((a) => ({ ...a, id: `${a.name}-${a.delta}-${Date.now()}-${Math.random()}` })))
     }
-    if (fromChannel) return
+    if (fromChannel) {
+      const cut = newMsgs.find((m) => /\[\[DESMATCH\]\]/.test(m.content))
+      const id = String(cut?.metadata?.character_id || cut?.character_id || '')
+      if (id) {
+        svc.setRelationship(storyId, id, 0).then(() => {
+          setCharacters((prev) => prev.map((c) => c.id === id ? { ...c, relationship: { ...(c.relationship || {}), relationship_value: 0 } } : c))
+        }).catch(() => {})
+      }
+      return
+    }
     const mode = narrativeModeRef.current
     let rules = masterRules.current
     let changed = false
@@ -212,11 +231,20 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       changed = true
     }
     if (mode === 'verdade') {
-      const done = newMsgs.some((m) => /\[\[FEITO\]\]/.test(m.content))
-      const next = advanceVerdade(rules, playerNameRef.current || 'protagonista', done)
-      if (next !== rules) {
-        rules = next
-        changed = true
+      const flow = verdadeFlow(rules)
+      if (flow.fase === 'ouvir' || flow.fase === 'escrever' || flow.fase === 'responder') {
+        const next = advanceVerdade(rules, playerNameRef.current || 'protagonista', false)
+        if (next !== rules) { rules = next; changed = true }
+      }
+    }
+    if (mode === 'namoro') {
+      for (const hit of lastAffection(newMsgs)) {
+        const person = charactersRef.current.find((c) => c.name.toLowerCase() === hit.name.toLowerCase())
+        if (!person) continue
+        const cur = Number(person.relationship?.relationship_value ?? 0)
+        svc.setRelationship(storyId, person.id, cur + hit.delta).then((value) => {
+          setCharacters((prev) => prev.map((c) => c.id === person.id ? { ...c, relationship: { ...(c.relationship || {}), relationship_value: value } } : c))
+        }).catch(() => {})
       }
     }
     if (mode === 'companion') {
@@ -383,10 +411,30 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     run('turn', action, imgToSend)
   }
 
+  function sendPhone(channel: 'tinder' | 'whatsapp', contact: Character, text: string, image?: string | null) {
+    if (busy.current) return
+    const unmatched = messages.some((m) => /\[\[DESMATCH\]\]/.test(m.content) && String(m.metadata?.character_id || m.character_id || '') === contact.id)
+    if (unmatched) { notify(channel === 'tinder' ? 'Ela desfez o match.' : 'Esta conversa foi encerrada.', 'error'); return }
+    if (!text.trim() && !image) return
+    if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
+      notify('Limite diário de 20 mensagens atingido!', 'error')
+      return
+    }
+    if (channel === 'tinder') setTinderInput('')
+    else setWppInput('')
+    setPhoneImage(null)
+    run('turn', isolatedChatAction(channel, text.trim() || 'Olha a foto que eu mandei.', contact.relationship?.relationship_value ?? 0), image || undefined, { channel, characterId: contact.id })
+  }
+
   const advance = useCallback(() => {
     if (thinking || loadingInit) return
     setCursor((c) => (c < visible.length - 1 ? c + 1 : c))
   }, [thinking, loadingInit, visible.length])
+
+  const rewind = useCallback(() => {
+    if (thinking || loadingInit) return
+    setCursor((c) => (c > 0 ? c - 1 : c))
+  }, [thinking, loadingInit])
 
   async function openPanel(p: Panel) {
     setPanel(p)
@@ -539,7 +587,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const hFlow = haremFlow(rulesText)
   const rFlow = realityFlow(rulesText)
   const vFlow = verdadeFlow(rulesText)
+  const nFlow = namoroFlow(rulesText)
   const haremLocksInput = narrativeMode === 'harem' && hFlow.fase !== 'solo'
+  const namoroLocksInput = narrativeMode === 'namoro' && nFlow.fase !== 'fala'
   const verdadeCanType = narrativeMode !== 'verdade' || vFlow.fase === 'escrever' || vFlow.fase === 'responder' || vFlow.fase === 'cumprir'
   const haremOffers = lastProposals(messages).flatMap((p) => {
     const name = hFlow.dupla?.find((n) => n.toLowerCase() === p.name.toLowerCase())
@@ -601,6 +651,45 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     setRulesText(next)
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* a proposta segue na ação */ }
     run('turn', `Eu escolho o caminho de ${name}: ${text}. Só ela. A outra não entra nesta cena.`)
+  }
+
+  async function confirmVerdade(done: boolean) {
+    if (thinking) return
+    if (!done) {
+      run('turn', 'Ainda não terminou. Continue só com a mesma pessoa e a mesma verdade ou o mesmo desafio. Não troque de personagem, não narre e não repita.')
+      return
+    }
+    const next = advanceVerdade(masterRules.current, playerNameRef.current || 'protagonista', true)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* o dado seguinte usa o texto salvo */ }
+  }
+
+  async function namoroTalk(name: string) {
+    if (thinking) return
+    const next = focusNamoro(masterRules.current, name)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a conversa segue na ação */ }
+    run('turn', `Eu escolho falar só com ${name}. Uma narração curta mostra o lugar e quem está ali, sem voz de narrador. Só ${name} fala.`)
+  }
+
+  async function namoroMove(label: string) {
+    if (thinking) return
+    const flow = namoroFlow(masterRules.current)
+    if (!flow.foco) return
+    const person = characters.find((c) => c.name.toLowerCase() === flow.foco.toLowerCase())
+    const pts = Number(person?.relationship?.relationship_value ?? 0)
+    run('turn', `Eu estou só com ${flow.foco}. Pontos de relacionamento: ${pts}/100. Minha tentativa: ${label}. Julgue com a ficha inteira. Se for cedo ou contra a ficha, recuse. Escreva [[AFETO:${flow.foco}:+N]].`)
+  }
+
+  async function namoroBack() {
+    if (thinking) return
+    const next = leaveNamoro(masterRules.current)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a sala segue no texto */ }
+    run('turn', 'Eu me afasto. Mostre de novo o cenário e quem está nele, sem voz de narrador.')
   }
 
   async function nextRealityPart() {
@@ -840,6 +929,13 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         {/* 1. CAIXA DE DIÁLOGO PURA DA PERSONAGEM (Abaixo da foto do personagem e acima das opções) */}
         <section className="dialogue-panel vn-dialogue-window" onClick={(e) => { e.stopPropagation(); if (!atEnd) advance(); }}>
           <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleFileChange} />
+          <input type="file" ref={phoneImageRef} style={{ display: 'none' }} accept="image/*" onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (!f) return
+            const reader = new FileReader()
+            reader.onload = (re) => setPhoneImage(re.target?.result as string)
+            reader.readAsDataURL(f)
+          }} />
           
           {loadingInit ? (
             <div className="vn-dialogue-loading"><Sparkles className="pulse" /> Carregando crônicas...</div>
@@ -900,6 +996,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <p className={`dialogue-text vn-dialogue-text ${current.message_type === 'narration' ? 'is-narration' : ''}`}>
                     {shownText}
                   </p>
+                  {cursor > 0 && (
+                    <button type="button" className="vn-rewind" onClick={(e) => { e.stopPropagation(); rewind() }}>← Anterior</button>
+                  )}
                   {!atEnd && <span className="vn-alisa-pointer">▶</span>}
                 </div>
               )}
@@ -908,12 +1007,12 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         </section>
 
         {/* 2. BALÕES / BOTÕES DE ESCOLHAS (Abaixo do diálogo e acima da caixa de resposta) */}
-        {!loadingInit && !thinking && !error && atEnd && (narrativeMode === 'verdade' || narrativeMode === 'harem' || narrativeMode === 'reality' || narrativeMode === 'companion' || narrativeMode === 'web') && (
+        {!loadingInit && !thinking && !error && atEnd && (narrativeMode === 'verdade' || narrativeMode === 'harem' || narrativeMode === 'reality' || narrativeMode === 'companion' || narrativeMode === 'web' || narrativeMode === 'namoro') && (
           <div className="vn-mode-banner" onClick={(e) => e.stopPropagation()}>
             {narrativeMode === 'verdade' && (vFlow.elenco.length < 6
               ? 'Abra o tema e confirme os 6 personagens.'
               : vFlow.fase === 'cumprir'
-                ? `A ${vFlow.passo >= 2 ? 'desafio' : 'verdade'} de ${vFlow.alvo} ainda não acabou. Continue até cumprir.`
+                ? `Só ${vFlow.alvo} nesta jogada. Já terminou a ${vFlow.passo >= 2 ? 'desafio' : 'verdade'}?`
                 : vFlow.fase === 'escrever' && vFlow.passo === 0
                 ? `D6 caiu em ${vFlow.alvo}. Escreva a pergunta. Ela responde com a verdade da ficha.`
                 : vFlow.fase === 'responder' && vFlow.passo === 1
@@ -925,10 +1024,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       : vFlow.passo === 0
                         ? 'Sua vez. Role o D6 para ver a quem você pergunta.'
                         : vFlow.passo === 1
-                          ? 'Vez do narrador rolar o D6 e ver quem te pergunta.'
+                          ? 'Vez do dado escolher quem te pergunta.'
                           : vFlow.passo === 2
                             ? 'Sua vez. Role o D6 para ver quem cumpre o seu desafio.'
-                            : 'Vez do narrador rolar o D6 e ver quem te desafia.')}
+                            : 'Vez do dado escolher quem te desafia.')}
             {narrativeMode === 'harem' && (hFlow.fase === 'final' && hFlow.dupla
               ? `${hFlow.dupla[0]} e ${hFlow.dupla[1]} já tiveram 5 ações cada. Decida quem segue.`
               : hFlow.fase === 'solo'
@@ -938,15 +1037,50 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   : 'Duas mulheres vão fazer uma proposta. Você escolhe qual caminho seguir.')}
             {narrativeMode === 'reality' && `Parte: ${REALITY_PHASE_LABEL[rFlow.fase]}. Elenco: ${rFlow.elenco.join(', ') || 'abra o tema para sortear 7'}.`}
             {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
-            {narrativeMode === 'web' && 'Conversa do zero, sem escolhas. Escreva o que você diz.'}
+            {narrativeMode === 'web' && 'Conversa do zero, sem narrador. Escreva o que você diz.'}
+            {narrativeMode === 'namoro' && (nFlow.fase === 'fala'
+              ? `Só com ${nFlow.foco}. Pontos: ${characters.find((c) => c.name.toLowerCase() === nFlow.foco.toLowerCase())?.relationship?.relationship_value ?? 0}/100. Os botões fechados ainda não destrancaram.`
+              : 'O lugar mostra quem está aí. Escolha com quem falar.')}
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'cumprir' && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="vn-choice-bubble" onClick={() => run('turn', 'Ainda não acabou. Continue a mesma verdade ou o mesmo desafio até o cumprimento completo. Não troque de pessoa e não escreva [[FEITO]] antes do fim.')}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void confirmVerdade(true)}>
               <span className="vn-bubble-pointer" />
-              <span className="vn-bubble-text">Continuar até o fim</span>
+              <span className="vn-bubble-text">Sim, já terminou</span>
             </button>
+            <button type="button" className="vn-choice-bubble" onClick={() => void confirmVerdade(false)}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Não, continua</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'namoro' && nFlow.fase === 'sala' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            {characters.filter((c) => c.name).map((c) => (
+              <button key={c.id} type="button" className="vn-choice-bubble" onClick={() => void namoroTalk(c.name)}>
+                <span className="vn-bubble-pointer" />
+                <span className="vn-bubble-text">Falar com {c.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'namoro' && nFlow.fase === 'fala' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void namoroBack()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Ver quem está no lugar</span>
+            </button>
+            {NAMORO_MOVES.map((move) => {
+              const pts = Number(characters.find((c) => c.name.toLowerCase() === nFlow.foco.toLowerCase())?.relationship?.relationship_value ?? 0)
+              const locked = pts < move.min
+              return (
+                <button key={move.id} type="button" className={`vn-choice-bubble${locked ? ' is-locked' : ''}`} disabled={locked} title={locked ? `Precisa de ${move.min} pontos` : move.label} onClick={() => void namoroMove(move.label)}>
+                  <span className="vn-bubble-pointer" />
+                  <span className="vn-bubble-text">{locked ? `${move.label} (${move.min})` : move.label}</span>
+                </button>
+              )
+            })}
           </div>
         )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'rolar' && vFlow.elenco.length >= 6 && (
@@ -1027,7 +1161,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         )}
 
         {/* 3. PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
-        {!loadingInit && !thinking && !error && current && atEnd && !haremLocksInput && verdadeCanType && (
+        {!loadingInit && !thinking && !error && current && atEnd && !haremLocksInput && !namoroLocksInput && verdadeCanType && (
           <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
             <div className="vn-action-console-inner">
               <span className="vn-action-console-badge">SUA RESPOSTA</span>
@@ -1399,6 +1533,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div className="field"><span>Objetivos</span><textarea value={player.goals} onChange={(e) => setPlayer({ ...player, goals: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Medos</span><textarea value={player.fears} onChange={(e) => setPlayer({ ...player, fears: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Segredos</span><textarea value={player.secrets || ''} onChange={(e) => setPlayer({ ...player, secrets: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Gosta de</span><textarea value={player.likes || ''} onChange={(e) => setPlayer({ ...player, likes: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Não gosta de</span><textarea value={player.dislikes || ''} onChange={(e) => setPlayer({ ...player, dislikes: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Se irrita ao máximo com</span><textarea value={player.irritates || ''} onChange={(e) => setPlayer({ ...player, irritates: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Se magoa com</span><textarea value={player.hurts || ''} onChange={(e) => setPlayer({ ...player, hurts: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Informações extras</span><textarea value={player.extra_information} onChange={(e) => setPlayer({ ...player, extra_information: e.target.value })} rows={2} /></div>
                   <div className="expressions-grid">
                     <span>Expressões e fotos</span>
@@ -1457,6 +1595,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div className="field"><span>Objetivos</span><textarea value={editingChar.goals} onChange={(e) => setEditingChar({ ...editingChar, goals: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Medos</span><textarea value={editingChar.fears} onChange={(e) => setEditingChar({ ...editingChar, fears: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Segredos</span><textarea value={editingChar.secrets} onChange={(e) => setEditingChar({ ...editingChar, secrets: e.target.value })} rows={2} placeholder="O narrador sabe, mas não revela sem motivo." /></div>
+                  <div className="field"><span>Gosta de</span><textarea value={editingChar.likes || ''} onChange={(e) => setEditingChar({ ...editingChar, likes: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Não gosta de</span><textarea value={editingChar.dislikes || ''} onChange={(e) => setEditingChar({ ...editingChar, dislikes: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Se irrita ao máximo com</span><textarea value={editingChar.irritates || ''} onChange={(e) => setEditingChar({ ...editingChar, irritates: e.target.value })} rows={2} /></div>
+                  <div className="field"><span>Se magoa com</span><textarea value={editingChar.hurts || ''} onChange={(e) => setEditingChar({ ...editingChar, hurts: e.target.value })} rows={2} /></div>
                   <div className="field"><span>Informações extras</span><textarea value={editingChar.extra_information} onChange={(e) => setEditingChar({ ...editingChar, extra_information: e.target.value })} rows={2} /></div>
                   {editingChar.relationship && typeof editingChar.relationship.relationship_value === "number" && (<div className="field"><span>Pontos de Relacionamento (0 a 100)</span><input type="number" min={0} max={100} value={editingChar.relationship.relationship_value} onChange={(e) => setEditingChar({ ...editingChar, relationship: { ...editingChar.relationship!, relationship_value: Number(e.target.value) } })} style={{ padding: "8px", background: "rgba(0,0,0,0.3)", border: "1px solid #444", color: "#fff" }} /></div>)}
                   
@@ -1697,47 +1839,25 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   <div ref={wppEndRef} />
                 </div>
 
-                {/* BARRA DE INPUT DO WHATSAPP */}
+                {messages.some((m) => /\[\[DESMATCH\]\]/.test(m.content) && String(m.metadata?.character_id || m.character_id || '') === wppContact.id) ? (
+                  <div className="wpp-input-bar"><p>Ela encerrou a conversa.</p></div>
+                ) : (
                 <div className="wpp-input-bar">
-                  <button type="button" className="wpp-icon-btn"><Smile size={20}/></button>
+                  <button type="button" className="wpp-icon-btn" title="Enviar foto" onClick={() => phoneImageRef.current?.click()}><Camera size={20}/></button>
+                  <button type="button" className="wpp-icon-btn" title="Pedir foto" onClick={() => sendPhone('whatsapp', wppContact, 'Me manda uma foto sua.')}>📷</button>
                   <input
                     className="wpp-text-input"
                     value={wppInput}
                     onChange={(e) => setWppInput(e.target.value)}
                     disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
-                    placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? 'Limite diário de 20 msgs atingido' : 'Mensagem'}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                        if (!wppInput.trim() || busy.current) return
-                        if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
-                          notify('Limite diário de 20 mensagens atingido!', 'error')
-                          return
-                        }
-                        const msg = wppInput.trim()
-                        setWppInput('')
-                        run('turn', isolatedChatAction('whatsapp', msg, wppContact.relationship?.relationship_value ?? 0), undefined, { channel: 'whatsapp', characterId: wppContact.id })
-                      }
-                    }}
+                    placeholder={phoneImage ? 'Foto pronta para enviar' : 'Mensagem'}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendPhone('whatsapp', wppContact, wppInput, phoneImage) }}
                   />
-                  <button type="button" className="wpp-icon-btn" onClick={() => { setUploadTarget(`expr:${wppContact.id}:foto_casual`); fileInputRef.current?.click(); }} title="Enviar foto"><Camera size={20}/></button>
-                  <button
-                    type="button"
-                    className="wpp-send-btn"
-                    disabled={(!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) || !wppInput.trim() || busy.current}
-                    onClick={() => {
-                      if (!wppInput.trim() || busy.current) return
-                      if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
-                        notify('Limite diário de 20 mensagens atingido!', 'error')
-                        return
-                      }
-                      const msg = wppInput.trim()
-                      setWppInput('')
-                      run('turn', isolatedChatAction('whatsapp', msg, wppContact.relationship?.relationship_value ?? 0), undefined, { channel: 'whatsapp', characterId: wppContact.id })
-                    }}
-                  >
+                  <button type="button" className="wpp-send-btn" disabled={(!wppInput.trim() && !phoneImage) || busy.current} onClick={() => sendPhone('whatsapp', wppContact, wppInput, phoneImage)}>
                     <Send size={16}/>
                   </button>
                 </div>
+                )}
               </div>
             )}
           </div>
@@ -1779,9 +1899,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                       .slice(-20)
                       .map((m, idx) => {
                         const isMe = m.sender_type === 'player'
+                        const photoUrl = m.expression?.startsWith('foto_') ? ((tinderChatContact as { expressions?: Record<string, string> }).expressions?.[m.expression] || tinderChatContact.image_url) : null
                         return (
                           <div key={idx} className={`tinder-bubble-wrap ${isMe ? 'is-me' : 'is-them'}`}>
                             <div className={`tinder-bubble ${isMe ? 'me' : 'them'}`}>
+                              {photoUrl && <img src={photoUrl} alt="" />}
                               <p>{stripStageDirections(m.content).replace(/\[MENSAGEM NO TINDER PARA .*?\]:\s*"?/, '').replace(/"?\.\s*RESPONDA NO MODO TINDER CHAT:[\s\S]*$/, '')}</p>
                             </div>
                           </div>
@@ -1796,43 +1918,25 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     )}
                     <div ref={tinderEndRef} />
                   </div>
+                  {messages.some((m) => /\[\[DESMATCH\]\]/.test(m.content) && String(m.metadata?.character_id || m.character_id || '') === tinderChatContact.id) ? (
+                    <div className="tinder-input-bar"><p>Ela desfez o match.</p></div>
+                  ) : (
                   <div className="tinder-input-bar">
+                    <button type="button" className="wpp-icon-btn" title="Enviar foto" onClick={() => phoneImageRef.current?.click()}><Camera size={18}/></button>
+                    <button type="button" className="wpp-icon-btn" title="Pedir foto" onClick={() => sendPhone('tinder', tinderChatContact, 'Me manda uma foto sua.')}>📷</button>
                     <input
                       className="tinder-text-input"
                       value={tinderInput}
                       onChange={(e) => setTinderInput(e.target.value)}
                       disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
-                      placeholder={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0 ? 'Limite diário de 20 msgs atingido' : 'Diga algo interessante...'}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                          if (!tinderInput.trim() || busy.current) return
-                          if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
-                            notify('Limite diário de 20 mensagens atingido!', 'error')
-                            return
-                          }
-                          const msg = tinderInput.trim()
-                          setTinderInput('')
-                          run('turn', isolatedChatAction('tinder', msg, tinderChatContact.relationship?.relationship_value ?? 0), undefined, { channel: 'tinder', characterId: tinderChatContact.id })
-                        }
-                      }}
+                      placeholder={phoneImage ? 'Foto pronta para enviar' : 'Diga algo interessante...'}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendPhone('tinder', tinderChatContact, tinderInput, phoneImage) }}
                     />
-                    <button
-                      className="tinder-send-btn"
-                      disabled={(!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) || !tinderInput.trim() || busy.current}
-                      onClick={() => {
-                        if (!tinderInput.trim() || busy.current) return
-                        if (!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0) {
-                          notify('Limite diário de 20 mensagens atingido!', 'error')
-                          return
-                        }
-                        const msg = tinderInput.trim()
-                        setTinderInput('')
-                        run('turn', isolatedChatAction('tinder', msg, tinderChatContact.relationship?.relationship_value ?? 0), undefined, { channel: 'tinder', characterId: tinderChatContact.id })
-                      }}
-                    >
+                    <button className="tinder-send-btn" disabled={(!tinderInput.trim() && !phoneImage) || busy.current} onClick={() => sendPhone('tinder', tinderChatContact, tinderInput, phoneImage)}>
                       <Send size={16}/>
                     </button>
                   </div>
+                  )}
                 </div>
               ) : tinderMatched ? (
                 /* TELA POPUP DE MATCH */

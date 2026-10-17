@@ -75,6 +75,12 @@ export async function loadBundle(storyId: string): Promise<StoryBundle> {
   const chars = check(characters) as Character[]
   const exprs = (check(expressions) as any[]) || []
   for (const c of chars) {
+    const tastes = unpackTastes(c.extra_information || '')
+    c.likes = tastes.likes
+    c.dislikes = tastes.dislikes
+    c.irritates = tastes.irritates
+    c.hurts = tastes.hurts
+    c.extra_information = tastes.extra
     c.expressions = {}
     c.relationship = (check(relationships) as any[])?.find(r => r.character_a_id === c.id && !r.character_b_id)
     for (const e of exprs) {
@@ -117,6 +123,26 @@ export async function saveNarrativeMode(storyId: string, additionalRules: string
   check(await supabase.from('story_master_settings').update({ additional_rules: additionalRules }).eq('story_id', storyId).select())
 }
 const FICHA = '\n[[FICHA_PROTAGONISTA]]'
+const GOSTOS = '\n[[GOSTOS]]'
+
+export type TasteFields = { likes?: string; dislikes?: string; irritates?: string; hurts?: string }
+
+export function unpackTastes(extra: string): TasteFields & { extra: string } {
+  const [base, packed = ''] = (extra || '').split(GOSTOS)
+  const grab = (label: string) => packed.match(new RegExp(`${label}:\\s*([\\s\\S]*?)(?=\\n(?:Gosta|Nao gosta|Irrita|Magoa):|$)`))?.[1]?.trim() || ''
+  return { extra: base.trim(), likes: grab('Gosta'), dislikes: grab('Nao gosta'), irritates: grab('Irrita'), hurts: grab('Magoa') }
+}
+
+export function packTastes(extra: string, t: TasteFields): string {
+  const base = (extra || '').split(GOSTOS)[0].split(FICHA)[0].trim()
+  const lines = [
+    t.likes?.trim() ? `Gosta: ${t.likes.trim()}` : '',
+    t.dislikes?.trim() ? `Nao gosta: ${t.dislikes.trim()}` : '',
+    t.irritates?.trim() ? `Irrita: ${t.irritates.trim()}` : '',
+    t.hurts?.trim() ? `Magoa: ${t.hurts.trim()}` : '',
+  ].filter(Boolean)
+  return lines.length ? `${base}${GOSTOS}\n${lines.join('\n')}` : base
+}
 
 /** A tabela do protagonista não tem fala nem segredos. Eles viajam no campo extra, separados na tela. */
 export function unpackPlayer(p: PlayerCharacter): PlayerCharacter {
@@ -124,6 +150,7 @@ export function unpackPlayer(p: PlayerCharacter): PlayerCharacter {
   const [base, packed] = raw.split(FICHA)
   const speech = packed?.match(/Fala:\s*([\s\S]*?)(?:\nSegredos:|\nFotos:|$)/)?.[1]?.trim() || p.speech_style || ''
   const secrets = packed?.match(/Segredos:\s*([\s\S]*?)(?:\nFotos:|$)/)?.[1]?.trim() || p.secrets || ''
+  const tastes = unpackTastes(base || '')
   let expressions = p.expressions || {}
   const fotos = packed?.match(/Fotos:\s*(\{.*\})/)?.[1]
   if (fotos) {
@@ -132,12 +159,22 @@ export function unpackPlayer(p: PlayerCharacter): PlayerCharacter {
       if (parsed && typeof parsed === 'object') expressions = parsed
     } catch { /* foto ilegível fica de fora */ }
   }
-  return { ...p, speech_style: speech, secrets, expressions, extra_information: (base || '').trim() }
+  return {
+    ...p,
+    speech_style: speech,
+    secrets,
+    expressions,
+    likes: tastes.likes,
+    dislikes: tastes.dislikes,
+    irritates: tastes.irritates,
+    hurts: tastes.hurts,
+    extra_information: tastes.extra,
+  }
 }
 
 function packPlayer(p: PlayerCharacter): Record<string, unknown> {
-  const { speech_style: speech, secrets, expressions, ...rest } = strip(p) as unknown as PlayerCharacter
-  const base = (p.extra_information || '').split(FICHA)[0].trim()
+  const { speech_style: speech, secrets, expressions, likes, dislikes, irritates, hurts, ...rest } = strip(p) as unknown as PlayerCharacter
+  const base = packTastes(p.extra_information || '', { likes, dislikes, irritates, hurts })
   const fotos = expressions && Object.keys(expressions).length ? `Fotos: ${JSON.stringify(expressions)}` : ''
   const tail = [speech ? `Fala: ${speech}` : '', secrets ? `Segredos: ${secrets}` : '', fotos].filter(Boolean).join('\n')
   return { ...rest, extra_information: tail ? `${base}${FICHA}\n${tail}` : base }
@@ -156,7 +193,8 @@ export async function createCharacter(storyId: string): Promise<Character> {
   return check(await supabase.from('characters').insert({ story_id: storyId }).select().single()) as Character
 }
 export async function saveCharacter(c: Character): Promise<void> {
-  const { id, story_id: _s, expressions, relationship, ...rest } = c as any
+  const { id, story_id: _s, expressions, relationship, likes, dislikes, irritates, hurts, ...rest } = c as any
+  rest.extra_information = packTastes(rest.extra_information || '', { likes, dislikes, irritates, hurts })
   check(await supabase.from('characters').update(rest).eq('id', id).select())
   if (relationship && typeof relationship.relationship_value === 'number') {
     if (relationship.id) {
@@ -166,6 +204,14 @@ export async function saveCharacter(c: Character): Promise<void> {
     }
   }
 }
+export async function setRelationship(storyId: string, characterId: string, value: number): Promise<number> {
+  const next = Math.max(0, Math.min(100, Math.round(value)))
+  const { data } = await supabase.from('character_relationships').select('id').eq('story_id', storyId).eq('character_a_id', characterId).is('character_b_id', null).maybeSingle()
+  if (data?.id) check(await supabase.from('character_relationships').update({ relationship_value: next }).eq('id', data.id).select())
+  else check(await supabase.from('character_relationships').insert({ story_id: storyId, character_a_id: characterId, relationship_value: next }).select())
+  return next
+}
+
 export async function deleteCharacter(id: string): Promise<void> {
   check(await supabase.from('characters').delete().eq('id', id).select())
 }
