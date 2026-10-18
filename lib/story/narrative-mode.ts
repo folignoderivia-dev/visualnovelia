@@ -5,7 +5,7 @@ export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }
   { id: 'aventura', label: 'Aventura', hint: 'Narra a campanha inteira, com capítulos, perigos e ganchos de aventura.' },
   { id: 'rpg', label: 'RPG de mesa', hint: 'Age como mestre: pede dados, testes e aplica regras.' },
   { id: 'namoro', label: 'Simulador de namoro', hint: 'Você diz para onde vai. A cena traz só 3 mulheres. Os botões abrem com os pontos.' },
-  { id: 'harem', label: 'Harem', hint: 'As duas chamam sua atenção. Você escolhe uma e fica só com ela. Depois de 5 ações de cada, decide quem segue.' },
+  { id: 'harem', label: 'Harem', hint: 'Capítulo de 10 cenas. Duas disputam sua atenção. No 10/10 você fica com uma e entra outra, até sobrar uma.' },
   { id: 'adulto', label: '+18', hint: 'Provocação, intimidade, vergonha e apelidos íntimos, sem censura.' },
   { id: 'reality', label: 'Reality', hint: 'Sete participantes. Convivência, desafios, intimidade, provas e o voto do público.' },
   { id: 'companion', label: 'Companion', hint: 'Cada fala sua gera aprovação ou desaprovação. Quem perde pontos sai da equipe.' },
@@ -75,12 +75,13 @@ ${SHEET}`
   }
   if (mode === 'harem') {
     return `MODO ATIVO: HAREM.
-${state}Só duas mulheres da ficha, 100% no jeito de cada uma. Sem homens e sem gente inventada. pending_choices SEMPRE vazio: o jogo mostra os botões.
-Se o ESTADO não tem dupla, apresente duas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[DUPLA:Nome A|Nome B]] e [[PROPOSTA:Nome|a proposta]] na narração. Não faça ele escolher ainda.
-Se a fase é apresenta, cada uma faz UMA proposta concreta para o protagonista: um caminho ousado, no jeito da ficha, para encantar, apaixonar, seduzir, apelar ou ousar. Escreva [[PROPOSTA:Nome|a proposta]] para cada uma. Não escolha por ele. Não misture os caminhos.
-Se a fase é solo, PARE e espere o texto dele. Não escreva a resposta dele e não pule para a próxima ação. Só a mulher em foco reage à frase que ele acabou de escrever, seguindo a proposta salva. A outra não fala. Uma troca por vez.
-Se a fase é final, não escreva cena nova.
-Narração com lugar. Falas em dialogue com character_id real. Nada vazio. Não escreva a fala do protagonista.
+${state}Disputa até sobrar uma mulher. Cada capítulo tem 10 cenas, sempre com duas da ficha. Sem homens e sem gente inventada. pending_choices sempre vazio.
+Se não há dupla, apresente duas que não foram eliminadas. Escreva [[DUPLA:Nome A|Nome B]].
+Se a fase é apresenta: as duas tentam a atenção dele, cada uma do próprio jeito. Não escolha por ele. Não escreva a fala dele. Pare e espere.
+Se a fase é solo: só a escolhida responde ao texto que ele acabou de escrever. A outra não entra. Uma resposta e pare. Não abra a próxima cena.
+Se a fase é final: não escreva cena. Ele escolhe quem fica.
+Se a fase é campea: só a última restante. A disputa acabou.
+Narração curta do lugar. Falas em dialogue com character_id real.
 ${SHEET}`
   }
   if (mode === 'adulto') {
@@ -114,8 +115,8 @@ ${state}Adultos. Só o protagonista e os 6 nomes do ESTADO, nesta ordem, sem pul
 2. O narrador rola um D6. Quem caiu faz uma PERGUNTA para ele.
 3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa é obrigada a cumprir.
 4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
-Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. Nenhuma outra pessoa responde. PROIBIDO recusar a cena, censurar ou escrever que não pode continuar. Se a jogada for adulta, os personagens são adultos e a fala sai mesmo assim.
-VERDADE: sem desviar, puxando segredos, objetivos, medos, personalidade e o NSFW da ficha. DESAFIO: ousado, apelativo, maligno e criativo, no que a ficha permite, do começo ao fim.
+Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. A resposta começa nessa fala. Não diga que não pode continuar e não troque a jogada por um aviso.
+VERDADE: responda com a ficha, sobretudo segredos, objetivos, medos e personalidade. DESAFIO: a pessoa cumpre o que foi pedido, no jeito da própria ficha, do começo ao fim.
 Proibido repetir pergunta ou desafio que já apareceu nas últimas mensagens. Invente outro.
 Não troque de pessoa no meio. pending_choices vazio. O jogador confirma no botão se já acabou.
 Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde.
@@ -238,28 +239,34 @@ export function withChosenCast(rules: string, mode: 'verdade' | 'web', names: st
   return withNarrativeMode(next, mode, parseNarrativeMode(next).theme)
 }
 
-export type HaremPhase = 'apresenta' | 'solo' | 'final'
-const HAREM_ACTIONS = 5
+export type HaremPhase = 'apresenta' | 'solo' | 'final' | 'campea'
+export const HAREM_SCENES = 10
 
 export function haremFlow(rules: string | null | undefined): {
   fase: HaremPhase
   dupla: [string, string] | null
   foco: string
   proposta: string
+  cenas: number
+  vista: boolean
   acoes: Record<string, number>
 } {
   const body = readBlock(rules || '', HAREM_FLOW_S, HAREM_FLOW_E)
   const rawFase = body.match(/fase:\s*(\w+)/)?.[1] || ''
-  const fase: HaremPhase = rawFase === 'solo' ? 'solo' : rawFase === 'final' || rawFase === 'escolha' ? 'final' : 'apresenta'
+  const fase: HaremPhase = rawFase === 'solo' ? 'solo' : rawFase === 'final' || rawFase === 'escolha' ? 'final' : rawFase === 'campea' ? 'campea' : 'apresenta'
   const pair = namesOf(body, 'dupla')
   const dupla: [string, string] | null = pair.length >= 2 ? [pair[0], pair[1]] : null
   const acoes: Record<string, number> = {}
   if (dupla) { acoes[dupla[0]] = 0; acoes[dupla[1]] = 0 }
-  for (const part of (body.match(/acoes:\s*(.*)/)?.[1] || '').split(';')) {
-    const [name, value] = part.split('=')
-    if (name?.trim() && Number.isFinite(Number(value))) acoes[name.trim()] = Math.max(0, Math.min(HAREM_ACTIONS, Number(value)))
+  return {
+    fase,
+    dupla,
+    foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '',
+    proposta: body.match(/proposta:\s*(.*)/)?.[1]?.trim() || '',
+    cenas: Math.max(0, Math.min(HAREM_SCENES, Number(body.match(/cenas:\s*(\d+)/)?.[1] || 0) || 0)),
+    vista: /vista:\s*sim/.test(body),
+    acoes,
   }
-  return { fase, dupla, foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '', proposta: body.match(/proposta:\s*(.*)/)?.[1]?.trim() || '', acoes }
 }
 
 function writeHaremFlow(
@@ -269,50 +276,66 @@ function writeHaremFlow(
   acoes: Record<string, number>,
   foco = '',
   proposta = '',
+  cenas = 0,
+  vista = false,
 ): string {
   const score = dupla ? dupla.map((n) => `${n}=${acoes[n] || 0}`).join('; ') : ''
-  const body = `fase: ${fase}\ndupla: ${dupla ? dupla.join('; ') : ''}\nfoco: ${foco}\nproposta: ${proposta.replace(/\s+/g, ' ')}\nacoes: ${score}`
+  const body = `fase: ${fase}\ndupla: ${dupla ? dupla.join('; ') : ''}\nfoco: ${foco}\nproposta: ${proposta.replace(/\s+/g, ' ')}\ncenas: ${Math.max(0, Math.min(HAREM_SCENES, cenas))}\nvista: ${vista ? 'sim' : 'nao'}\nacoes: ${score}`
   return refreshMode(replaceBlock(rules, HAREM_FLOW_S, HAREM_FLOW_E, body))
 }
 
-/** O jogador escolheu com quem falar. A cena ainda não conta até ele escrever. */
+/** O jogador escolheu com quem continuar. A cena ainda não conta até ele escrever. */
 export function focusHarem(rules: string, name: string, proposta = ''): string {
   const cur = haremFlow(rules)
   if (!cur.dupla || !cur.dupla.some((n) => n.toLowerCase() === name.toLowerCase())) return rules
-  if ((cur.acoes[name] || 0) >= HAREM_ACTIONS) return rules
-  return writeHaremFlow(rules, 'solo', cur.dupla, cur.acoes, name, proposta || cur.proposta)
+  if (cur.cenas >= HAREM_SCENES) return rules
+  return writeHaremFlow(rules, 'solo', cur.dupla, cur.acoes, name, proposta || cur.proposta, cur.cenas, true)
 }
 
-/** Uma ação com a mulher em foco. Na quinta de cada uma, a resposta seguinte abre a decisão. */
-export function addHaremAction(rules: string, name: string): string {
+/** Marca que as duas já se mostraram nesta cena. */
+export function seeHaremScene(rules: string): string {
+  const cur = haremFlow(rules)
+  return writeHaremFlow(rules, cur.fase === 'solo' ? 'solo' : 'apresenta', cur.dupla, cur.acoes, cur.foco, cur.proposta, cur.cenas, true)
+}
+
+/** A resposta dele fechou a cena. No 10/10 a escolha é obrigatória. */
+export function advanceHaremScene(rules: string): string {
   const cur = haremFlow(rules)
   if (!cur.dupla) return rules
-  const acoes = { ...cur.acoes }
-  const key = cur.dupla.find((n) => n.toLowerCase() === name.toLowerCase()) || name
-  acoes[key] = Math.min(HAREM_ACTIONS, (acoes[key] || 0) + 1)
-  return writeHaremFlow(rules, 'solo', cur.dupla, acoes, key, cur.proposta)
+  const cenas = Math.min(HAREM_SCENES, cur.cenas + 1)
+  return writeHaremFlow(rules, cenas >= HAREM_SCENES ? 'final' : 'apresenta', cur.dupla, cur.acoes, '', '', cenas, false)
 }
 
-/** Sai do solo sem disparar cena. As duas continuam na dupla. */
+export function pairHarem(rules: string, a: string, b: string): string {
+  return writeHaremFlow(rules, 'apresenta', [a, b], { [a]: 0, [b]: 0 }, '', '', 0, false)
+}
+
+export function crownHarem(rules: string, name: string): string {
+  return writeHaremFlow(rules, 'campea', [name, name], {}, name, '', HAREM_SCENES, true)
+}
+
+/** Uma ação com a mulher em foco. A contagem do capítulo sobe quando a resposta chega. */
+export function addHaremAction(rules: string, name: string): string {
+  return focusHarem(rules, name)
+}
+
+/** Volta para as duas sem contar a cena. */
 export function pauseHarem(rules: string): string {
   const cur = haremFlow(rules)
   if (!cur.dupla) return rules
-  return writeHaremFlow(rules, 'apresenta', cur.dupla, cur.acoes, '')
+  return writeHaremFlow(rules, 'apresenta', cur.dupla, cur.acoes, '', '', cur.cenas, true)
 }
 
-/** Depois da resposta: guarda a dupla e volta para a escolha, ou trava na decisão final. */
+/** Depois da resposta: a disputa espera a próxima cena, ou trava em 10/10. */
 export function settleHaremTurn(rules: string, seen: [string, string] | null): string {
   const cur = haremFlow(rules)
   const gone = haremRoster(rules).eliminated.map((n) => n.toLowerCase())
-  if (seen && seen.some((n) => gone.includes(n.toLowerCase()))) return writeHaremFlow(rules, 'apresenta', null, {}, '')
+  if (seen && seen.some((n) => gone.includes(n.toLowerCase()))) return writeHaremFlow(rules, 'apresenta', null, {}, '', '', 0, false)
+  if (cur.fase === 'solo') return advanceHaremScene(rules)
+  if (cur.fase === 'final' || cur.fase === 'campea') return rules
   const dupla = cur.dupla || seen
   if (!dupla) return rules
-  const acoes = { ...cur.acoes }
-  acoes[dupla[0]] = acoes[dupla[0]] || 0
-  acoes[dupla[1]] = acoes[dupla[1]] || 0
-  const done = dupla.every((n) => (acoes[n] || 0) >= HAREM_ACTIONS)
-  if (cur.fase === 'solo' && !done) return writeHaremFlow(rules, 'solo', dupla, acoes, cur.foco, cur.proposta)
-  return writeHaremFlow(rules, done ? 'final' : 'apresenta', dupla, acoes, '')
+  return writeHaremFlow(rules, 'apresenta', dupla, cur.acoes, '', '', cur.cenas, cur.vista)
 }
 
 export const NAMORO_MOVES: { id: string; label: string; min: number }[] = [
@@ -476,11 +499,11 @@ export function verdadeJogada(rules: string | null | undefined, _playerName = ''
     const oQue = f.passo >= 2 ? 'desafio' : 'verdade'
     return `JOGADA: o ${oQue} de ${who} continua. Só ${who} fala, em dialogue. Nenhuma outra pessoa. Sem narração e sem narrador. Não repita o que já foi dito. Sem pending_choices.`
   }
-  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. Só ${who} responde, com segredos, objetivos, medos e o NSFW da ficha. Sem narração. Sem pending_choices.`
-  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UMA pergunta nova, ousada e maligna, puxando a ficha. Não repita pergunta antiga. Escreva só a pergunta, em dialogue. Sem narração. Sem pending_choices.`
+  if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. Só ${who} responde, com segredos, objetivos, medos e personalidade da ficha. Sem narração. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UMA pergunta nova, no jeito da ficha. Não repita pergunta antiga. Escreva só a pergunta, em dialogue. Sem narração. Sem pending_choices.`
   if (f.passo === 1 && f.fase === 'responder') return `JOGADA: o protagonista responde à pergunta de ${who}. Só ${who} reage. Sem narração e sem outra pessoa. Sem pending_choices.`
   if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. Só ${who} cumpre, sem resumir e sem outra pessoa. Sem narração. Sem pending_choices.`
-  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UM desafio novo, ousado, apelativo e NSFW da ficha. Não repita desafio antigo. Escreva só o desafio. Sem narração. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: o dado caiu em ${who}. Só ${who} faz UM desafio novo, no jeito da ficha. Não repita desafio antigo. Escreva só o desafio. Sem narração. Sem pending_choices.`
   if (f.passo === 3 && f.fase === 'responder') return `JOGADA: o protagonista enfrenta o desafio de ${who}. Só ${who} reage. Sem narração e sem outra pessoa. Sem pending_choices.`
   const espera = f.passo === 0 ? 'o protagonista rolar o D6 para perguntar'
     : f.passo === 1 ? 'o narrador rolar o D6 para ver quem pergunta a ele'
@@ -516,14 +539,17 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
   const hf = haremFlow(text)
   const rf = realityFlow(text)
   const bits = [
-    mode === 'harem' && hf.dupla
-      ? hf.fase === 'final'
-        ? `harem fase: final. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. As duas já tiveram 5 ações. Não escreva cena. Sem pending_choices.`
-        : hf.fase === 'solo'
-          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. proposta: ${hf.proposta || '(a que ele escolheu)'}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Espere o texto dele. Reaja só a essa frase. Não escreva a resposta dele. Não avance. Sem pending_choices.`
-          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]]. O jogador escolhe o caminho. Sem pending_choices.`
+    mode === 'harem' && hf.fase === 'campea'
+      ? `harem fase: campea. resta: ${hf.foco}. A disputa acabou. Sem pending_choices.`
       : '',
-    mode === 'harem' && !hf.dupla ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres novas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]] e [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
+    mode === 'harem' && hf.dupla && hf.fase !== 'campea'
+      ? hf.fase === 'final'
+        ? `harem fase: final. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. capítulo 10/10. Não escreva cena. Ele escolhe quem fica. Sem pending_choices.`
+        : hf.fase === 'solo'
+          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. cena ${hf.cenas}/10. Reaja só ao texto dele. Não abra a próxima cena. Sem pending_choices.`
+          : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. cena ${hf.cenas}/10. As duas tentam a atenção dele. Não escolha por ele. Sem pending_choices.`
+      : '',
+    mode === 'harem' && !hf.dupla && hf.fase !== 'campea' ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres que não foram eliminadas. Escreva [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
     harem.eliminated.length ? `harem eliminadas: ${harem.eliminated.join(', ')}` : '',
     harem.recruited.length ? `harem recrutadas: ${harem.recruited.join(', ')}` : '',
     mode === 'reality' ? `reality fase: ${rf.fase}. reality elenco: ${rf.elenco.join(', ') || '(sorteie 7)'}` : '',
