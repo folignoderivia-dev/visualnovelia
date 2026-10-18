@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, arriveNamoro, collectSignals, focusHarem, focusNamoro, haremFlow, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastProposals, lastTrio, leaveNamoro, namoroFlow, parseNarrativeMode, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, setNamoroTrio, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, addHaremAction, advanceRealityPhase, advanceVerdade, arriveNamoro, collectSignals, focusHarem, focusNamoro, haremFlow, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastProposals, lastTrio, leaveNamoro, namoroFlow, parseNarrativeMode, pauseHarem, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, setNamoroTrio, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -96,7 +96,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const visible = useMemo(
     () => messages.filter((m) => {
       if (HIDDEN.includes(m.message_type) || isPhoneMessage(m.metadata) || m.sender_type === 'player') return false
-      if ((narrativeMode === 'verdade' || narrativeMode === 'web') && (m.message_type === 'narration' || m.sender_type === 'narrator')) return false
+      if (narrativeMode === 'web' && (m.message_type === 'narration' || m.sender_type === 'narrator')) return false
       return stripStageDirections(m.content).length > 0
     }),
     [messages, narrativeMode],
@@ -412,7 +412,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       masterRules.current = next
       setRulesText(next)
       try { await svc.saveNarrativeMode(storyId, next) } catch { /* a cena segue na ação */ }
-      action = `Eu interajo só com ${flow.foco}, e com mais ninguém: ${action}`
+      action = `Eu respondo só a ${flow.foco}, sobre esta proposta: ${flow.proposta || 'a proposta dela'}. Minha resposta, e só depois dela você continua: ${action}`
     }
     if (narrativeMode === 'verdade') {
       const flow = verdadeFlow(masterRules.current)
@@ -664,11 +664,18 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
 
   async function followProposal(name: string, text: string) {
     if (thinking) return
-    const next = addHaremAction(focusHarem(masterRules.current, name), name)
+    const next = focusHarem(masterRules.current, name, text)
     masterRules.current = next
     setRulesText(next)
-    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a proposta segue na ação */ }
-    run('turn', `Eu escolho o caminho de ${name}: ${text}. Só ela. A outra não entra nesta cena.`)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a proposta espera o texto */ }
+  }
+
+  async function backToProposals() {
+    if (thinking) return
+    const next = pauseHarem(masterRules.current)
+    masterRules.current = next
+    setRulesText(next)
+    try { await svc.saveNarrativeMode(storyId, next) } catch { /* a dupla continua */ }
   }
 
   async function confirmVerdade(done: boolean) {
@@ -1070,7 +1077,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             {narrativeMode === 'harem' && (hFlow.fase === 'final' && hFlow.dupla
               ? `${hFlow.dupla[0]} e ${hFlow.dupla[1]} já tiveram 5 ações cada. Decida quem segue.`
               : hFlow.fase === 'solo'
-                ? `Só com ${hFlow.foco}. ${hFlow.dupla?.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ') || ''}`
+                ? `Escreva sua resposta para ${hFlow.foco}${hFlow.proposta ? `: ${hFlow.proposta}` : ''}. ${hFlow.dupla?.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ') || ''}`
                 : hFlow.dupla
                   ? `Cada uma fez uma proposta. Escolha o caminho. ${hFlow.dupla.map((n) => `${n} ${hFlow.acoes[n] || 0}/5`).join(' · ')}`
                   : 'Duas mulheres vão fazer uma proposta. Você escolhe qual caminho seguir.')}
@@ -1128,6 +1135,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             })}
           </div>
         )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'ouvir' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => retry.current?.()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Tentar esta jogada de novo</span>
+            </button>
+          </div>
+        )}
         {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'verdade' && vFlow.fase === 'rolar' && vFlow.elenco.length >= 6 && (
           <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="vn-choice-bubble" onClick={() => void rollVerdade()}>
@@ -1159,6 +1174,14 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             <button type="button" className="vn-choice-bubble" onClick={() => void presentHarem()}>
               <span className="vn-bubble-pointer" />
               <span className="vn-bubble-text">Ouvir as propostas</span>
+            </button>
+          </div>
+        )}
+        {!loadingInit && !thinking && !error && atEnd && narrativeMode === 'harem' && hFlow.fase === 'solo' && (
+          <div className="vn-choices-balloon-row" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="vn-choice-bubble" onClick={() => void backToProposals()}>
+              <span className="vn-bubble-pointer" />
+              <span className="vn-bubble-text">Voltar às duas</span>
             </button>
           </div>
         )}

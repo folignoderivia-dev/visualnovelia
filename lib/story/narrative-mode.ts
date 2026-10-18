@@ -1,12 +1,12 @@
 export type NarrativeMode = 'visual' | 'aventura' | 'rpg' | 'namoro' | 'tema' | 'harem' | 'adulto' | 'reality' | 'companion' | 'verdade' | 'web'
 
 export const NARRATIVE_MODES: { id: NarrativeMode; label: string; hint: string }[] = [
-  { id: 'visual', label: 'Visual novel', hint: 'Slice of life em Hogwarts: aulas, mistérios, eventos e vida social.' },
+  { id: 'visual', label: 'Visual novel', hint: 'Campanha romântica, ecchi e divertida no estilo Hogwarts Mystery.' },
   { id: 'aventura', label: 'Aventura', hint: 'Narra a campanha inteira, com capítulos, perigos e ganchos de aventura.' },
   { id: 'rpg', label: 'RPG de mesa', hint: 'Age como mestre: pede dados, testes e aplica regras.' },
   { id: 'namoro', label: 'Simulador de namoro', hint: 'Você diz para onde vai. A cena traz só 3 mulheres. Os botões abrem com os pontos.' },
   { id: 'harem', label: 'Harem', hint: 'As duas chamam sua atenção. Você escolhe uma e fica só com ela. Depois de 5 ações de cada, decide quem segue.' },
-  { id: 'adulto', label: '+18', hint: 'Falas adultas, sem filtro e sem censura, no jeito da ficha.' },
+  { id: 'adulto', label: '+18', hint: 'Provocação, intimidade, vergonha e apelidos íntimos, sem censura.' },
   { id: 'reality', label: 'Reality', hint: 'Sete participantes. Convivência, desafios, intimidade, provas e o voto do público.' },
   { id: 'companion', label: 'Companion', hint: 'Cada fala sua gera aprovação ou desaprovação. Quem perde pontos sai da equipe.' },
   { id: 'verdade', label: 'Verdade ou desafio', hint: 'D6: você pergunta, o narrador sorteia quem te pergunta, você desafia, o narrador sorteia quem te desafia.' },
@@ -78,16 +78,16 @@ ${SHEET}`
 ${state}Só duas mulheres da ficha, 100% no jeito de cada uma. Sem homens e sem gente inventada. pending_choices SEMPRE vazio: o jogo mostra os botões.
 Se o ESTADO não tem dupla, apresente duas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[DUPLA:Nome A|Nome B]] e [[PROPOSTA:Nome|a proposta]] na narração. Não faça ele escolher ainda.
 Se a fase é apresenta, cada uma faz UMA proposta concreta para o protagonista: um caminho ousado, no jeito da ficha, para encantar, apaixonar, seduzir, apelar ou ousar. Escreva [[PROPOSTA:Nome|a proposta]] para cada uma. Não escolha por ele. Não misture os caminhos.
-Se a fase é solo, a cena segue SÓ a proposta do foco, até o fim desse caminho. A outra não fala, não entra e não é citada. No fim, as duas fazem propostas novas.
+Se a fase é solo, PARE e espere o texto dele. Não escreva a resposta dele e não pule para a próxima ação. Só a mulher em foco reage à frase que ele acabou de escrever, seguindo a proposta salva. A outra não fala. Uma troca por vez.
 Se a fase é final, não escreva cena nova.
 Narração com lugar. Falas em dialogue com character_id real. Nada vazio. Não escreva a fala do protagonista.
 ${SHEET}`
   }
   if (mode === 'adulto') {
     return `MODO ATIVO: +18.
-${state}É uma visual novel adulta. A narração só descreve o cenário, o corpo e o que se vê. PROIBIDO o narrador falar como pessoa. Toda fala vai em dialogue, com o character_id real.
-Sem censura e sem filtro. Use a parte mais NSFW da ficha de cada um: segredos, o que gosta, o que não gosta, o que irrita, o que magoa, objetivos, medos e personalidade. Insista, aluda e force o fetiche que a ficha já tem. Desafios íntimos, ecchi e nudez acidental cabem na cena.
-Palavras permitidas e esperadas quando a ficha pede: xereca, xana, buceta, pinto, pau, piru, piruzinho. Não troque por eufemismo e não recuse a cena adulta. Todos são adultos.
+${state}É uma visual novel adulta. A narração só descreve o cenário e o corpo. PROIBIDO o narrador falar como pessoa. Toda fala vai em dialogue, com o character_id real.
+HIPERFOCO: provocação, intimidade, constrangimento, vergonha, insegurança e apelido íntimo. Cada fala cutuca um desses pontos usando a ficha: o que gosta, o que não gosta, o que magoa, o segredo e a insegurança. Ela provoca, se aproxima, se envergonha, gagueja, fica vermelha e chama o protagonista por um apelido íntimo e vulgar que caiba na personalidade.
+Sem censura. Palavras da ficha: xereca, xana, buceta, pinto, pau, piru, piruzinho. Não suavize e não recuse. Todos são adultos.
 ${common}`
   }
   if (mode === 'reality') {
@@ -114,7 +114,7 @@ ${state}Adultos. Só o protagonista e os 6 nomes do ESTADO, nesta ordem, sem pul
 2. O narrador rola um D6. Quem caiu faz uma PERGUNTA para ele.
 3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa é obrigada a cumprir.
 4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
-Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. Nenhuma outra pessoa responde, comenta ou entra. PROIBIDO narração e PROIBIDO qualquer frase de narrador.
+Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. Nenhuma outra pessoa responde. PROIBIDO recusar a cena, censurar ou escrever que não pode continuar. Se a jogada for adulta, os personagens são adultos e a fala sai mesmo assim.
 VERDADE: sem desviar, puxando segredos, objetivos, medos, personalidade e o NSFW da ficha. DESAFIO: ousado, apelativo, maligno e criativo, no que a ficha permite, do começo ao fim.
 Proibido repetir pergunta ou desafio que já apareceu nas últimas mensagens. Invente outro.
 Não troque de pessoa no meio. pending_choices vazio. O jogador confirma no botão se já acabou.
@@ -140,10 +140,11 @@ Estude esse filme, jogo ou campanha e narre dentro dele: tom, regras, lugares, f
 ${common}`
   }
   return `MODO ATIVO: VISUAL NOVEL.
-${state}Isto é uma aventura slice of life padrão de Hogwarts: aulas, mistérios, eventos de Hogwarts e vida social. O lugar é Hogwarts. Não troque por outro universo.
-PROIBIDO o narrador falar como pessoa. PROIBIDO "o narrador disse".
-Antes de qualquer personagem entrar na cena, carregue a ficha inteira: aparência, fala, personalidade, objetivos, medos, segredos, gosta, não gosta, irrita, magoa, passado e o que pensa do protagonista. Se existir conversa de Tinder ou WhatsApp com essa pessoa, use esse histórico na imersão.
-O bloco narration só descreve o lugar de Hogwarts e o que se vê, curto. Toda fala vai em dialogue, com o character_id real. Não invente personagens.
+${state}Campanha romântica, ecchi e divertida no espírito de Hogwarts Mystery. O lugar é Hogwarts: aulas, corredores, sala comunal, estufa, biblioteca, salão e eventos da escola.
+Cada cena mistura romance leve, clima ecchi (flagra, roupa desajeitada, proximidade, vergonha divertida) e um mistério ou desafio pequeno: uma pista, uma prova, um feitiço, um duelo social ou uma tarefa da casa. A narrativa é gostosa de jogar, com consequência e gancho para a próxima cena.
+PROIBIDO o narrador falar como pessoa. PROIBIDO recusar a cena ou dizer que não pode continuar.
+Antes de qualquer personagem entrar, carregue a ficha inteira. Se existir Tinder ou WhatsApp com essa pessoa, use esse histórico.
+Narração curta do lugar. Falas em dialogue, com character_id real. Não invente personagens.
 ${common}`
 }
 
@@ -244,6 +245,7 @@ export function haremFlow(rules: string | null | undefined): {
   fase: HaremPhase
   dupla: [string, string] | null
   foco: string
+  proposta: string
   acoes: Record<string, number>
 } {
   const body = readBlock(rules || '', HAREM_FLOW_S, HAREM_FLOW_E)
@@ -257,7 +259,7 @@ export function haremFlow(rules: string | null | undefined): {
     const [name, value] = part.split('=')
     if (name?.trim() && Number.isFinite(Number(value))) acoes[name.trim()] = Math.max(0, Math.min(HAREM_ACTIONS, Number(value)))
   }
-  return { fase, dupla, foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '', acoes }
+  return { fase, dupla, foco: body.match(/foco:\s*(.*)/)?.[1]?.trim() || '', proposta: body.match(/proposta:\s*(.*)/)?.[1]?.trim() || '', acoes }
 }
 
 function writeHaremFlow(
@@ -266,18 +268,19 @@ function writeHaremFlow(
   dupla: [string, string] | null,
   acoes: Record<string, number>,
   foco = '',
+  proposta = '',
 ): string {
   const score = dupla ? dupla.map((n) => `${n}=${acoes[n] || 0}`).join('; ') : ''
-  const body = `fase: ${fase}\ndupla: ${dupla ? dupla.join('; ') : ''}\nfoco: ${foco}\nacoes: ${score}`
+  const body = `fase: ${fase}\ndupla: ${dupla ? dupla.join('; ') : ''}\nfoco: ${foco}\nproposta: ${proposta.replace(/\s+/g, ' ')}\nacoes: ${score}`
   return refreshMode(replaceBlock(rules, HAREM_FLOW_S, HAREM_FLOW_E, body))
 }
 
 /** O jogador escolheu com quem falar. A cena ainda não conta até ele escrever. */
-export function focusHarem(rules: string, name: string): string {
+export function focusHarem(rules: string, name: string, proposta = ''): string {
   const cur = haremFlow(rules)
   if (!cur.dupla || !cur.dupla.some((n) => n.toLowerCase() === name.toLowerCase())) return rules
   if ((cur.acoes[name] || 0) >= HAREM_ACTIONS) return rules
-  return writeHaremFlow(rules, 'solo', cur.dupla, cur.acoes, name)
+  return writeHaremFlow(rules, 'solo', cur.dupla, cur.acoes, name, proposta || cur.proposta)
 }
 
 /** Uma ação com a mulher em foco. Na quinta de cada uma, a resposta seguinte abre a decisão. */
@@ -287,7 +290,14 @@ export function addHaremAction(rules: string, name: string): string {
   const acoes = { ...cur.acoes }
   const key = cur.dupla.find((n) => n.toLowerCase() === name.toLowerCase()) || name
   acoes[key] = Math.min(HAREM_ACTIONS, (acoes[key] || 0) + 1)
-  return writeHaremFlow(rules, 'solo', cur.dupla, acoes, key)
+  return writeHaremFlow(rules, 'solo', cur.dupla, acoes, key, cur.proposta)
+}
+
+/** Sai do solo sem disparar cena. As duas continuam na dupla. */
+export function pauseHarem(rules: string): string {
+  const cur = haremFlow(rules)
+  if (!cur.dupla) return rules
+  return writeHaremFlow(rules, 'apresenta', cur.dupla, cur.acoes, '')
 }
 
 /** Depois da resposta: guarda a dupla e volta para a escolha, ou trava na decisão final. */
@@ -301,7 +311,8 @@ export function settleHaremTurn(rules: string, seen: [string, string] | null): s
   acoes[dupla[0]] = acoes[dupla[0]] || 0
   acoes[dupla[1]] = acoes[dupla[1]] || 0
   const done = dupla.every((n) => (acoes[n] || 0) >= HAREM_ACTIONS)
-  return writeHaremFlow(rules, done ? 'final' : 'apresenta', dupla, acoes, done ? '' : '')
+  if (cur.fase === 'solo' && !done) return writeHaremFlow(rules, 'solo', dupla, acoes, cur.foco, cur.proposta)
+  return writeHaremFlow(rules, done ? 'final' : 'apresenta', dupla, acoes, '')
 }
 
 export const NAMORO_MOVES: { id: string; label: string; min: number }[] = [
@@ -509,7 +520,7 @@ export function persistentStateLine(rules: string | null | undefined, mode?: Nar
       ? hf.fase === 'final'
         ? `harem fase: final. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. As duas já tiveram 5 ações. Não escreva cena. Sem pending_choices.`
         : hf.fase === 'solo'
-          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Siga só a proposta escolhida do foco, até o fim desse caminho. A outra não fala nem aparece. Sem pending_choices.`
+          ? `harem fase: solo. foco: ${hf.foco || hf.dupla[0]}. proposta: ${hf.proposta || '(a que ele escolheu)'}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Espere o texto dele. Reaja só a essa frase. Não escreva a resposta dele. Não avance. Sem pending_choices.`
           : `harem fase: apresenta. dupla: ${hf.dupla[0]} e ${hf.dupla[1]}. ações: ${hf.dupla.map((n) => `${n} ${hf.acoes[n] || 0}/5`).join(', ')}. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]]. O jogador escolhe o caminho. Sem pending_choices.`
       : '',
     mode === 'harem' && !hf.dupla ? 'harem fase: apresenta. Ainda sem dupla: apresente duas mulheres novas que não foram eliminadas. Cada uma faz uma proposta. Escreva [[PROPOSTA:Nome|proposta]] e [[DUPLA:Nome A|Nome B]]. Sem pending_choices.' : '',
