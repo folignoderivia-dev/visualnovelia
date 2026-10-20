@@ -2761,6 +2761,33 @@ h1, h2, h3, .brand strong, .eyebrow, .chapter-label, .vn-nameplate-title {
 .vn-approval.down span { color: #ffb4b4; }
 .vn-vote-bubble { border-color: #e5b869 !important; }
 
+.vn-director-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  background: rgba(14, 11, 18, 0.96);
+  border: 1.5px solid rgba(229, 184, 105, 0.5);
+  border-radius: 8px;
+}
+.vn-director-ask p {
+  flex: 1 1 180px;
+  margin: 0;
+  color: #f3e6c8;
+  font-size: 14px;
+}
+.vn-director-ask .vn-decision-input { flex: 1 1 220px; }
+.vn-director-skip {
+  background: transparent;
+  border: 0;
+  color: #cbb98a;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 @media (max-width: 1100px) {
   .vn-dialogue-text {
     font-size: 16px !important;

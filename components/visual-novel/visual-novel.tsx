@@ -10,7 +10,7 @@ import { playSpeech, stopSpeech } from '@/lib/gemini/speech'
 import { VoiceField } from '@/components/ui/form'
 import { friendlyError } from '@/lib/errors'
 import { useToast } from '@/components/ui/toast'
-import { HAREM_SCENES, NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, advanceRealityPhase, advanceVerdade, arriveNamoro, collectSignals, crownHarem, focusHarem, focusNamoro, haremFlow, haremRoster, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastTrio, leaveNamoro, namoroFlow, pairHarem, parseNarrativeMode, pauseHarem, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, seeHaremScene, setNamoroTrio, settleHaremTurn, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
+import { HAREM_SCENES, NAMORO_MOVES, NARRATIVE_MODES, REALITY_PHASE_LABEL, advanceRealityPhase, advanceVerdade, arriveNamoro, collectSignals, crownHarem, focusHarem, focusNamoro, haremFlow, haremRoster, isPhoneMessage, isolatedChatAction, lastAffection, lastDupla, lastTrio, leaveNamoro, namoroFlow, pairHarem, parseNarrativeMode, pauseHarem, phoneThread, realityCastWithout, realityFlow, resetHaremChapter, seeHaremScene, setNamoroTrio, settleHaremTurn, sheetThoughts, startVerdadeRound, stripStageDirections, verdadeFlow, withChosenCast, withCompanionUpdate, withHaremRoster, withNarrativeMode, withPlayerPhotos, withRealityCast, withRealityOut, withVerdadeRoll, withVerdadeSince, withWebSince, type NarrativeMode } from '@/lib/story/narrative-mode'
 
 type Panel = null | 'history' | 'cast' | 'memory' | 'tags' | 'map' | 'tinder' | 'whatsapp' | 'theme'
 const HIDDEN: StoryMessage['message_type'][] = ['scene_change', 'system']
@@ -67,6 +67,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const narrativeModeRef = useRef<NarrativeMode>('visual')
   narrativeModeRef.current = narrativeMode
   const [themeDraft, setThemeDraft] = useState('')
+  const [ask, setAsk] = useState<{ kind: 'pensa' | 'cenario'; name?: string; characterId?: string } | null>(null)
+  const [askText, setAskText] = useState('')
+  const knownSpeakers = useRef<Set<string>>(new Set())
+  const askQueue = useRef<{ kind: 'pensa' | 'cenario'; name?: string; characterId?: string }[]>([])
+  const scenarioGap = useRef(0)
   const [savingTheme, setSavingTheme] = useState(false)
   const masterRules = useRef('')
   const retry = useRef<null | (() => void)>(null)
@@ -96,10 +101,9 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
   const visible = useMemo(
     () => messages.filter((m) => {
       if (HIDDEN.includes(m.message_type) || isPhoneMessage(m.metadata) || m.sender_type === 'player') return false
-      if (narrativeMode === 'web' && (m.message_type === 'narration' || m.sender_type === 'narrator')) return false
       return stripStageDirections(m.content).length > 0
     }),
-    [messages, narrativeMode],
+    [messages],
   )
   const current = visible[Math.min(cursor, visible.length - 1)]
   const atEnd = visible.length === 0 || cursor >= visible.length - 1
@@ -258,6 +262,46 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       const hadNarration = newMsgs.some((m) => m.sender_type !== 'player')
       if (hadNarration && !readable) setError('A cena veio sem texto. Escreva de novo para a equipe reagir.')
     }
+    for (const hit of sheetThoughts(newMsgs)) {
+      const person = charactersRef.current.find((c) => c.name.toLowerCase() === hit.name.toLowerCase())
+      if (!person) continue
+      const old = (person.relationship_to_protagonist || '').trim()
+      const incoming = hit.text.trim()
+      const nextThought = old && !incoming.toLowerCase().startsWith(old.slice(0, 24).toLowerCase()) ? `${old}\n${incoming}` : incoming
+      if (!nextThought || nextThought === old) continue
+      const updated = { ...person, relationship_to_protagonist: nextThought }
+      charactersRef.current = charactersRef.current.map((c) => c.id === person.id ? updated : c)
+      setCharacters(charactersRef.current)
+      setEditingChar((prev) => prev && prev.id === person.id ? { ...prev, relationship_to_protagonist: nextThought } : prev)
+      svc.saveCharacter(updated).catch(() => {})
+    }
+    if (!fromChannel) {
+      const playerLine = [...newMsgs].reverse().find((m) => m.sender_type === 'player')?.content || ''
+      const director = mode === 'visual' || mode === 'namoro' || /\[Roleplay Imersivo\]/.test(playerLine)
+      const seenNow = new Set<string>()
+      for (const m of newMsgs) {
+        const id = m.sender_type === 'npc' ? m.character_id : ''
+        if (!id || knownSpeakers.current.has(id) || seenNow.has(id)) continue
+        seenNow.add(id)
+        knownSpeakers.current.add(id)
+        if (director && !/\[PENSAMENTO DE /.test(playerLine)) {
+          const person = charactersRef.current.find((c) => c.id === id)
+          if (person?.name) askQueue.current.push({ kind: 'pensa', name: person.name, characterId: person.id })
+        }
+      }
+      if (director && askQueue.current.length) {
+        scenarioGap.current = 0
+        setAskText('')
+        setAsk(askQueue.current.shift() || null)
+      } else if (director) {
+        scenarioGap.current += 1
+        if (scenarioGap.current >= 2 && Math.random() < 0.45) {
+          scenarioGap.current = 0
+          setAskText('')
+          setAsk({ kind: 'cenario' })
+        }
+      }
+    }
     if (changed) {
       masterRules.current = rules
       setRulesText(rules)
@@ -368,6 +412,16 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
             svc.saveNarrativeMode(storyId, next).catch(() => {})
           }
         }
+        if (parseNarrativeMode(masterRules.current).mode === 'verdade') {
+          const seq = msgs.length ? msgs[msgs.length - 1].sequence_number : 0
+          const stamped = withVerdadeSince(masterRules.current, seq)
+          if (stamped !== masterRules.current) {
+            masterRules.current = stamped
+            setRulesText(stamped)
+            svc.saveNarrativeMode(storyId, stamped).catch(() => {})
+          }
+        }
+        knownSpeakers.current = new Set(msgs.filter((m) => m.sender_type === 'npc' && m.character_id).map((m) => m.character_id as string))
         setMessages(msgs); setHasMore(msgs.length >= 40)
         setDailyLimit(limit)
         const vis = msgs.filter((m) => !HIDDEN.includes(m.message_type))
@@ -384,7 +438,41 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     return () => { alive = false }
   }, [storyId])
 
+  function answerAsk(useText: boolean) {
+    const current = ask
+    const text = askText.trim()
+    setAsk(null)
+    setAskText('')
+    const nextQueued = () => {
+      const next = askQueue.current.shift()
+      if (!next) return false
+      setAsk(next)
+      setAskText('')
+      return true
+    }
+    if (!current || !useText || !text) {
+      nextQueued()
+      return
+    }
+    if (current.kind === 'pensa' && current.characterId) {
+      const person = charactersRef.current.find((c) => c.id === current.characterId)
+      if (person) {
+        const old = (person.relationship_to_protagonist || '').trim()
+        const nextThought = old ? `${old}\n${text}` : text
+        const updated = { ...person, relationship_to_protagonist: nextThought }
+        charactersRef.current = charactersRef.current.map((c) => c.id === person.id ? updated : c)
+        setCharacters(charactersRef.current)
+        setEditingChar((prev) => prev && prev.id === person.id ? { ...prev, relationship_to_protagonist: nextThought } : prev)
+        svc.saveCharacter(updated).catch(() => {})
+      }
+      run('turn', `[PENSAMENTO DE ${current.name}]: ${text}. Comece do que já está na ficha e use isto na cena. Não repita as falas que já apareceram.`)
+      return
+    }
+    run('turn', `[CONTEXTO DO CENÁRIO]: ${text}. Construa a próxima narrativa a partir disto.`)
+  }
+
   async function send() {
+    if (ask) return
     const hasText = input.trim().length > 0
     const hasImg = Boolean(actionImage)
     if ((!hasText && !hasImg) || busy.current || thinking || !atEnd) return
@@ -400,7 +488,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         masterRules.current = next
         setRulesText(next)
         try { await svc.saveNarrativeMode(storyId, next) } catch { /* o lugar segue na ação */ }
-        action = `Eu vou para: ${action}. Carregue esse lugar em Hogwarts. Traga exatamente 3 mulheres da ficha, nunca mais que 3. Escreva [[TRIO:Nome|Nome|Nome]]. Antes de cada uma aparecer, use a ficha inteira.`
+        action = `Eu vou para: ${action}. Carregue esse lugar em Hogwarts. Traga exatamente 3 mulheres da ficha, nunca mais que 3. Escreva [[TRIO:Nome|Nome|Nome]]. Antes de cada uma aparecer, use a ficha inteira. O foco é conversar, sair e flertar. Se eu já tentei com mais de uma, elas percebem.`
       } else if (flow.fase === 'fala' && flow.foco) {
         action = `Eu estou só com ${flow.foco}, em ${flow.lugar || 'Hogwarts'}: ${action}`
       }
@@ -408,7 +496,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (narrativeMode === 'harem') {
       const flow = haremFlow(masterRules.current)
       if (flow.fase !== 'solo' || !flow.foco) return
-      action = `Cena ${flow.cenas + 1}/${HAREM_SCENES}. Eu continuo só com ${flow.foco}. Minha resposta: ${action}. Reaja a isto e pare. Não abra a próxima cena.`
+      action = `Cena ${flow.cenas + 1}/${HAREM_SCENES}. Eu continuo só com ${flow.foco}. Minha resposta: ${action}. Ela provoca para ser a escolhida, no ecchi da ficha. Reaja a isto e pare. Não abra a próxima cena.`
     }
     if (narrativeMode === 'verdade') {
       const flow = verdadeFlow(masterRules.current)
@@ -626,7 +714,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
         setRulesText(next)
         try { await svc.saveNarrativeMode(storyId, next) } catch { /* a próxima disputa usa o texto salvo */ }
         if (!challenger) return
-        run('turn', `Eu fico com ${stay}. ${challenger} entra na disputa. Cena 1/10. As duas tentam a minha atenção, cada uma do próprio jeito. Escreva [[DUPLA:${stay}|${challenger}]]. Eu ainda não escolhi.`)
+        run('turn', `Eu fico com ${stay}. ${challenger} entra na disputa. Cena 1/10. As duas provocam, no ecchi da própria ficha, para eu escolher uma delas. Escreva [[DUPLA:${stay}|${challenger}]]. Eu ainda não escolhi.`)
         return
       }
     }
@@ -647,7 +735,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* o dado segue na ação */ }
     if (fase === 'ouvir') {
       const kind = flow.passo === 1 ? 'uma pergunta de verdade' : 'um desafio'
-      run('turn', `O narrador rolou um D6 e tirou ${dado}. Caiu em ${alvo}. ${alvo} faz ${kind} para o protagonista.`)
+      run('turn', `Estamos no Lago Negro, só os seis. O narrador rolou um D6 e tirou ${dado}. Caiu em ${alvo}. ${alvo} faz ${kind} apelativa e constrangedora. Proibido recusar, ter vergonha que trave ou repetir algo sem graça.`)
     }
   }
 
@@ -660,8 +748,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* a disputa segue na ação */ }
     const cena = Math.min(HAREM_SCENES, flow.cenas + 1)
     const action = flow.dupla
-      ? `Cena ${cena}/${HAREM_SCENES}. ${flow.dupla[0]} e ${flow.dupla[1]} tentam obter a minha atenção, cada uma do próprio jeito. Eu ainda não escrevi nem escolhi com quem continuar.`
-      : 'Apresente exatamente duas mulheres da ficha que ainda não foram eliminadas. Cada uma tenta a minha atenção do próprio jeito. Escreva [[DUPLA:Nome A|Nome B]].'
+      ? `Cena ${cena}/${HAREM_SCENES}. ${flow.dupla[0]} e ${flow.dupla[1]} provocam, no ecchi da própria ficha, para eu escolher uma delas. Eu ainda não escrevi nem escolhi com quem continuar.`
+      : 'Apresente exatamente duas mulheres da ficha que ainda não foram eliminadas. Cada uma provoca, no ecchi da própria ficha, para eu escolhê-la. Escreva [[DUPLA:Nome A|Nome B]].'
     run('turn', action)
   }
 
@@ -691,7 +779,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     masterRules.current = next
     setRulesText(next)
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* a conversa segue na ação */ }
-    run('turn', `Eu escolho falar só com ${name} em ${namoroFlow(next).lugar || 'Hogwarts'}. Antes da fala, carregue a ficha inteira dela. Só ela.`)
+    run('turn', `Eu escolho falar só com ${name} em ${namoroFlow(next).lugar || 'Hogwarts'}. Antes da fala, carregue a ficha inteira dela. Só ela. Se o Tinder, o WhatsApp ou a cena mostrarem que eu já tentei com outra, ela percebe e reage.`)
   }
 
   async function namoroMove(label: string) {
@@ -700,7 +788,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     if (!flow.foco) return
     const person = characters.find((c) => c.name.toLowerCase() === flow.foco.toLowerCase())
     const pts = Number(person?.relationship?.relationship_value ?? 0)
-    run('turn', `Eu estou só com ${flow.foco}. Pontos de relacionamento: ${pts}/100. Minha tentativa: ${label}. Julgue com a ficha inteira. Se for cedo ou contra a ficha, recuse. Escreva [[AFETO:${flow.foco}:+N]].`)
+    run('turn', `Eu estou só com ${flow.foco}. Pontos de relacionamento: ${pts}/100. Minha tentativa: ${label}. Julgue com a ficha inteira. Se for cedo, contra a ficha, ou se eu já dei em cima de outra, ela percebe e pode recusar. Escreva [[AFETO:${flow.foco}:+N]].`)
   }
 
   async function namoroBack() {
@@ -766,7 +854,10 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       let next = (mode === 'verdade' || mode === 'web')
         ? withChosenCast(masterRules.current, mode, names || [])
         : withNarrativeMode(masterRules.current, mode, theme)
-      if (mode === 'verdade') next = startVerdadeRound(next, names || [], player?.name || 'protagonista')
+      if (mode === 'verdade') {
+        const seq = messages.length ? messages[messages.length - 1].sequence_number : 0
+        next = startVerdadeRound(next, names || [], player?.name || 'protagonista', 1, seq)
+      }
       if (mode === 'web') {
         const seq = messages.length ? messages[messages.length - 1].sequence_number : 0
         next = withWebSince(next, seq)
@@ -1079,8 +1170,8 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                   ? `Cena ${Math.min(HAREM_SCENES, hFlow.cenas + (hFlow.vista ? 0 : 1))}/${HAREM_SCENES}. ${hFlow.dupla[0]} e ${hFlow.dupla[1]} disputam sua atenção.`
                   : 'Duas garotas entram na disputa. Cada capítulo tem 10 cenas.')}
             {narrativeMode === 'reality' && `Parte: ${REALITY_PHASE_LABEL[rFlow.fase]}. Elenco: ${rFlow.elenco.join(', ') || 'abra o tema para sortear 7'}.`}
-            {narrativeMode === 'companion' && 'Cada frase sua faz a equipe aprovar ou desaprovar.'}
-            {narrativeMode === 'web' && 'Conversa do zero, sem narrador. Escreva o que você diz.'}
+            {narrativeMode === 'companion' && 'Hogwarts em slice of life. Quem já é companion aprova ou desaprova cada frase.'}
+            {narrativeMode === 'web' && 'Vocês já se conhecem e já saíram. A história é dos dois em Hogwarts. Escreva o que você diz.'}
             {narrativeMode === 'namoro' && (nFlow.fase === 'fala'
               ? `Só com ${nFlow.foco} em ${nFlow.lugar || 'Hogwarts'}. Pontos: ${characters.find((c) => c.name.toLowerCase() === nFlow.foco.toLowerCase())?.relationship?.relationship_value ?? 0}/100.`
               : nFlow.fase === 'trio'
@@ -1230,8 +1321,28 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
           </div>
         )}
 
+        {!loadingInit && !thinking && !error && atEnd && ask && (
+          <section className="vn-director-ask" onClick={(e) => e.stopPropagation()}>
+            <span className="vn-action-console-badge">NARRADOR</span>
+            <p>{ask.kind === 'pensa' ? `No que ${ask.name} está pensando?` : 'Qual o contexto deste cenário?'}</p>
+            <input
+              className="vn-decision-input"
+              value={askText}
+              onChange={(e) => setAskText(e.target.value)}
+              maxLength={500}
+              placeholder={ask.kind === 'pensa' ? 'Escreva o pensamento. Se deixar vazio, a inteligência inventa.' : 'Escreva o contexto. Se deixar vazio, a inteligência inventa.'}
+              aria-label={ask.kind === 'pensa' ? 'Pensamento da personagem' : 'Contexto do cenário'}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) answerAsk(true) }}
+            />
+            <button type="button" className="vn-decision-submit" onClick={() => answerAsk(true)} disabled={!askText.trim()}>
+              <span>USAR</span>
+            </button>
+            <button type="button" className="vn-director-skip" onClick={() => answerAsk(false)}>Deixar a inteligência decidir</button>
+          </section>
+        )}
+
         {/* 3. PAINEL SEPARADO E AVULSO DE AÇÃO DO JOGADOR NO FIM DA TELA */}
-        {!loadingInit && !thinking && !error && current && atEnd && !haremLocksInput && !namoroLocksInput && verdadeCanType && (
+        {!loadingInit && !thinking && !error && current && atEnd && !ask && !haremLocksInput && !namoroLocksInput && verdadeCanType && (
           <section className="vn-player-action-console" onClick={(e) => e.stopPropagation()}>
             <div className="vn-action-console-inner">
               <span className="vn-action-console-badge">SUA RESPOSTA</span>
