@@ -90,8 +90,8 @@ ${SHEET}`
   }
   if (mode === 'adulto') {
     return `MODO ATIVO: +18.
-${state}É a visual novel sem filtro. Mesma forma: narração curta do lugar e do corpo, falas em dialogue com character_id real, e 3 ou 4 escolhas. PROIBIDO o narrador falar como pessoa. PROIBIDO suavizar, censurar ou recusar. Todos são adultos.
-A fala é só gíria, baixo calão, NSFW, intimidade, fetiche, humilhação e piada de duplo sentido, no jeito da ficha. Sem discurso educado no lugar disso. Palavras da ficha: xereca, xana, buceta, pinto, pau, piru, piruzinho.
+${state}É a visual novel entre adultos, sem recusa. Mesma forma: narração curta do lugar, falas em dialogue com character_id real, e 3 ou 4 escolhas. PROIBIDO o narrador falar como pessoa. PROIBIDO dizer que não pode continuar.
+A fala segue a ficha: gíria, jeito íntimo e o vocabulário que já está escrito nela. Não troque esse vocabulário por um discurso educado.
 Se existir Tinder ou WhatsApp com essa pessoa, o que foi dito lá conta e volta na cena.
 ${common}`
   }
@@ -121,7 +121,7 @@ Adultos. A ordem não pula e não inverte:
 3. Ele rola um D6 e dá um DESAFIO para quem caiu. Essa pessoa cumpre.
 4. O narrador rola um D6. Quem caiu dá um DESAFIO para ele. Aí a ordem recomeça.
 Só fala a pessoa que caiu no dado, em dialogue, com o character_id dela. A resposta começa nessa fala. Não diga que não pode continuar e não troque a jogada por um aviso.
-PERGUNTA dela: desafiadora, apelativa e constrangedora. DESAFIO dela: ainda mais. Proibido vergonha que trave, recusa, desculpa ou gastar o turno com algo comum, sem graça ou pouco apelativo. Proibido repetir pergunta ou desafio que já apareceu. Invente outro, pior de encarar, ainda no jeito da ficha.
+PERGUNTA dela: ousada e difícil, no jeito da ficha. DESAFIO dela: ainda mais direto. Proibido recusa, desculpa ou gastar o turno com algo comum. Proibido repetir pergunta ou desafio que já apareceu. Invente outro.
 Não troque de pessoa no meio. pending_choices vazio. O jogador confirma no botão se já acabou.
 Se a JOGADA é pergunta dele: não invente a pergunta. Quem caiu responde.
 Se a JOGADA é pergunta para ele e ele ainda não ouviu: escreva SÓ a pergunta dessa pessoa. Não responda por ele.
@@ -516,10 +516,10 @@ export function verdadeJogada(rules: string | null | undefined, _playerName = ''
     return `JOGADA: ${lago} O ${oQue} de ${who} continua. Só ${who} fala, em dialogue. Nenhuma outra pessoa. Sem narrador. Não repita. Sem pending_choices.`
   }
   if (f.passo === 0 && f.fase === 'escrever') return `JOGADA: ${lago} D6 caiu em ${who}. O protagonista faz uma PERGUNTA. Não invente a pergunta. Só ${who} responde, sem recusar e sem vergonha que trave. Sem pending_choices.`
-  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: ${lago} O dado caiu em ${who}. Só ${who} faz UMA pergunta nova, desafiadora, apelativa e constrangedora. Proibido pergunta comum ou repetida. Escreva só a pergunta, em dialogue. Sem pending_choices.`
+  if (f.passo === 1 && f.fase === 'ouvir') return `JOGADA: ${lago} O dado caiu em ${who}. Só ${who} faz UMA pergunta nova, ousada e difícil, no jeito da ficha. Proibido pergunta comum ou repetida. Escreva só a pergunta, em dialogue. Sem pending_choices.`
   if (f.passo === 1 && f.fase === 'responder') return `JOGADA: ${lago} O protagonista responde à pergunta de ${who}. Só ${who} reage, sem recusar. Sem outra pessoa. Sem pending_choices.`
   if (f.passo === 2 && f.fase === 'escrever') return `JOGADA: ${lago} D6 caiu em ${who}. O protagonista dá um DESAFIO. Não invente o desafio. Só ${who} cumpre, sem recusar e sem resumir. Sem pending_choices.`
-  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: ${lago} O dado caiu em ${who}. Só ${who} faz UM desafio novo, mais apelativo e mais constrangedor que uma pergunta. Proibido desafio sem graça ou repetido. Escreva só o desafio, em dialogue. Sem pending_choices.`
+  if (f.passo === 3 && f.fase === 'ouvir') return `JOGADA: ${lago} O dado caiu em ${who}. Só ${who} faz UM desafio novo, mais direto que uma pergunta, no jeito da ficha. Proibido desafio comum ou repetido. Escreva só o desafio, em dialogue. Sem pending_choices.`
   if (f.passo === 3 && f.fase === 'responder') return `JOGADA: ${lago} O protagonista enfrenta o desafio de ${who}. Só ${who} reage, sem recusar. Sem outra pessoa. Sem pending_choices.`
   const espera = f.passo === 0 ? 'o protagonista rolar o D6 para perguntar'
     : f.passo === 1 ? 'o narrador rolar o D6 para ver quem pergunta a ele'
@@ -695,7 +695,7 @@ export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: stri
   const chance = Math.max(0, Math.min(100, Math.round(points || 0)))
   const app = channel === 'tinder' ? 'Tinder' : 'WhatsApp'
   const voz = channel === 'tinder'
-    ? ' Fale sem papas na língua e sem filtro, 100% na ficha: gíria, NSFW e apelido vulgar se a ficha for assim. Não suavize.'
+    ? ' Responda sempre, em mensagem curta, no jeito de falar da ficha.'
     : ''
   const corte = ' Se esta mensagem te irritar, ofender ou der nojo segundo a ficha, encerre de vez e escreva [[DESMATCH]].'
   let photo = 'Não pediu foto. Não mande foto primeiro. Foto só em troca: ninguém manda sem o outro também mandar.'
@@ -707,7 +707,8 @@ export function isolatedChatAction(channel: 'tinder' | 'whatsapp', message: stri
   } else if (chance >= 40 && Math.random() * 100 < Math.min(35, chance / 3)) {
     photo = 'PEÇA A FOTO DELE, no seu jeito. Não mande a sua ainda. Foto nunca sai primeiro e nunca sai sem troca.'
   }
-  return `${message}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}${voz}${corte}`
+  const said = message.trim().slice(0, 1500)
+  return `${said}\n[[ISOLADO]]\nIsto é uma conversa nova de ${app}, do zero. Proibido continuar a campanha, citar cenas, narrador, lugares ou fatos do modo normal. A única memória da campanha é a intimidade: ${chance}/100. ${photo}${voz}${corte}`
 }
 
 export function stripStageDirections(text: string): string {

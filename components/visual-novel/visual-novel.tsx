@@ -320,11 +320,11 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
    * Se a chamada falhou DEPOIS do servidor gravar (ex.: internet caiu na volta), o turno já existe no banco.
    * Conferimos antes de mostrar erro/permitir retry, para nunca duplicar a ação do jogador.
    */
-  const recover = useCallback(async (kind: 'start' | 'turn', action: string) => {
+  const recover = useCallback(async (kind: 'start' | 'turn', action: string, fromChannel = false) => {
     try {
       const latest = await svc.loadRecentMessages(storyId, 30)
       const fresh = latest.filter((m) => m.sequence_number > lastSeqRef.current)
-      const ok = kind === 'start' ? fresh.length > 0 : fresh.some((m) => m.sender_type === 'player' && m.content === action)
+      const ok = kind === 'start' ? fresh.length > 0 : fresh.length > 0 && (fromChannel || fresh.some((m) => m.sender_type === 'player' && m.content === action))
       if (!ok) return null
       const st = await svc.loadState(storyId)
       return { messages: fresh, state: st as StoryState }
@@ -346,7 +346,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       try {
         res = kind === 'start' ? await startStory(storyId) : await sendPlayerAction(storyId, action, img, channel)
       } catch (e) {
-        const recovered = await recover(kind, action)
+        const recovered = await recover(kind, action, !!channel)
         if (!recovered) throw e
         res = recovered
       }
@@ -355,12 +355,17 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       if (kind === 'turn') {
         setInput('');
         setActionImage(null);
+        if (channel?.channel === 'tinder') setTinderInput('')
+        if (channel?.channel === 'whatsapp') setWppInput('')
+        if (channel) setPhoneImage(null)
         if (!dailyLimit.isWhitelisted) {
           setDailyLimit((prev) => ({ ...prev, used: prev.used + 1, remaining: Math.max(0, prev.remaining - 1) }))
         }
       }
     } catch (e) {
-      setError(friendlyError(e, 'O narrador não conseguiu responder. Tente novamente.'))
+      const msg = friendlyError(e, 'O narrador não conseguiu responder. Tente novamente.')
+      setError(msg)
+      if (channel) notify(msg, 'error')
     } finally { busy.current = false; setThinking(false) }
   }, [storyId, applyResponse, recover, dailyLimit, notify])
 
@@ -522,9 +527,6 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
       notify('Limite diário de 20 mensagens atingido!', 'error')
       return
     }
-    if (channel === 'tinder') setTinderInput('')
-    else setWppInput('')
-    setPhoneImage(null)
     run('turn', isolatedChatAction(channel, text.trim() || 'Olha a foto que eu mandei.', contact.relationship?.relationship_value ?? 0), image || undefined, { channel, characterId: contact.id })
   }
 
@@ -735,7 +737,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
     try { await svc.saveNarrativeMode(storyId, next) } catch { /* o dado segue na ação */ }
     if (fase === 'ouvir') {
       const kind = flow.passo === 1 ? 'uma pergunta de verdade' : 'um desafio'
-      run('turn', `Estamos no Lago Negro, só os seis. O narrador rolou um D6 e tirou ${dado}. Caiu em ${alvo}. ${alvo} faz ${kind} apelativa e constrangedora. Proibido recusar, ter vergonha que trave ou repetir algo sem graça.`)
+      run('turn', `Estamos no Lago Negro, só os seis. O narrador rolou um D6 e tirou ${dado}. Caiu em ${alvo}. ${alvo} faz ${kind} ousada, no jeito da ficha. Proibido recusar ou repetir algo comum.`)
     }
   }
 
@@ -2112,6 +2114,7 @@ export function VisualNovel({ storyId, onBack, onEdit }: { storyId: string; onBa
                     <input
                       className="tinder-text-input"
                       value={tinderInput}
+                      maxLength={1500}
                       onChange={(e) => setTinderInput(e.target.value)}
                       disabled={!dailyLimit.isWhitelisted && dailyLimit.remaining <= 0}
                       placeholder={phoneImage ? 'Foto pronta para enviar' : 'Diga algo interessante...'}
